@@ -1,0 +1,10 @@
+# Student CSV import template
+# Keep the header row unchanged. Values for sex, class, and stream are case-sensitive.
+# sex must be exactly Male or Female.
+# class must exactly match a class name configured in the system, for example Form I.
+# stream must exactly match a stream configured for the selected class, for example General.
+# optional_subject_codes is optional; use comma-separated subject codes that are Optional for that stream.
+# Compulsory subjects are assigned automatically. Leave phone and optional_subject_codes blank when not applicable.
+first_name,middle_name,last_name,sex,class,stream,phone,optional_subject_codes
+Juma,Salum,Mwakasege,Male,Form I,General,0712345678,
+Aisha,,Mushi,Female,Form I,Vocational,+255712345678,"AGR,BUS"

@@ -1,0 +1,12 @@
+# Syllabus CSV import template
+# Keep the header row unchanged. Comments starting with # are ignored.
+# subject must exactly match a subject name in the system (e.g. Mathematics).
+# form must exactly match a form name (e.g. Form One). Forms One to Four are supported.
+# Rows are grouped by main competence and specific competence; codes must be unique within their group.
+# Columns marked * are required. Leave optional ones blank when not applicable.
+# You may also import JSON: an array of objects with these keys, or {"syllabus": [...]}.
+subject,form,main_competence_code,main_competence_title,specific_competence_code,specific_competence_title,activity_code,activity_description,suggested_methods,assessment_criteria,resources,periods_allocated
+Mathematics,Form One,1,Georeferencing and orientation,1.1,Locate areas on maps,1.1.1,Identify cardinal points on a map,Map reading practical,Correctly points north,school atlas; wall map,4
+Mathematics,Form One,1,Georeferencing and orientation,1.1,Locate areas on maps,1.1.2,Measure distances using map scale,Ruler and scale exercises,Accurate conversion of distances,strip of paper; mathematical set,3
+Chemistry,Form Two,4,Chemical reactions,4.2,Observe common reactions,4.2.1,Conduct a reaction between acids and bases,Pair demonstration,Accurately records observations,laboratory reagents; worksheet,2
+Biology,Form Three,3,Transport in living things,3.5,Explain the human heart,3.5.1,Label parts of the heart,Model building,Correctly labels the chambers,heart model; chart,2
