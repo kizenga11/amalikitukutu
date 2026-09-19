@@ -19,8 +19,6 @@ import ExamManagement from "@/components/exam-management";
 import ResultPage from "@/components/result-page";
 import StudentReportCard from "@/components/student-report-card";
 import CompareResults from "@/components/compare-results";
-import LessonPlanPage from "@/components/lesson-plan-generator";
-import SyllabusManager from "@/components/syllabus-manager";
 import { StatCardSkeleton, PanelSkeleton } from "@/components/loading";
 import { fetchAcademicSettings, fetchDashboardData, fetchSchoolInfo, saveAcademicSettings, saveSchoolInfo, type DashboardData, type SchoolInfo } from "@/lib/school-api";
 import { DEFAULT_SCHOOL_INFO } from "@/lib/school-api";
@@ -63,15 +61,13 @@ const icons = {
   trendUp: <Icon paths={<><path d="m22 7-8.5 8.5-5-5L2 17" /><path d="M16 7h6v6" /></>} />,
   trendDown: <Icon paths={<><path d="m22 17-8.5-8.5-5 5L2 7" /><path d="M16 17h6v-6" /></>} />,
   check: <Icon paths={<><path d="M20 6 9 17l-5-5" /></>} />,
-  lessonplans: <Icon paths={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></>} />,
-  syllabus: <Icon paths={<><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></>} />,
 };
 
-type NavKey = "dashboard" | "students" | "staff" | "classes" | "academic" | "reports" | "reportcard" | "compare" | "exams" | "lessonplans" | "syllabus" | "settings";
+type NavKey = "dashboard" | "students" | "staff" | "classes" | "academic" | "reports" | "reportcard" | "compare" | "exams" | "settings";
 
 function isNavKey(value: unknown): value is NavKey {
   return typeof value === "string" && [
-    "dashboard", "students", "staff", "classes", "academic", "reports", "reportcard", "compare", "exams", "lessonplans", "syllabus", "settings",
+    "dashboard", "students", "staff", "classes", "academic", "reports", "reportcard", "compare", "exams", "settings",
   ].includes(value);
 }
 
@@ -81,8 +77,6 @@ const navItems: { key: NavKey; label: string; icon: React.ReactNode }[] = [
   { key: "staff", label: "Staff", icon: icons.staff },
   { key: "classes", label: "Classes", icon: icons.classes },
   { key: "academic", label: "Academic", icon: icons.academic },
-  { key: "lessonplans", label: "Lesson Plans", icon: icons.lessonplans },
-  { key: "syllabus", label: "Syllabus", icon: icons.syllabus },
   { key: "reports", label: "Result", icon: icons.reports },
   { key: "reportcard", label: "Report Card", icon: icons.reportcard },
   { key: "compare", label: "Compare", icon: icons.compare },
@@ -91,9 +85,9 @@ const navItems: { key: NavKey; label: string; icon: React.ReactNode }[] = [
 ];
 
 const roleAccess: Record<Role, NavKey[]> = {
-  Headmaster: ["dashboard", "students", "staff", "classes", "academic", "lessonplans", "syllabus", "reports", "reportcard", "compare", "exams", "settings"],
-  Academic: ["dashboard", "students", "staff", "classes", "academic", "lessonplans", "syllabus", "reports", "reportcard", "compare", "exams", "settings"],
-  Teacher: ["dashboard", "lessonplans", "exams", "reports", "reportcard", "compare"],
+  Headmaster: ["dashboard", "students", "staff", "classes", "academic", "reports", "reportcard", "compare", "exams", "settings"],
+  Academic: ["dashboard", "students", "staff", "classes", "academic", "reports", "reportcard", "compare", "exams", "settings"],
+  Teacher: ["dashboard", "exams", "reports", "reportcard", "compare"],
 };
 
 type Period = StoredPeriod;
@@ -242,8 +236,6 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "students" && <StudentsManagement />}
           {effectiveActive === "staff" && <TeachersManagement />}
           {effectiveActive === "exams" && <ExamManagement teacherId={role === "Teacher" ? user.id : undefined} />}
-          {effectiveActive === "lessonplans" && <LessonPlanPage authUserId={user.id} role={role} />}
-          {effectiveActive === "syllabus" && <SyllabusManager />}
           {effectiveActive === "reports" && <ResultPage role={role} />}
           {effectiveActive === "reportcard" && <StudentReportCard />}
           {effectiveActive === "compare" && <CompareResults />}
