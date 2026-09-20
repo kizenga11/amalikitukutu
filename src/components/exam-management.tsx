@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   deleteExam,
   fetchClassesWithStreams,
@@ -408,6 +408,13 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
     });
   }
 
+  // Mark entry is Theory+Practical only when BOTH the exam and the subject
+  // allow practical marks. Otherwise the subject uses a single 0-100 theory
+  // mark (this is how legacy / non-practical exams store their marks).
+  function splitSubject(subj: { has_practical: boolean }): boolean {
+    return (viewExam?.has_practical ?? false) && subj.has_practical;
+  }
+
   function studentTotal(studentId: string, subjList: { id: string; has_practical: boolean }[]): string {
     if (!selectedClassId) return "—";
     let sum = 0;
@@ -486,7 +493,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
           continue;
         }
 
-        if (subj.has_practical) {
+        if (splitSubject(subj)) {
           const tv = theoryRaw === "" ? null : Number(theoryRaw);
           const pv = practicalRaw === "" ? null : Number(practicalRaw);
           if (tv !== null && (!Number.isFinite(tv) || tv < 0 || tv > 50)) {
@@ -790,29 +797,34 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
           ════════════════════════════════════════════════════════ */}
       {viewExam && (
         <>
-          <div className="page-head">
+          <div className="page-head me-view-head">
             <div>
               <button className="cm-btn cm-btn--ghost cm-btn--sm me-back-btn" onClick={exitMarks}>
                 {'\u2190'} Back
               </button>
-              <h2 className="page-title" style={{ marginTop: ".3rem" }}>{viewExam.name}</h2>
+              <h2 className="page-title">{viewExam.name}</h2>
               <p className="page-sub">{formatDate(viewExam.start_date)} \u2192 {formatDate(viewExam.end_date)} \u00B7 <span className={`ex-status ex-status--${viewExam.status}`}>{statusLabels[viewExam.status]}</span></p>
+            </div>
+            <div className="me-view-stats">
+              <div className="me-view-stat"><span>{marksDetail ? marksDetail.classes.length : availableClasses.length}</span><label>Classes</label></div>
+              <div className="me-view-stat"><span>{gridStudents.length}</span><label>Students</label></div>
+              <div className="me-view-stat"><span>{selectedSubjectIds.length || gridSubjects.length}</span><label>Subjects</label></div>
             </div>
           </div>
 
           {/* ── Step indicator ── */}
-          <div className="me-steps">
+          <ol className="me-steps">
             {(["class", "stream", "subjects", "grid"] as MarksStep[]).map((step, i) => {
               const active = marksStep === step;
               const done = (["class", "stream", "subjects", "grid"] as MarksStep[]).indexOf(marksStep) > i;
               return (
-                <div key={step} className={`me-step${active ? " me-step--active" : ""}${done ? " me-step--done" : ""}`}>
+                <li key={step} className={`me-step${active ? " me-step--active" : ""}${done ? " me-step--done" : ""}${i + 1 === 4 ? " me-step--last" : ""}`}>
                   <span className="me-step-num">{done ? "\u2713" : i + 1}</span>
                   <span className="me-step-label">{stepLabels[step]}</span>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ol>
 
           {marksLoading ? (
             <div className="me-loading"><Spinner size={20} /></div>
@@ -892,8 +904,8 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                           <input type="checkbox" checked={checked} onChange={() => toggleSubjectSelection(s.id)} />
                           <span className="me-subject-code">{s.code}</span>
                           <span className="me-subject-name">{s.name}</span>
-                          {s.has_practical && <span className="me-subject-tag">Theory 50 + Prac 50</span>}
-                          {!s.has_practical && <span className="me-subject-tag me-subject-tag--theory">Theory 100</span>}
+                          {splitSubject(s) && <span className="me-subject-tag">Theory 50 + Prac 50</span>}
+                          {!splitSubject(s) && <span className="me-subject-tag me-subject-tag--theory">Theory 100</span>}
                         </label>
                       );
                     })}
@@ -911,6 +923,28 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
               {/* ── STEP: Marks Grid ── */}
               {marksStep === "grid" && activeClassRow && (
                 <>
+                  {/* Grid context summary */}
+                  <div className="ex-grid-summary">
+                    <div className="ex-grid-summary-main">
+                      <span className="ex-grid-chip">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                        <span>{activeClassRow.class_name}</span>
+                      </span>
+                      {selectedStreamId !== null && (
+                        <span className="ex-grid-chip">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg>
+                          <span>{activeStreams.find((s) => s.id === selectedStreamId)?.name ?? "Stream"}</span>
+                        </span>
+                      )}
+                      {gridSubjects.filter((s) => selectedSubjectIds.includes(s.id)).map((subj) => (
+                        <span key={subj.id} className={`ex-grid-chip ${splitSubject(subj) ? "ex-grid-chip--prac" : "ex-grid-chip--theory"}`}>
+                          {subj.code}{splitSubject(subj) ? " (TP)" : ""}
+                        </span>
+                      ))}
+                    </div>
+                    <span className="ex-grid-count">{gridStudents.length} students</span>
+                  </div>
+
                   {/* Stream tabs */}
                   {activeStreams.length > 1 && (
                     <div className="ex-tabs ex-tabs--streams">
@@ -931,13 +965,13 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                           <th className="ex-col-student">Student</th>
                           <th className="ex-col-absent">Absent</th>
                           {gridSubjects.filter((s) => selectedSubjectIds.includes(s.id)).map((s) => (
-                            s.has_practical ? (
+                            splitSubject(s) ? (
                               <th key={`${s.id}-t`} title={`${s.name} \u2014 Theory`} className="ex-col-score ex-col-theory">{s.code} T</th>
                             ) : (
                               <th key={s.id} title={s.name} className="ex-col-score">{s.code}</th>
                             )
                           ))}
-                          {gridSubjects.filter((s) => selectedSubjectIds.includes(s.id) && s.has_practical).map((s) => (
+                          {gridSubjects.filter((s) => splitSubject(s) && selectedSubjectIds.includes(s.id)).map((s) => (
                             <th key={`${s.id}-p`} title={`${s.name} \u2014 Practical`} className="ex-col-score ex-col-prac">{s.code} P</th>
                           ))}
                           <th className="ex-col-avg">Total</th>
@@ -945,7 +979,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                       </thead>
                       <tbody>
                         {pagedStudents.length === 0 && (
-                          <tr><td colSpan={gridSubjects.filter((s) => selectedSubjectIds.includes(s.id)).length * 2 + 4} className="sm-empty">No students found.</td></tr>
+                          <tr><td colSpan={gridSubjects.filter((s) => selectedSubjectIds.includes(s.id)).length + gridSubjects.filter((s) => splitSubject(s) && selectedSubjectIds.includes(s.id)).length + 4} className="sm-empty">No students found.</td></tr>
                         )}
                         {pagedStudents.map((st, idx) => {
                           const isAbs = absent[selectedClassId!]?.[st.student_id] ?? false;
@@ -954,7 +988,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                             <tr key={st.student_id} className={isAbs ? "ex-row-absent" : ""}>
                               <td className="ex-col-num">{(safeMarksPage - 1) * MARKS_PAGE_SIZE + idx + 1}</td>
                               <td className="ex-col-student">
-                                <span className="ex-student-name">{st.last_name}, {st.first_name}{st.middle_name ? ` ${st.middle_name}` : ""}</span>
+                                <span className="ex-student-name">{st.first_name} {st.last_name}</span>
                                 {selectedStreamId === null && st.stream_id && <span className="ex-stream-tag">{st.stream_name}</span>}
                               </td>
                               <td className="ex-col-absent">
@@ -967,9 +1001,9 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                                 st.subjects.includes(subj.id) ? (
                                   <td className="ex-col-score" key={subj.id}>
                                     <input
-                                      className={`ex-score-input${isAbs ? " ex-score-input--disabled" : ""}`}
-                                      type="number" min={0} max={subj.has_practical ? 50 : 100} step="any"
-                                      placeholder={subj.has_practical ? "0-50" : "0-100"}
+                                      className={`ex-score-input${isAbs ? " ex-score-input--disabled" : ""}${scores[selectedClassId!]?.[st.student_id]?.[subj.id]?.theory?.trim() ? " ex-score-input--filled" : ""}`}
+                                      type="number" min={0} max={splitSubject(subj) ? 50 : 100} step="any"
+                                      placeholder={splitSubject(subj) ? "0-50" : "0-100"}
                                       value={scores[selectedClassId!]?.[st.student_id]?.[subj.id]?.theory ?? ""}
                                       disabled={isAbs}
                                       onChange={(e) => setScoreCell(st.student_id, subj.id, "theory", e.target.value)}
@@ -979,11 +1013,11 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                                   <td className="ex-col-score ex-na" key={subj.id}>\u2014</td>
                                 )
                               ))}
-                              {displaySubjects.filter((s) => s.has_practical).map((subj) => (
+                              {displaySubjects.filter((s) => splitSubject(s)).map((subj) => (
                                 st.subjects.includes(subj.id) ? (
                                   <td className="ex-col-score ex-col-prac" key={`${subj.id}-p`}>
                                     <input
-                                      className={`ex-score-input ex-score-input--prac${isAbs ? " ex-score-input--disabled" : ""}`}
+                                      className={`ex-score-input ex-score-input--prac${isAbs ? " ex-score-input--disabled" : ""}${scores[selectedClassId!]?.[st.student_id]?.[subj.id]?.practical?.trim() ? " ex-score-input--filled" : ""}`}
                                       type="number" min={0} max={50} step="any" placeholder="0-50"
                                       value={scores[selectedClassId!]?.[st.student_id]?.[subj.id]?.practical ?? ""}
                                       disabled={isAbs}
@@ -994,7 +1028,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                                   <td className="ex-col-score ex-col-prac ex-na" key={`${subj.id}-p`}>\u2014</td>
                                 )
                               ))}
-                              <td className="ex-col-avg">{isAbs ? "ABSENT" : studentTotal(st.student_id, displaySubjects)}</td>
+                              <td className="ex-col-avg">{isAbs ? <span className="ex-total-absent">ABS</span> : <span className="ex-total-value">{studentTotal(st.student_id, displaySubjects)}</span>}</td>
                             </tr>
                           );
                         })}
@@ -1018,7 +1052,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                   <div className="ex-quickfill-row">
                     <span className="ex-quickfill-label">Quick-fill column:</span>
                     {gridSubjects.filter((s) => selectedSubjectIds.includes(s.id)).map((subj) => (
-                      subj.has_practical ? (
+                      splitSubject(subj) ? (
                         <span key={`${subj.id}-fill`} className="ex-quickfill-group">
                           <span className="ex-quickfill-code">{subj.code} T</span>
                           <input className="ex-quickfill-input" type="number" min={0} max={50} placeholder="0-50"
@@ -1059,7 +1093,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                   <div className="ex-marks-footer">
                     <div className="ex-marks-hint-group">
                       <span className="ex-marks-hint">
-                        {gridSubjects.filter((s) => selectedSubjectIds.includes(s.id)).some((s) => s.has_practical)
+                        {gridSubjects.filter((s) => selectedSubjectIds.includes(s.id)).some((s) => splitSubject(s))
                           ? "Practical subjects: Theory (0-50) + Practical (0-50). Theory-only: (0-100)."
                           : "Enter scores 0-100. Blank cells are skipped."}
                       </span>

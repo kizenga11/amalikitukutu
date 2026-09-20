@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   deleteTeacher,
+  deleteTeachers,
   fetchClassesWithStreams,
   fetchSubjects,
   fetchTeachers,
@@ -92,6 +93,8 @@ export default function TeachersManagement() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<TeacherForm>(emptyForm());
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   const [assignTarget, setAssignTarget] = useState<DbTeacherRow | null>(null);
   const [assignDrafts, setAssignDrafts] = useState<AssignmentDraft[]>([]);
@@ -259,6 +262,42 @@ export default function TeachersManagement() {
       else setPage(1);
     } catch {
       showToast("warning", "Database unavailable. Teacher not saved.");
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]);
+  }
+
+  function toggleSelectAll() {
+    if (!teachers.length) return;
+    setSelectedIds((prev) => prev.length === teachers.length ? [] : teachers.map((row) => row.id));
+  }
+
+  async function handleBulkDelete() {
+    if (!selectedIds.length || saving) return;
+    const ids = [...selectedIds];
+    setSaving("delete");
+    try {
+      for (const id of ids) {
+        try {
+          await fetch("/api/teacher-account", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ staffId: id }),
+          });
+        } catch {}
+      }
+      await deleteTeachers(ids);
+      showToast("success", `${ids.length} teacher(s) deleted.`);
+      setSelectedIds([]);
+      setBulkDeleteConfirm(false);
+      if (teachers.length === ids.length && page > 1) setPage(page - 1);
+      else await loadPage();
+    } catch {
+      showToast("warning", "Database unavailable. Selected teachers not deleted.");
     } finally {
       setSaving(null);
     }
@@ -449,6 +488,11 @@ export default function TeachersManagement() {
         </div>
         <div className="page-head-right">
           {total > 0 && <span className="active-chip">{total.toLocaleString()} Teachers</span>}
+          {selectedIds.length > 0 && (
+            <button className="cm-btn cm-btn--danger cm-btn--sm" onClick={() => setBulkDeleteConfirm(true)} disabled={saving !== null}>
+              Delete selected ({selectedIds.length})
+            </button>
+          )}
           <button className="sm-add-btn" onClick={openNew}>+ Register Teacher</button>
         </div>
       </div>
@@ -482,6 +526,14 @@ export default function TeachersManagement() {
           <table className="sm-table">
             <thead>
               <tr>
+                <th style={{ width: 42 }}>
+                  <input
+                    type="checkbox"
+                    checked={teachers.length > 0 && selectedIds.length === teachers.length}
+                    onChange={toggleSelectAll}
+                    aria-label="Select all teachers"
+                  />
+                </th>
                 <th>Teacher</th>
                 <th>Sex</th>
                 <th>Phone</th>
@@ -492,10 +544,18 @@ export default function TeachersManagement() {
             </thead>
             <tbody>
               {teachers.length === 0 && (
-                <tr><td colSpan={6} className="sm-empty">No teachers registered yet.</td></tr>
+                <tr><td colSpan={7} className="sm-empty">No teachers registered yet.</td></tr>
               )}
               {teachers.map((row) => (
                 <tr key={row.id}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(row.id)}
+                      onChange={() => toggleSelect(row.id)}
+                      aria-label={`Select ${teacherName(row)}`}
+                    />
+                  </td>
                   <td>
                     <div className="st-student">
                       <span className={`st-avatar${row.gender === "Female" ? " st-avatar--female" : ""}`}>
@@ -662,6 +722,21 @@ export default function TeachersManagement() {
               <button className="cm-btn cm-btn--ghost" disabled={saving !== null} onClick={() => setDeleteConfirm(null)}>Cancel</button>
               <button className={`cm-btn cm-btn--danger${saving === "delete" ? " btn-loading" : ""}`} disabled={saving !== null} onClick={() => handleDelete(deleteConfirm)}>
                 {saving === "delete" ? <><Spinner size={14} /> Deleting{'\u2026'}</> : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteConfirm && selectedIds.length > 0 && (
+        <div className="cm-modal-backdrop" onClick={() => setBulkDeleteConfirm(false)}>
+          <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="cm-modal-title">Delete selected teachers</h3>
+            <p className="cm-modal-text">Are you sure you want to delete {selectedIds.length} selected teacher record(s)? This action cannot be undone.</p>
+            <div className="cm-modal-actions">
+              <button className="cm-btn cm-btn--ghost" disabled={saving !== null} onClick={() => setBulkDeleteConfirm(false)}>Cancel</button>
+              <button className={`cm-btn cm-btn--danger${saving === "delete" ? " btn-loading" : ""}`} disabled={saving !== null} onClick={handleBulkDelete}>
+                {saving === "delete" ? <><Spinner size={14} /> Deleting{'\u2026'}</> : "Delete Selected"}
               </button>
             </div>
           </div>

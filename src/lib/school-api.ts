@@ -399,6 +399,12 @@ export async function deleteStudent(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function deleteStudents(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const { error } = await supabase.from("students").delete().in("id", ids);
+  if (error) throw error;
+}
+
 // ---------------------------------------------------------------
 // Students — Subject assignments
 // ---------------------------------------------------------------
@@ -551,6 +557,12 @@ export async function updateTeacher(id: string, input: TeacherInput): Promise<Db
 
 export async function deleteTeacher(id: string): Promise<void> {
   const { error } = await supabase.from("staff").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteTeachers(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const { error } = await supabase.from("staff").delete().in("id", ids);
   if (error) throw error;
 }
 

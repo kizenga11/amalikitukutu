@@ -18,9 +18,9 @@ export interface DivisionRange {
 }
 
 export interface CompetencyThreshold {
-  // Mean grade-points ceiling for this label; null = catch-all for
-  // everything above the last explicit ceiling.
-  maxMean: number | null;
+  // Minimum average score (percentage) at or above which this label
+  // applies; null = catch-all for everything below the last explicit minimum.
+  minScore: number | null;
   label: string;
 }
 
@@ -46,14 +46,15 @@ export const DEFAULT_DIVISION_RANGES: DivisionRange[] = [
   { min: 34, max: null, division: "Division 0" },
 ];
 
-// Mean grade-points ceilings used for the competency labels shown on
+// Minimum average-score thresholds used for the competency labels shown on
 // the official-style report. Evaluated top-down.
 export const DEFAULT_COMPETENCY_THRESHOLDS: CompetencyThreshold[] = [
-  { maxMean: 1.5, label: "Excellent" },
-  { maxMean: 2.0, label: "Very Good" },
-  { maxMean: 2.5, label: "Good" },
-  { maxMean: 3.0, label: "Average" },
-  { maxMean: null, label: "Below Average" },
+  { minScore: 90, label: "Excellent" },
+  { minScore: 75, label: "Very Good" },
+  { minScore: 65, label: "Good" },
+  { minScore: 54, label: "Average" },
+  { minScore: 30, label: "Unsatisfactory" },
+  { minScore: null, label: "Fail" },
 ];
 
 // A candidate qualifies for a division only once this many
@@ -78,12 +79,16 @@ export function computeGradeAndPoints(
   score: number,
   boundaries: GradeBoundary[] = DEFAULT_GRADE_BOUNDARIES,
 ): { grade: string; points: number } {
+  let best: GradeBoundary | null = null;
   for (const b of boundaries) {
-    if (score >= b.min && score <= b.max) return { grade: b.grade, points: b.points };
+    if (score >= b.min && (best === null || b.min > best.min)) best = b;
   }
-  const fallback = boundaries[boundaries.length - 1];
-  if (!fallback) return { grade: "F", points: 5 };
-  return { grade: fallback.grade, points: fallback.points };
+  if (!best) {
+    const fallback = boundaries[boundaries.length - 1];
+    if (!fallback) return { grade: "F", points: 5 };
+    return { grade: fallback.grade, points: fallback.points };
+  }
+  return { grade: best.grade, points: best.points };
 }
 
 export interface SubjectResult {
@@ -213,6 +218,18 @@ export interface ClassResults {
   students: StudentResult[];
 }
 
+// Students who appear in the marks payload for an exam. Used to exclude anyone
+// who was simply not part of that exam (e.g. a student registered later, or who
+// never sat it) from that exam's results.
+export function examParticipantIds(marks: Record<string, MarksCellInput>): Set<string> {
+  const ids = new Set<string>();
+  for (const key of Object.keys(marks)) {
+    const studentId = key.slice(0, key.lastIndexOf("|"));
+    if (studentId) ids.add(studentId);
+  }
+  return ids;
+}
+
 export function buildClassResults(
   classRow: {
     class_id: string;
@@ -224,36 +241,47 @@ export function buildClassResults(
   gradeBoundaries: GradeBoundary[] = DEFAULT_GRADE_BOUNDARIES,
   divisionRanges: DivisionRange[] = DEFAULT_DIVISION_RANGES,
 ): ClassResults {
-  const students = classRow.students.map((st) => {
-    const scored: ScoredSubjectInput[] = [];
-    for (const subj of classRow.subjects) {
-      if (!st.subjects.includes(subj.id)) continue;
-      const cell = marks[`${st.student_id}|${subj.id}`];
-      scored.push({
-        subject_id: subj.id,
-        subject_code: subj.code,
-        subject_name: subj.name,
-        has_practical: subj.has_practical,
-        theory: cell?.theory ?? null,
-        practical: cell?.practical ?? null,
-        is_absent: cell?.is_absent ?? false,
-      });
-    }
-    return computeStudentResult(
-      {
-        student_id: st.student_id,
-        first_name: st.first_name,
-        middle_name: st.middle_name,
-        last_name: st.last_name,
-        gender: st.gender,
-        stream_id: st.stream_id,
-        stream_name: st.stream_name,
-      },
-      scored,
-      gradeBoundaries,
-      divisionRanges,
-    );
-  });
+  const participants = examParticipantIds(marks);
+  const students = classRow.students
+    .filter((st) => participants.has(st.student_id))
+    .map((st) => {
+      const scored: ScoredSubjectInput[] = [];
+      for (const subj of classRow.subjects) {
+        const cell = marks[`${st.student_id}|${subj.id}`];
+        // A subject counts towards the exam when the student is currently
+        // enrolled in it OR has an actual stored score/absence for it. The
+        // second arm preserves marks recorded for subjects the student no
+        // longer takes (e.g. legacy exams) instead of silently dropping them
+        // and flipping the student to INC.
+        const enrolled = st.subjects.includes(subj.id);
+        const hasMark =
+          !!cell && (cell.theory !== null || cell.practical !== null || cell.is_absent);
+        if (!enrolled && !hasMark) continue;
+        scored.push({
+          subject_id: subj.id,
+          subject_code: subj.code,
+          subject_name: subj.name,
+          has_practical: subj.has_practical,
+          theory: cell?.theory ?? null,
+          practical: cell?.practical ?? null,
+          is_absent: cell?.is_absent ?? false,
+        });
+      }
+      return computeStudentResult(
+        {
+          student_id: st.student_id,
+          first_name: st.first_name,
+          middle_name: st.middle_name,
+          last_name: st.last_name,
+          gender: st.gender,
+          stream_id: st.stream_id,
+          stream_name: st.stream_name,
+        },
+        scored,
+        gradeBoundaries,
+        divisionRanges,
+      );
+    });
   return { class_id: classRow.class_id, class_name: classRow.class_name, subjects: classRow.subjects, students };
 }
 
@@ -310,11 +338,14 @@ function divisionCode(division: string, incomplete: boolean): string {
   return match ? match[1] : "—";
 }
 
-export function competencyLabel(meanPoints: number | null, thresholds: CompetencyThreshold[]): string {
-  if (meanPoints === null || thresholds.length === 0) return "—";
+export function competencyLabel(
+  score: number | null,
+  thresholds: CompetencyThreshold[],
+): string {
+  if (score === null || thresholds.length === 0) return "—";
   for (const t of thresholds) {
-    if (t.maxMean === null) return t.label;
-    if (meanPoints <= t.maxMean) return t.label;
+    if (t.minScore === null) return t.label;
+    if (score >= t.minScore) return t.label;
   }
   return thresholds[thresholds.length - 1]?.label ?? "—";
 }
@@ -477,7 +508,7 @@ export function buildSchoolReport(
       avg,
       grade: avg !== null ? computeGradeAndPoints(avg, opts.gradeBoundaries).grade : "—",
       gpa,
-      competency: competencyLabel(gpa, opts.competencyThresholds),
+      competency: competencyLabel(avg, opts.competencyThresholds),
     });
   }
   subjects.sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1) || a.subject_name.localeCompare(b.subject_name));

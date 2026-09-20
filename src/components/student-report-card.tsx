@@ -8,6 +8,7 @@ import {
   DEFAULT_COMPETENCY_THRESHOLDS,
   DEFAULT_DIVISION_RANGES,
   DEFAULT_GRADE_BOUNDARIES,
+  examParticipantIds,
   type GradingSettings,
 } from "@/lib/grading";
 import {
@@ -152,7 +153,7 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
   const gpa = row.gpa;
   const avg = row.avg;
   const classSize = report.summary.students;
-  const fullName = `${row.student.last_name}, ${row.student.first_name}${row.student.middle_name ? ` ${row.student.middle_name}` : ""}`;
+  const fullName = `${row.student.first_name}${row.student.middle_name ? ` ${row.student.middle_name}` : ""} ${row.student.last_name}`;
   const firstName = row.student.first_name;
   const streamName = student.stream_name === "—" ? "Haijafungwa" : student.stream_name;
   const issueDate = shortDate(new Date().toISOString());
@@ -213,6 +214,8 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
           <thead>
             <tr>
               <th>MASOMO</th>
+              {exam.has_practical && <th>NADHARIA</th>}
+              {exam.has_practical && <th>VITENDO</th>}
               <th>ALAMA</th>
               <th>DARAJA</th>
               <th>POINTI</th>
@@ -220,15 +223,20 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
             </tr>
           </thead>
           <tbody>
-            {row.student.subjects.map((subject) => (
-              <tr key={subject.subject_id}>
-                <td className="rc-left">{subject.subject_name}</td>
-                <td>{subject.total_score === null ? "ABS" : subject.total_score}</td>
-                <td>{subject.grade}</td>
-                <td>{subject.points}</td>
-                <td>{remarkFor(subject.grade)}</td>
-              </tr>
-            ))}
+            {row.student.subjects.map((subject) => {
+              const cell = marks.marks[`${student.student_id}|${subject.subject_id}`];
+              return (
+                <tr key={subject.subject_id}>
+                  <td className="rc-left">{subject.subject_name}</td>
+                  {exam.has_practical && <td>{subject.total_score === null ? "—" : (cell?.theory ?? "—")}</td>}
+                  {exam.has_practical && <td>{subject.total_score === null ? "—" : (cell?.practical ?? "—")}</td>}
+                  <td>{subject.total_score === null ? "ABS" : subject.total_score}</td>
+                  <td>{subject.grade}</td>
+                  <td>{subject.points}</td>
+                  <td>{remarkFor(subject.grade)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </section>
@@ -404,8 +412,16 @@ export default function StudentReportCard() {
 
   const currentData = selectedExamId ? marksByExam[selectedExamId] : null;
   const currentClass = currentData?.classes.find((item) => item.class_id === selectedClassId) ?? currentData?.classes[0];
-  const currentStudent = currentClass?.students.find((item) => item.student_id === selectedStudentId) ?? currentClass?.students[0];
   const currentExam = exams.find((item) => item.id === selectedExamId);
+  const participants = useMemo(
+    () => (currentData ? examParticipantIds(currentData.marks) : new Set<string>()),
+    [currentData],
+  );
+  const classStudents = useMemo(
+    () => (currentClass?.students ?? []).filter((s) => participants.has(s.student_id)),
+    [currentClass, participants],
+  );
+  const currentStudent = classStudents.find((item) => item.student_id === selectedStudentId) ?? classStudents[0];
   const marksLoading = exams.length > 0 && Object.keys(marksByExam).length < exams.length;
 
   const reportReady = useMemo(() => {
@@ -457,7 +473,7 @@ export default function StudentReportCard() {
         </label>
         <label className="res-field"><span className="res-field-label">Mwanafunzi</span>
           <select className="res-select" value={currentStudent?.student_id ?? ""} onChange={(event) => setSelectedStudentId(event.target.value)}>
-            {currentClass.students.map((item) => <option key={item.student_id} value={item.student_id}>{item.last_name}, {item.first_name}</option>)}
+            {classStudents.map((item) => <option key={item.student_id} value={item.student_id}>{item.first_name} {item.last_name}</option>)}
           </select>
         </label>
         <label className="res-field">
@@ -497,7 +513,7 @@ export default function StudentReportCard() {
           )}
           {printAll && (
             <div className="rc-print-all">
-              {currentClass.students.map((student) => (
+              {classStudents.map((student) => (
                 <div className="rc-sheet" key={student.student_id}>
                   <CardSheet
                     marks={currentData}

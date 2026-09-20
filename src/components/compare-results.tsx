@@ -255,7 +255,7 @@ export default function CompareResults() {
       const trend: Trend = !previous ? "new" : delta === null ? "same" : delta > 0 ? "up" : delta < 0 ? "down" : "same";
       return {
         student_id: row.student.student_id,
-        fullName: `${row.student.last_name}, ${row.student.first_name}${row.student.middle_name ? ` ${row.student.middle_name}` : ""}`,
+        fullName: `${row.student.first_name}${row.student.middle_name ? ` ${row.student.middle_name}` : ""} ${row.student.last_name}`,
         className: studentClassMap.get(row.student.student_id) ?? "—",
         streamName: row.student.stream_name === "—" ? "Unassigned" : row.student.stream_name,
         gender: genderLabel(row.student.gender),

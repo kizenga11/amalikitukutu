@@ -338,7 +338,7 @@ export default function ResultsManagement({ role }: { role?: string }) {
                             <td className="res-col-rank">{item.rank === 0 ? "\u2014" : `#${item.rank}`}</td>
                             <td className="res-col-student">
                               <div className="res-student-name">
-                                {st.last_name}, {st.first_name}
+                                {st.first_name} {st.last_name}
                                 {st.middle_name ? ` ${st.middle_name}` : ""}
                               </div>
                               <div className="res-student-meta">

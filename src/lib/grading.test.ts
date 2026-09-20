@@ -93,8 +93,14 @@ describe("computeGradeAndPoints", () => {
     expect(computeGradeAndPoints(0).grade).toBe("F");
   });
 
-  it("falls back to the last boundary for out-of-range scores", () => {
-    expect(computeGradeAndPoints(150)).toEqual({ grade: "F", points: 5 });
+  it("grades fractional scores that fall between boundary windows using the applicable minimum", () => {
+    expect(computeGradeAndPoints(64.125).grade).toBe("C");
+    expect(computeGradeAndPoints(74.5).grade).toBe("B");
+    expect(computeGradeAndPoints(29.5).grade).toBe("F");
+  });
+
+  it("falls back to the last boundary for scores below all bounds", () => {
+    expect(computeGradeAndPoints(-5)).toEqual({ grade: "F", points: 5 });
   });
 });
 
@@ -187,6 +193,75 @@ describe("buildClassResults", () => {
     expect(classResult.students[1].subjects).toHaveLength(1);
     expect(classResult.students[1].division).toBe("Incomplete");
   });
+
+  it("excludes students who have no recorded marks for the exam at all", () => {
+    const subjects: ClassSubjectsInput[] = [
+      { id: "m", code: "M", name: "Maths", has_practical: false },
+      { id: "e", code: "E", name: "English", has_practical: false },
+    ];
+    const res = buildClassResults(
+      {
+        class_id: "c1",
+        class_name: "Form 1A",
+        subjects,
+        students: [
+          { student_id: "sa", first_name: "Amina", middle_name: null, last_name: "Sule", gender: "Male", stream_id: null, stream_name: "", subjects: ["m", "e"] },
+          { student_id: "sc", first_name: "Chipa", middle_name: null, last_name: "Omary", gender: "Female", stream_id: null, stream_name: "", subjects: ["m", "e"] },
+        ],
+      },
+      { "sa|m": { theory: 80, practical: null, is_absent: false } },
+    );
+    expect(res.students).toHaveLength(1);
+    expect(res.students[0].student_id).toBe("sa");
+  });
+
+  it("keeps recorded marks for subjects a student no longer takes", () => {
+    const subjects: ClassSubjectsInput[] = [
+      { id: "m", code: "M", name: "Maths", has_practical: false },
+      { id: "e", code: "E", name: "English", has_practical: false },
+    ];
+    const res = buildClassResults(
+      {
+        class_id: "c1",
+        class_name: "Form 1A",
+        subjects,
+        students: [
+          { student_id: "sa", first_name: "Amina", middle_name: null, last_name: "Sule", gender: "Male", stream_id: null, stream_name: "", subjects: ["m"] },
+        ],
+      },
+      {
+        "sa|m": { theory: 80, practical: null, is_absent: false },
+        "sa|e": { theory: 70, practical: null, is_absent: false },
+      },
+    );
+    const st = res.students[0];
+    expect(st.subjects).toHaveLength(2);
+    const english = st.subjects.find((s) => s.subject_id === "e");
+    expect(english?.total_score).toBe(70);
+    expect(english?.grade).toBe("B");
+    expect(st.division).toBe("Incomplete");
+  });
+
+  it("does not list subjects with neither an enrollment nor a stored mark", () => {
+    const subjects: ClassSubjectsInput[] = [
+      { id: "m", code: "M", name: "Maths", has_practical: false },
+      { id: "e", code: "E", name: "English", has_practical: false },
+      { id: "g", code: "G", name: "Geography", has_practical: false },
+    ];
+    const res = buildClassResults(
+      {
+        class_id: "c1",
+        class_name: "Form 1A",
+        subjects,
+        students: [
+          { student_id: "sa", first_name: "Amina", middle_name: null, last_name: "Sule", gender: "Male", stream_id: null, stream_name: "", subjects: ["m"] },
+        ],
+      },
+      { "sa|m": { theory: 80, practical: null, is_absent: false } },
+    );
+    expect(res.students[0].subjects).toHaveLength(1);
+    expect(res.students[0].subjects[0].subject_id).toBe("m");
+  });
 });
 
 describe("rankResults", () => {
@@ -269,13 +344,18 @@ describe("buildSchoolReport", () => {
 });
 
 describe("competencyLabel", () => {
-  it("labels mean points against the competency thresholds", () => {
+  it("labels subject average scores against the competency thresholds", () => {
     expect(competencyLabel(null, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("—");
-    expect(competencyLabel(1.5, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Excellent");
-    expect(competencyLabel(1.6, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Very Good");
-    expect(competencyLabel(2.0, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Very Good");
-    expect(competencyLabel(2.3, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Good");
-    expect(competencyLabel(3.0, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Average");
-    expect(competencyLabel(3.1, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Below Average");
+    expect(competencyLabel(90, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Excellent");
+    expect(competencyLabel(95, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Excellent");
+    expect(competencyLabel(89.5, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Very Good");
+    expect(competencyLabel(75, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Very Good");
+    expect(competencyLabel(65, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Good");
+    expect(competencyLabel(60, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Average");
+    expect(competencyLabel(54, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Average");
+    expect(competencyLabel(45, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Unsatisfactory");
+    expect(competencyLabel(30, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Unsatisfactory");
+    expect(competencyLabel(29, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Fail");
+    expect(competencyLabel(0, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Fail");
   });
 });

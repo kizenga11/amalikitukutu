@@ -10,6 +10,11 @@ function yTicks(max: number) {
   return [1, 0.66, 0.33, 0].map((f) => Math.round(max * f));
 }
 
+function niceMax(values: number[]): number {
+  const max = Math.max(...values);
+  return Number.isFinite(max) && max > 0 ? max : 1;
+}
+
 export function BarChart({
   data,
   highlight = -1,
@@ -22,17 +27,17 @@ export function BarChart({
   const padL = 40;
   const padT = 22;
   const padB = 34;
-  const max = Math.max(...data.map((d) => d.value));
+  const max = niceMax(data.map((d) => d.value));
   const innerW = W - padL - 8;
   const innerH = H - padT - padB;
   const step = innerW / data.length;
   const barW = Math.min(step * 0.55, 46);
-  const y = (v: number) => padT + innerH * (1 - v / max);
+  const y = (v: number) => padT + innerH * (1 - Math.min(v, max) / max);
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg" role="img" aria-label="Bar chart">
-      {yTicks(max).map((tick) => (
-        <g key={tick}>
+      {yTicks(max).map((tick, i) => (
+        <g key={i}>
           <line x1={padL} x2={W - 4} y1={y(tick)} y2={y(tick)} stroke={GRID} strokeWidth="1" strokeDasharray="3 5" />
           <text x={padL - 8} y={y(tick) + 4} textAnchor="end" fontSize="11" fill={MUTED}>{tick}%</text>
         </g>

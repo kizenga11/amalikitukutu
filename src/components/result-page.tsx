@@ -35,6 +35,12 @@ function subjectGrades(subjects: { subject_code: string; grade: string }[]): str
   return subjects.map((subject) => `${subject.subject_code}-${subject.grade}`).join(" ");
 }
 
+function subjectMarks(subjects: { subject_code: string; total_score: number | null }[]): string {
+  return subjects
+    .map((subject) => `${subject.subject_code}-${subject.total_score === null ? "ABS" : displayNumber(subject.total_score)}`)
+    .join(" ");
+}
+
 function genderLabel(value: string): string {
   const normalized = value.toLowerCase();
   return normalized.startsWith("f") ? "F" : normalized.startsWith("m") ? "M" : value;
@@ -45,6 +51,7 @@ export default function ResultPage({ role }: { role?: string }) {
   const [selectedExamId, setSelectedExamId] = useState("");
   const [selectedClassId, setSelectedClassId] = useState("");
   const [selectedStream, setSelectedStream] = useState("__all__");
+  const [viewMode, setViewMode] = useState<"grades" | "marks">("grades");
   const [marksData, setMarksData] = useState<ExamMarksData | null>(null);
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
   const [settings, setSettings] = useState<GradingSettings>({
@@ -133,7 +140,7 @@ export default function ResultPage({ role }: { role?: string }) {
   return (
     <div className="result-page">
       <div className="page-head result-controls">
-        <div>
+        <div className="no-print">
           <h2 className="page-title">Result</h2>
           <p className="page-sub">Official examination results and subject performance summary.</p>
         </div>
@@ -144,6 +151,13 @@ export default function ResultPage({ role }: { role?: string }) {
         <label className="res-field"><span className="res-field-label">Exam</span><select className="res-select" value={selectedExamId} onChange={(event) => setSelectedExamId(event.target.value)}>{exams.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         <label className="res-field"><span className="res-field-label">Class / Form</span><select className="res-select" value={selectedClassId} onChange={(event) => { setSelectedClassId(event.target.value); setSelectedStream("__all__"); }}>{marksData.classes.map((item) => <option key={item.class_id} value={item.class_id}>{item.class_name}</option>)}</select></label>
         <label className="res-field"><span className="res-field-label">Stream</span><select className="res-select" value={selectedStream} onChange={(event) => setSelectedStream(event.target.value)}><option value="__all__">General / All streams</option>{streams.map((stream) => <option key={stream.id} value={stream.id}>{stream.name}</option>)}</select></label>
+        <div className="res-field result-mode-toggle" role="group" aria-label="Result view mode">
+          <span className="res-field-label">View</span>
+          <div className="result-mode-tabs">
+            <button type="button" className={`ex-tab${viewMode === "grades" ? " ex-tab--active" : ""}`} onClick={() => setViewMode("grades")}>Grades</button>
+            <button type="button" className={`ex-tab${viewMode === "marks" ? " ex-tab--active" : ""}`} onClick={() => setViewMode("marks")}>Marks</button>
+          </div>
+        </div>
       </div>
 
       {marksLoading ? <div className="me-loading"><Spinner size={20} /></div> : !classRow || !report ? <div className="st-empty-state">No students found in this selection.</div> : (
@@ -170,7 +184,7 @@ export default function ResultPage({ role }: { role?: string }) {
 
           <section className="result-section">
             <h3>Students&apos; Results</h3>
-            <div className="result-table-wrap"><table className="result-table result-students-table"><thead><tr><th>#</th><th>Student Name</th><th>Sex</th><th>Avg</th><th>Grade</th><th>Pts</th><th>Div</th><th>Subjects (Grades)</th></tr></thead><tbody>{report.students.map((row) => <tr key={row.student.student_id}><td>{row.rank || "—"}</td><td>{row.student.last_name}, {row.student.first_name}{row.student.middle_name ? ` ${row.student.middle_name}` : ""}</td><td>{genderLabel(row.student.gender)}</td><td>{displayNumber(row.avg)}</td><td>{row.grade}</td><td>{row.student.incomplete ? "—" : row.student.total_points}</td><td>{row.divisionCode}</td><td className="result-subjects">{subjectGrades(row.student.subjects)}</td></tr>)}</tbody></table></div>
+            <div className="result-table-wrap"><table className="result-table result-students-table"><thead><tr><th>#</th><th>Student Name</th><th>Sex</th><th>Avg</th><th>Grade</th><th>Pts</th><th>Div</th><th>Subjects ({viewMode === "grades" ? "Grades" : "Marks"})</th></tr></thead><tbody>{report.students.map((row) => <tr key={row.student.student_id}><td>{row.rank || "—"}</td><td>{row.student.first_name}{row.student.middle_name ? ` ${row.student.middle_name}` : ""} {row.student.last_name}</td><td>{genderLabel(row.student.gender)}</td><td>{displayNumber(row.avg)}</td><td>{row.grade}</td><td>{row.student.incomplete ? "—" : row.student.total_points}</td><td>{row.divisionCode}</td><td className="result-subjects">{viewMode === "grades" ? subjectGrades(row.student.subjects) : subjectMarks(row.student.subjects)}</td></tr>)}</tbody></table></div>
           </section>
 
           <section className="result-section">
