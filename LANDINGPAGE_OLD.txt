@@ -1,0 +1,1351 @@
+<?php include "includes/config.php"; ?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>
+Amali Kitukutu | Kitukutu Technical Secondary School Official Website
+</title>
+
+<meta name="description" content="Amali Kitukutu - Official website of Kitukutu Technical Secondary School. View results, admissions, academic performance and school updates online.">
+<meta name="robots" content="index, follow">
+
+<!-- FONT AWESOME -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+<!-- GOOGLE FONTS -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* =========================
+   GLOBAL & VARIABLES
+========================= */
+:root {
+  --primary: #0f2b4b;
+  --primary-light: #1e4a6d;
+  --accent: #f4b400;
+  --accent-dark: #e0a800;
+  --light-bg: #f8fafc;
+  --gray-text: #4b5563;
+  --border-radius: 16px;
+  --shadow-sm: 0 10px 30px rgba(0,0,0,0.05);
+  --shadow-hover: 0 20px 40px rgba(15,43,75,0.1);
+  --transition: all 0.3s ease;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--light-bg);
+  color: #1e293b;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.section {
+  padding: 52px 0;
+}
+
+.section-title {
+  font-size: 1.9rem;
+  color: var(--primary);
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.section-subtitle {
+  text-align: center;
+  color: var(--gray-text);
+  margin-bottom: 2rem;
+  font-size: 1rem;
+}
+
+.btn {
+  background: var(--primary-light);
+  color: white;
+  padding: 12px 28px;
+  border-radius: 40px;
+  text-decoration: none;
+  display: inline-block;
+  font-weight: 600;
+  transition: var(--transition);
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  box-shadow: 0 4px 12px rgba(30,74,109,0.2);
+}
+
+.btn:hover {
+  background: var(--accent);
+  color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(244,180,0,0.3);
+}
+
+/* =========================
+   TOP BAR
+========================= */
+.top-bar {
+  background: var(--primary);
+  color: #fff;
+  padding: 7px 0;
+  font-size: 0.82rem;
+}
+
+.top-bar .container {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.top-bar i {
+  margin-right: 6px;
+  color: var(--accent);
+}
+
+/* =========================
+   HEADER
+========================= */
+header {
+  background: rgba(255,255,255,0.97);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo img {
+  width: 44px;
+  height: auto;
+}
+
+.logo-text {
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.3;
+}
+
+.logo-text strong {
+  font-size: 1.05rem;
+}
+
+.logo-text span {
+  font-size: 0.78rem;
+  color: var(--gray-text);
+}
+
+/* Desktop nav */
+.nav-desktop {display:flex;}
+nav ul {
+  display: flex;
+  list-style: none;
+  gap: 4px;
+  align-items: center;
+}
+
+nav a {
+  text-decoration: none;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.88rem;
+  transition: var(--transition);
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+nav a:hover {
+  color: var(--accent);
+  background: rgba(244,180,0,0.08);
+}
+
+.login-btn {
+  background: var(--accent);
+  padding: 7px 18px !important;
+  border-radius: 40px;
+  color: var(--primary) !important;
+  box-shadow: 0 3px 8px rgba(244,180,0,0.25);
+}
+
+.login-btn:hover {
+  background: var(--accent-dark) !important;
+  color: var(--primary) !important;
+}
+
+/* Hamburger */
+.hamburger{
+  display:none;background:none;border:1.5px solid #ddd;
+  border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--primary);
+  font-size:1.1rem;line-height:1;
+}
+
+/* Mobile nav drawer */
+.mobile-nav{
+  display:none;flex-direction:column;gap:4px;
+  padding:10px 16px 16px;border-top:1px solid #eee;
+}
+.mobile-nav.open{display:flex;}
+.mobile-nav a{
+  display:block;padding:10px 14px;border-radius:10px;
+  font-size:0.9rem;font-weight:600;color:var(--primary);
+  text-decoration:none;transition:background 0.15s;
+}
+.mobile-nav a:hover{background:#f8f4e0;color:var(--accent);}
+.mobile-nav .m-login{
+  background:var(--accent);color:var(--primary) !important;
+  text-align:center;margin-top:4px;
+}
+
+/* =========================
+   HERO SLIDER
+========================= */
+.hero-slider {
+  position: relative;
+  height: 480px;
+  overflow: hidden;
+}
+
+.slide {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+
+.slide.active {
+  opacity: 1;
+}
+
+.hero-overlay {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(15,43,75,0.9) 0%, rgba(15,43,75,0.7) 100%);
+  display: flex;
+  align-items: center;
+  color: white;
+  text-align: center;
+}
+
+.hero-overlay .container {
+  max-width: 800px;
+}
+
+.hero-overlay h1 {
+  font-size: 2.4rem;
+  margin-bottom: 16px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.hero-overlay .btn {
+  margin: 10px;
+}
+
+.slider-dots {
+  position: absolute;
+  bottom: 20px;
+  width: 100%;
+  text-align: center;
+}
+
+.dot {
+  height: 14px;
+  width: 14px;
+  margin: 0 6px;
+  background: rgba(255,255,255,0.5);
+  display: inline-block;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.dot.active {
+  background: var(--accent);
+  transform: scale(1.2);
+}
+
+/* =========================
+   HISTORY SECTION
+========================= */
+.history-section {
+  padding: 48px 20px;
+  background: white;
+}
+
+.history-section h2 {
+  font-size: 1.8rem;
+  color: var(--primary);
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.history-section p {
+  max-width: 860px;
+  margin: 0 auto;
+  font-size: 0.97rem;
+  color: var(--gray-text);
+  line-height: 1.75;
+}
+
+/* =========================
+   IDENTITY CARDS
+========================= */
+.identity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
+  margin-top: 30px;
+}
+
+.identity-card {
+  background: white;
+  padding: 35px 25px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+  transition: var(--transition);
+  border-top: 5px solid var(--accent);
+}
+
+.identity-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-hover);
+}
+
+.identity-card i {
+  font-size: 2.8rem;
+  color: var(--primary-light);
+  margin-bottom: 20px;
+}
+
+.identity-card h3 {
+  color: var(--primary);
+  margin-bottom: 15px;
+  font-size: 1.4rem;
+}
+
+.identity-card p {
+  color: var(--gray-text);
+}
+
+/* =========================
+   ACADEMIC STREAMS
+========================= */
+.streams {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 30px;
+}
+
+.stream-card {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: var(--transition);
+}
+
+.stream-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-hover);
+}
+
+.stream-header {
+  padding: 20px;
+  color: white;
+}
+
+.stream-header.general {
+  background: var(--primary-light);
+}
+
+.stream-header.technical {
+  background: var(--primary);
+}
+
+.stream-header h3 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.stream-body {
+  padding: 30px;
+}
+
+.subject-group {
+  margin-bottom: 25px;
+}
+
+.subject-group h4 {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--primary-light);
+  margin-bottom: 12px;
+}
+
+.subject-group ul {
+  list-style: none;
+  padding: 0;
+}
+
+.subject-group li {
+  padding: 8px 0;
+  border-bottom: 1px solid #edf2f7;
+  color: #2d3748;
+}
+
+.subject-group li:last-child {
+  border-bottom: none;
+}
+
+/* =========================
+   ANNOUNCEMENTS
+========================= */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 25px;
+}
+
+.card {
+  background: white;
+  padding: 25px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+  position: relative;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-hover);
+}
+
+.card.announcement {
+  border-left: 5px solid var(--accent);
+}
+
+.card .date-badge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: var(--primary-light);
+  color: white;
+  padding: 5px 12px;
+  border-radius: 30px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.card h3 {
+  color: var(--primary);
+  margin-bottom: 15px;
+  font-size: 1.3rem;
+  padding-right: 80px;
+}
+
+.card p {
+  color: var(--gray-text);
+  margin-bottom: 20px;
+}
+
+/* =========================
+   PROGRAMS CARDS
+========================= */
+.card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 15px;
+}
+
+.card i {
+  font-size: 2rem;
+  color: var(--primary-light);
+  margin-bottom: 10px;
+}
+
+/* =========================
+   CONTACT SECTION
+========================= */
+.contact-wrapper {
+  display: flex;
+  gap: 30px;
+  margin-top: 40px;
+  flex-wrap: wrap;
+}
+
+.contact-left, .contact-right {
+  flex: 1;
+  min-width: 300px;
+  background: white;
+  padding: 35px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.contact-item i {
+  font-size: 1.5rem;
+  width: 30px;
+  color: var(--accent);
+}
+
+.contact-item a {
+  text-decoration: none;
+  color: var(--primary);
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+.contact-item a:hover {
+  color: var(--accent);
+}
+
+.contact-form input,
+.contact-form textarea {
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 15px;
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+  font-size: 1rem;
+  transition: var(--transition);
+}
+
+.contact-form input:focus,
+.contact-form textarea:focus {
+  border-color: var(--primary-light);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(30,74,109,0.1);
+}
+
+.contact-form textarea {
+  height: 130px;
+  resize: vertical;
+}
+
+/* =========================
+   FOOTER
+========================= */
+.footer {
+  background: var(--primary);
+  color: #ddd;
+  padding: 40px 0 16px;
+  margin-top: 0;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 40px;
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.footer-logo img {
+  width: 50px;
+}
+
+.footer-logo h3 {
+  color: white;
+  margin: 0;
+}
+
+.footer h3 {
+  color: white;
+  margin-bottom: 20px;
+  font-size: 1.2rem;
+}
+
+.footer p, .footer ul {
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.footer ul {
+  list-style: none;
+  padding: 0;
+}
+
+.footer ul li {
+  margin-bottom: 10px;
+}
+
+.footer ul li a {
+  color: #ddd;
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.footer ul li a:hover {
+  color: var(--accent);
+  padding-left: 5px;
+}
+
+.useful-links a {
+  color: #ddd;
+}
+
+.footer-bottom {
+  border-top: 1px solid #2d4b67;
+  margin-top: 40px;
+  padding-top: 20px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 768px) {
+  .nav-desktop { display: none; }
+  .hamburger   { display: block; }
+  .hero-slider { height: 320px; }
+  .hero-overlay h1 { font-size: 1.6rem; }
+  .hero-overlay .btn { margin: 6px; }
+  .section { padding: 36px 0; }
+  .section-title { font-size: 1.5rem; }
+  .identity-card { padding: 20px; }
+  .streams { grid-template-columns: 1fr; }
+  .contact-wrapper { flex-direction: column; gap: 16px; }
+  .contact-left, .contact-right { padding: 20px; min-width: unset; }
+  .results-section { padding: 32px 12px; }
+  .footer { padding: 28px 0 14px; }
+  .footer-grid { gap: 24px; }
+}
+
+@media (max-width: 480px) {
+  .top-bar { display: none; }
+  .hero-slider { height: 260px; }
+  .hero-overlay h1 { font-size: 1.3rem; margin-bottom: 10px; }
+  .hero-overlay .btn { padding: 9px 16px; font-size: 0.85rem; margin: 4px; }
+  .btn { padding: 9px 18px; font-size: 0.88rem; }
+  .grid { grid-template-columns: 1fr; gap: 14px; }
+  .identity-grid { gap: 14px; }
+  .subject-group ul { padding-left: 8px; }
+  .contact-form input, .contact-form textarea { padding: 11px; }
+}
+</style>
+</head>
+
+<body>
+<!-- =========================
+TOP BAR
+========================= -->
+<div class="top-bar">
+<div class="container">
+<div><i class="fas fa-envelope"></i> info@amalikitukutu.unaux.com</div>
+<div><i class="fas fa-map-marker-alt"></i> Kitukutu, Iramba, Singida</div>
+</div>
+</div>
+
+<!-- =========================
+HEADER
+========================= -->
+<header>
+<div class="container header-flex">
+  <div class="logo">
+    <a href="index.php"><img src="assets/logo.png" alt="Amali Kitukutu Logo"></a>
+    <div class="logo-text">
+      <strong>Amali Kitukutu</strong><br>
+      <span>Kitukutu Technical Secondary School</span>
+    </div>
+  </div>
+  <nav class="nav-desktop">
+    <ul>
+      <li><a href="#home">Home</a></li>
+      <li><a href="#programs">Programs</a></li>
+      <li><a href="#announcements">Announcements</a></li>
+      <li><a href="#results">Results</a></li>
+      <li><a href="#contact">Contact</a></li>
+      <li><a href="login.php" class="login-btn"><i class="fas fa-user"></i> Staff Login</a></li>
+      <li><a href="parent/register.php" class="login-btn" style="background:#16a34a;"><i class="fas fa-user-plus"></i> Jisajili</a></li>
+      <li><a href="parent/login.php" class="login-btn" style="background:#059669;"><i class="fas fa-user-friends"></i> Mzazi</a></li>
+    </ul>
+  </nav>
+  <button class="hamburger" id="hambBtn" aria-label="Menu">&#9776;</button>
+</div>
+<div class="mobile-nav" id="mobileNav">
+  <a href="#home" onclick="closeMobileNav()">Home</a>
+  <a href="#programs" onclick="closeMobileNav()">Programs</a>
+  <a href="#announcements" onclick="closeMobileNav()">Announcements</a>
+  <a href="#results" onclick="closeMobileNav()">Results</a>
+  <a href="#contact" onclick="closeMobileNav()">Contact</a>
+  <a href="parent/register.php" class="m-login" style="background:#16a34a;color:#fff!important;"><i class="fas fa-user-plus"></i> Jisajili Mzazi</a>
+  <a href="parent/login.php" class="m-login"><i class="fas fa-user-friends"></i> Mzazi</a>
+  <a href="login.php" class="m-login"><i class="fas fa-user"></i> Staff Login</a>
+</div>
+</header>
+
+<!-- =========================
+HERO SLIDER SECTION
+========================= -->
+<section class="hero-slider" id="home">
+<div class="slide active" style="background-image: url('assets/slide1.jpg');"></div>
+<div class="slide" style="background-image: url('assets/slide2.jpg');"></div>
+<div class="slide" style="background-image: url('assets/slide3.jpg');"></div>
+<div class="slide" style="background-image: url('assets/slide4.jpg');"></div>
+<div class="hero-overlay">
+<div class="container">
+<h1>Amali Kitukutu – Kitukutu Technical Secondary School</h1>
+<div style="margin-top: 20px;">
+<a href="admission.php" class="btn"> <i class="fas fa-user-plus"></i> Apply for Admission </a>
+<a href="login.php" class="btn" style="background: #f4b400; color: #0f2b4b; margin-left: 10px;"> <i class="fas fa-sign-in-alt"></i> Staff Login </a>
+<a href="parent/register.php" class="btn" style="background: #16a34a; color: #fff; margin-left: 10px;"> <i class="fas fa-user-plus"></i> Jisajili </a>
+<a href="parent/login.php" class="btn" style="background: #059669; color: #fff; margin-left: 10px;"> <i class="fas fa-user-friends"></i> Mzazi Login </a>
+</div>
+</div>
+</div>
+<div class="slider-dots">
+<span class="dot active" onclick="goSlide(0)"></span>
+<span class="dot" onclick="goSlide(1)"></span>
+<span class="dot" onclick="goSlide(2)"></span>
+<span class="dot" onclick="goSlide(3)"></span>
+</div>
+</section>
+
+<!-- School History Section -->
+<section class="history-section">
+  <div class="container">
+    <h2>Our History</h2>
+    <div class="history-divider"></div>
+    <p>
+      Established in 2026, our school proudly welcomed its first Form One class as the beginning of a 
+      long-term vision of academic excellence and character development. Although we are a newly founded 
+      institution, we are built on strong foundations of professionalism, innovation, and commitment to quality education.
+      <br><br>
+      From the very beginning, we have positioned ourselves to provide outstanding educational services 
+      through qualified teachers, modern teaching approaches, and a disciplined learning environment. 
+      Our focus is not only on academic success but also on nurturing responsible, confident, and goal-oriented students.
+      <br><br>
+      As we grow, our mission remains clear — to achieve exceptional academic performance and to build 
+      a reputation as a center of excellence known for producing high-achieving and well-rounded graduates.
+    </p>
+  </div>
+</section>
+
+<!-- =========================
+IDENTITY SECTION (MOTTO, VISION, MISSION)
+========================= -->
+<section class="section">
+<div class="container">
+<h2 class="section-title">Our Identity</h2>
+<div class="identity-grid">
+<div class="identity-card"><i class="fas fa-quote-left"></i>
+<h3>Our Motto</h3>
+<p>Where skills become careers.</p>
+</div>
+<div class="identity-card"><i class="fas fa-eye"></i>
+<h3>Our Vision</h3>
+<p>To become a leading technical and vocational training institution producing competent and innovative professionals.</p>
+</div>
+<div class="identity-card"><i class="fas fa-bullseye"></i>
+<h3>Our Mission</h3>
+<p>To provide quality vocational education and practical skills that empower students to succeed in employment and self-reliance.</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- =========================
+ACADEMIC STREAMS
+========================= -->
+<section class="section" id="programs">
+<div class="container">
+<h2 class="section-title">Academic Streams</h2>
+<p class="section-subtitle">We offer both General Education and Technical (Vocational) Education streams.</p>
+
+<div class="streams">
+<!-- GENERAL STREAM -->
+<div class="stream-card">
+<div class="stream-header general">
+<h3>General Education</h3>
+</div>
+<div class="stream-body">
+<div class="subject-group">
+<h4>Compulsory Subjects</h4>
+<ul>
+<li>Mathematics</li>
+<li>Kiswahili</li>
+<li>English</li>
+<li>Geography</li>
+<li>Business Studies</li>
+<li>Historia ya Tanzania na Maadili</li>
+</ul>
+</div>
+<div class="subject-group">
+<h4>Optional Subjects</h4>
+<ul>
+<li>Physics</li>
+<li>Chemistry</li>
+<li>Biology</li>
+</ul>
+</div>
+</div>
+</div>
+
+<!-- TECHNICAL STREAM -->
+<div class="stream-card">
+<div class="stream-header technical">
+<h3>Technical (Vocational) Education</h3>
+</div>
+<div class="stream-body">
+<div class="subject-group">
+<h4>Compulsory Subjects</h4>
+<ul>
+<li>Mathematics</li>
+<li>Business Studies</li>
+<li>English</li>
+<li>Engineering Science</li>
+<li>Historia ya Tanzania na Maadili</li>
+<li>Technical Drawing</li>
+<li>Computer Application with CAD</li>
+<li>Life Skills</li>
+</ul>
+</div>
+<div class="subject-group">
+<h4>Optional Subjects</h4>
+<ul>
+<li>Electrical Installation</li>
+<li>Electronics Repair</li>
+<li>Computer Programming</li>
+<li>Masonry and Bricklaying</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- =========================
+ANNOUNCEMENTS SECTION
+========================= -->
+<?php
+$ann = mysqli_query($conn,"
+SELECT * FROM announcements
+WHERE status='published'
+ORDER BY id DESC
+LIMIT 6
+");
+?>
+
+<section class="section" id="announcements">
+<div class="container">
+<h2 class="section-title">Latest Announcements</h2>
+<div class="grid">
+
+<?php if(mysqli_num_rows($ann) > 0){ ?>
+<?php while($row = mysqli_fetch_assoc($ann)){ ?>
+<div class="card announcement">
+<div class="date-badge"><?php echo date("d M Y", strtotime($row['created_at'])); ?></div>
+<h3><?php echo htmlspecialchars($row['title']); ?></h3>
+<p><?php echo htmlspecialchars(substr(strip_tags($row['content']),0,120)); ?>...</p>
+<a href="announcement.php?id=<?php echo $row['id']; ?>" class="btn" style="margin-top:10px; display:inline-block;">Read More</a>
+</div>
+<?php } ?>
+<?php } else { ?>
+<div class="card"><p>No announcements available at the moment.</p></div>
+<?php } ?>
+
+</div>
+</div>
+</section>
+
+<!-- =========================
+PROGRAMS / COURSES SECTION
+========================= -->
+<section class="section" id="programs">
+<div class="container">
+<h2 class="section-title">Training Programs Offered</h2>
+<p class="section-subtitle">We provide hands-on vocational training programs to prepare students for real-world careers.</p>
+<div class="grid">
+<div class="card"><img src="assets/electrical.jpg" alt="Electrical Installation" /> <i class="fas fa-bolt"></i>
+<h3>Electrical Installation</h3>
+<p>Learn electrical wiring, installation, maintenance, and troubleshooting of electrical systems.</p>
+</div>
+<div class="card"><img src="assets/masonry.jpg" alt="Masonry and Brick Laying" /> <i class="fas fa-building"></i>
+<h3>Masonry &amp; Brick Laying</h3>
+<p>Gain practical skills in construction, brick laying, and building structure development.</p>
+</div>
+<div class="card"><img src="assets/programming.jpg" alt="Computer Programming" /> <i class="fas fa-laptop-code"></i>
+<h3>Computer Programming</h3>
+<p>Learn software development, web development, and modern programming technologies.</p>
+</div>
+<div class="card"><img src="assets/electronics.jpg" alt="Electronics Repair" /> <i class="fas fa-microchip"></i>
+<h3>Electronics Repair</h3>
+<p>Learn electronics troubleshooting, repair, and maintenance of electronic devices.</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- =========================
+ACADEMIC RESULTS SECTION - KITUKUTU SECONDARY SCHOOL
+========================= -->
+<section class="results-section" id="results">
+    <div class="results-container">
+        <div class="results-header">
+            <h2 class="results-title">Matokeo ya Mitihani</h2>
+            <p class="results-subtitle">Wanafunzi na walimu wanaweza kupata matokeo kupitia lango salama la shule</p>
+        </div>
+        
+        <div class="results-grid">
+<?php
+$pub_exams = mysqli_query($conn,"SELECT e.*, ec.category_name FROM exams e LEFT JOIN exam_categories ec ON ec.id=e.category_id WHERE e.is_published=1 ORDER BY e.start_date DESC");
+$pub_count = mysqli_num_rows($pub_exams);
+if($pub_count > 0){
+  while($pe = mysqli_fetch_assoc($pub_exams)){
+    $date_str = '';
+    if($pe['start_date']) $date_str = date('d M Y', strtotime($pe['start_date']));
+    if($pe['end_date'] && $pe['end_date'] != $pe['start_date']) $date_str .= ' – '.date('d M Y', strtotime($pe['end_date']));
+?>
+            <div class="result-card">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <h3><?= htmlspecialchars($pe['exam_name']) ?></h3>
+                    <p><?= htmlspecialchars($pe['category_name'] ?? 'Mtihani wa Shule') ?></p>
+                    <?php if($date_str): ?><span class="exam-date"><?= $date_str ?></span><?php endif; ?>
+                </div>
+                <a href="public_results.php?exam_id=<?= $pe['id'] ?>" class="btn-view">
+                    Angalia Matokeo
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                        <polyline points="12 5 19 12 12 19"/>
+                    </svg>
+                </a>
+            </div>
+<?php } } else { ?>
+            <div style="text-align:center;padding:40px 20px;color:#6c757d;width:100%;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#adb5bd" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <p style="font-size:15px;font-weight:600;color:#495057;margin-bottom:6px;">Hakuna matokeo kwa sasa</p>
+                <p style="font-size:13px;">Matokeo ya mitihani yataonekana hapa baada ya kuchapishwa.</p>
+            </div>
+<?php } ?>
+        </div>
+        
+    </div>
+</section>
+
+<style>
+    /* =========================
+       RESULTS SECTION STYLES
+       ========================= */
+    .results-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 60px 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .results-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    /* Header Styles */
+    .results-header {
+        text-align: center;
+        margin-bottom: 50px;
+    }
+    
+    .results-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: #1e3c72;
+        margin-bottom: 12px;
+        position: relative;
+        display: inline-block;
+    }
+    
+    .results-title:after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 3px;
+        background: #2a5298;
+        border-radius: 2px;
+    }
+    
+    .results-subtitle {
+        font-size: 16px;
+        color: #6c757d;
+        margin-top: 20px;
+    }
+    
+    /* Grid Layout */
+    .results-grid {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 30px;
+        margin-bottom: 40px;
+    }
+    
+    /* Card Styles */
+    .result-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        padding: 30px;
+        width: 320px;
+        transition: all 0.3s ease;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .result-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+    }
+    
+    .result-card:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #1e3c72, #2a5298);
+    }
+    
+    /* Card Icon */
+    .card-icon {
+        background: #f0f4f9;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        color: #2a5298;
+    }
+    
+    /* Card Content */
+    .card-content h3 {
+        font-size: 20px;
+        font-weight: 600;
+        color: #1e3c72;
+        margin-bottom: 10px;
+    }
+    
+    .card-content p {
+        font-size: 14px;
+        color: #6c757d;
+        line-height: 1.5;
+        margin-bottom: 12px;
+    }
+    
+    .exam-date {
+        display: inline-block;
+        font-size: 12px;
+        color: #2a5298;
+        background: #e8f0fe;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+    
+    /* Button Styles */
+    .btn-view {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: white;
+        border: 2px solid #2a5298;
+        color: #2a5298;
+        padding: 10px 24px;
+        border-radius: 40px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        margin-top: 20px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-view:hover {
+        background: #2a5298;
+        color: white;
+        border-color: #2a5298;
+    }
+    
+    .btn-view:hover svg {
+        stroke: white;
+    }
+    
+    .btn-view svg {
+        transition: transform 0.3s ease;
+    }
+    
+    .btn-view:hover svg {
+        transform: translateX(4px);
+    }
+    
+    /* Footer */
+    .results-footer {
+        text-align: center;
+        padding-top: 20px;
+        border-top: 1px solid #dee2e6;
+        margin-top: 20px;
+    }
+    
+    .results-footer p {
+        font-size: 13px;
+        color: #6c757d;
+        background: #fff3cd;
+        display: inline-block;
+        padding: 8px 20px;
+        border-radius: 30px;
+    }
+    
+    .results-footer strong {
+        color: #856404;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .results-section {
+            padding: 40px 16px;
+        }
+        
+        .results-title {
+            font-size: 26px;
+        }
+        
+        .results-subtitle {
+            font-size: 14px;
+        }
+        
+        .result-card {
+            width: 100%;
+            max-width: 350px;
+            padding: 24px;
+        }
+        
+        .card-icon {
+            width: 70px;
+            height: 70px;
+        }
+        
+        .card-icon svg {
+            width: 32px;
+            height: 32px;
+        }
+        
+        .card-content h3 {
+            font-size: 18px;
+        }
+        
+        .btn-view {
+            padding: 8px 20px;
+            font-size: 13px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .results-grid {
+            gap: 20px;
+        }
+        
+        .result-card {
+            padding: 20px;
+        }
+        
+        .results-footer p {
+            font-size: 11px;
+            padding: 6px 16px;
+        }
+    }
+</style>
+
+<!-- =========================
+CONTACT + MESSAGE SECTION
+========================= -->
+<section class="section" id="contact">
+<div class="container">
+<h2 class="section-title">Contact Us</h2>
+<div class="contact-wrapper">
+<!-- LEFT SIDE CONTACTS -->
+<div class="contact-left">
+<h3>Get in Touch</h3>
+<div class="contact-item"><i class="fab fa-whatsapp" style="color: #25d366;"></i> <a href="https://wa.me/255714951475" target="_blank" rel="noopener"> Head of School </a></div>
+<div class="contact-item"><i class="fab fa-whatsapp" style="color: #25d366;"></i> <a href="https://wa.me/255752463910" target="_blank" rel="noopener"> Second Master's Office </a></div>
+<div class="contact-item"><i class="fab fa-whatsapp" style="color: #25d366;"></i> <a href="https://wa.me/255712978722" target="_blank" rel="noopener"> Academic Office </a></div>
+<div class="contact-item"><i class="fas fa-envelope" style="color: #f4b400;"></i> <a href="mailto:info@amalikitukutu.unaux.com"> info@amalikitukutu.unaux.com </a></div>
+</div>
+
+<!-- RIGHT SIDE MESSAGE FORM -->
+<div class="contact-right">
+<h3>Send Message</h3>
+
+<?php if(isset($_GET['msg'])){ ?>
+<div style="background:#d4edda;color:#155724;padding:10px;border-radius:6px;margin-bottom:15px;">
+Message sent successfully!
+</div>
+<?php } ?>
+
+<form class="contact-form" action="save_message.php" method="POST">
+<input type="text" name="name" placeholder="Your Name" required>
+<input type="email" name="email" placeholder="Your Email" required>
+<textarea name="message" placeholder="Write your message here..." required></textarea>
+<button class="btn" type="submit"><i class="fas fa-paper-plane"></i> Send Message</button>
+</form>
+</div>
+</div>
+</div>
+</section>
+
+<!-- =========================
+FOOTER
+========================= -->
+<footer class="footer">
+<div class="container">
+<div class="footer-grid">
+<!-- SCHOOL INFO -->
+<div>
+<div class="footer-logo"><img src="assets/logo.png" /><h3>Amali Kitukutu</h3></div>
+<p>Amali Kitukutu Technical School is a vocational training institution dedicated to providing practical skills in Electrical Installation, Masonry, Computer Programming, and Electronics Repair.</p>
+</div>
+<!-- QUICK LINKS -->
+<div>
+<h3>Quick Links</h3>
+<ul>
+<li><a href="#home">Home</a></li>
+<li><a href="#programs">Programs</a></li>
+<li><a href="#announcements">Announcements</a></li>
+<li><a href="#results">Results</a></li>
+<li><a href="#contact">Contact</a></li>
+</ul>
+</div>
+<!-- SYSTEM LINKS -->
+<div>
+<h3>Useful Education Links</h3>
+<ul class="useful-links">
+<li><a href="https://www.necta.go.tz" target="_blank">NECTA – National Examinations Council of Tanzania</a></li>
+<li><a href="https://www.tamisemi.go.tz" target="_blank">TAMISEMI – President’s Office Regional Administration</a></li>
+<li><a href="https://www.moe.go.tz" target="_blank">Ministry of Education, Science & Technology</a></li>
+<li><a href="https://www.nactvet.go.tz" target="_blank">NACTVET – Vocational & Technical Education</a></li>
+<li><a href="https://www.heslb.go.tz" target="_blank">HESLB – Higher Education Students’ Loans Board</a></li>
+</ul>
+</div>
+<!-- CONTACT INFO -->
+<div>
+<h3>Office Hours</h3>
+<p>Monday – Friday: 7:30 AM – 5:00 PM</p>
+<p>Saturday: 8:00 AM – 1:00 PM</p>
+<p>Sunday: Closed</p>
+</div>
+</div>
+<!-- COPYRIGHT -->
+<div class="footer-bottom">© 2026 Amali Kitukutu Technical School School Management System | All Rights Reserved</div>
+</div>
+</footer>
+
+<!-- MOBILE NAV -->
+<script>
+var hambBtn   = document.getElementById('hambBtn');
+var mobileNav = document.getElementById('mobileNav');
+hambBtn.addEventListener('click', function(){
+  mobileNav.classList.toggle('open');
+});
+function closeMobileNav(){ mobileNav.classList.remove('open'); }
+</script>
+
+<!-- SLIDER SCRIPT -->
+<script>
+let slides = document.querySelectorAll(".slide");
+let dots = document.querySelectorAll(".dot");
+let current = 0;
+
+function showSlide(index){
+slides.forEach((slide,i)=>{
+slide.classList.remove("active");
+dots[i].classList.remove("active");
+});
+slides[index].classList.add("active");
+dots[index].classList.add("active");
+current = index;
+}
+
+function goSlide(index){
+showSlide(index);
+}
+
+function autoSlide(){
+current++;
+if(current >= slides.length){
+current = 0;
+}
+showSlide(current);
+}
+
+setInterval(autoSlide,10000);
+</script>
+
+</body>
+</html>

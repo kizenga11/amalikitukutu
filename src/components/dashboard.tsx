@@ -154,7 +154,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
 
       <aside className={`sidebar${sidebarOpen ? " sidebar--open" : ""}`}>
         <div className="sidebar-brand">
-          <div className="brand-logo">AM</div>
+          <img className="brand-logo-img" src="/assets/logo.png" alt="Amali Kitukutu logo" />
           <div>
             <div className="sidebar-brand-name">AMALI SCHOOL</div>
             <div className="sidebar-brand-sub">Management Portal</div>
