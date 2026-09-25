@@ -62,6 +62,7 @@ export default function ResultPage({ role }: { role?: string }) {
   const [loading, setLoading] = useState(true);
   const [marksLoading, setMarksLoading] = useState(false);
   const [error, setError] = useState("");
+  const [pageOrientation, setPageOrientation] = useState<"portrait" | "landscape">("portrait");
 
   const isAdmin = role !== undefined && role !== "Teacher";
 
@@ -138,13 +139,19 @@ export default function ResultPage({ role }: { role?: string }) {
   const heading = `${exam.name} ${displayDate(exam.start_date)}`.toUpperCase();
 
   return (
-    <div className="result-page">
+    <div className={`result-page${pageOrientation === "landscape" ? " print-landscape" : ""}`}>
       <div className="page-head result-controls">
         <div className="no-print">
           <h2 className="page-title">Result</h2>
           <p className="page-sub">Official examination results and subject performance summary.</p>
         </div>
-        <button className="cm-btn cm-btn--ghost no-print" onClick={() => window.print()}>Print / Export PDF</button>
+        <div className="print-tools no-print">
+          <div className="result-mode-tabs print-orientation" role="group" aria-label="Print orientation">
+            <button type="button" className={`ex-tab${pageOrientation === "portrait" ? " ex-tab--active" : ""}`} onClick={() => setPageOrientation("portrait")}>Portrait</button>
+            <button type="button" className={`ex-tab${pageOrientation === "landscape" ? " ex-tab--active" : ""}`} onClick={() => setPageOrientation("landscape")}>Landscape</button>
+          </div>
+          <button className="cm-btn cm-btn--ghost" onClick={() => window.print()}>Print / Export PDF</button>
+        </div>
       </div>
 
       <div className="res-toolbar no-print">

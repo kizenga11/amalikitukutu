@@ -323,6 +323,7 @@ export type Gender = "Male" | "Female";
 
 export interface DbStudentRow {
   id: string;
+  registration_no: string | null;
   first_name: string;
   middle_name: string | null;
   last_name: string;
@@ -358,7 +359,7 @@ export async function fetchStudents(params: StudentListParams): Promise<StudentL
   const keyword = params.search?.trim().toLowerCase();
   if (keyword) {
     query = query.or(
-      `first_name.ilike.%${keyword}%,middle_name.ilike.%${keyword}%,last_name.ilike.%${keyword}%,phone.ilike.%${keyword}%`,
+      `registration_no.ilike.%${keyword}%,first_name.ilike.%${keyword}%,middle_name.ilike.%${keyword}%,last_name.ilike.%${keyword}%,phone.ilike.%${keyword}%`,
     );
   }
 
@@ -373,6 +374,7 @@ export async function fetchStudents(params: StudentListParams): Promise<StudentL
 }
 
 export interface StudentInput {
+  registration_no?: string | null;
   first_name: string;
   middle_name: string | null;
   last_name: string;
@@ -382,10 +384,54 @@ export interface StudentInput {
   stream_id: string | null;
 }
 
+const REGISTRATION_PREFIX = "S8384";
+
+function randomRegistrationCode(): string {
+  return String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+}
+
+export function generateRegistrationNo(existing: Set<string>, year: number = new Date().getFullYear()): string {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const candidate = `${REGISTRATION_PREFIX}/${randomRegistrationCode()}/${year}`;
+    if (!existing.has(candidate)) return candidate;
+  }
+  throw new Error("Could not generate a unique registration number.");
+}
+
+async function fetchExistingRegistrationNos(): Promise<Set<string>> {
+  const set = new Set<string>();
+  let from = 0;
+  const pageSize = 1000;
+  for (;;) {
+    const { data, error } = await supabase
+      .from("students")
+      .select("registration_no")
+      .not("registration_no", "is", null)
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as { registration_no: string }[];
+    for (const row of rows) set.add(row.registration_no);
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+  return set;
+}
+
 export async function insertStudent(input: StudentInput): Promise<DbStudentRow> {
-  const { data, error } = await supabase.from("students").insert(input).select().single();
-  if (error) throw error;
-  return data as DbStudentRow;
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const payload: StudentInput = { ...input };
+    if (!payload.registration_no) {
+      const existing = await fetchExistingRegistrationNos();
+      payload.registration_no = generateRegistrationNo(existing);
+    }
+    const { data, error } = await supabase.from("students").insert(payload).select().single();
+    if (!error) return data as DbStudentRow;
+    lastError = error;
+    if (error.code === "23505" && !input.registration_no) continue;
+    throw error;
+  }
+  throw lastError ?? new Error("Could not insert the student record.");
 }
 
 export async function updateStudent(id: string, input: StudentInput): Promise<DbStudentRow> {

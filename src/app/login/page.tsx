@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -67,95 +68,77 @@ export default function LoginPage() {
 
   return (
     <div className="site-landing login-page">
-      <header className="login-page-header">
-        <div className="container">
-          <a className="login-back" href="/">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-              <path d="m12 19-7-7 7-7" />
-              <path d="M19 12H5" />
-            </svg>
-            Back to Home
-          </a>
-        </div>
-      </header>
-
       <main className="login-page-main">
-        <div className="login-layout">
-          <section className="login-brand-panel" aria-label="School portal branding">
-            <div className="login-brand-mark">
-              <img className="login-brand-img" src="/assets/logo.png" alt="Amali Kitukutu logo" />
-            </div>
-            <div>
-              <p className="login-brand-kicker">AMALI SCHOOL</p>
-              <h4>School management, made simpler.</h4>
-              <p>Manage students, academics, staff, and examinations from one secure portal.</p>
-            </div>
-          </section>
+        <section className="login-card" aria-label="Login form">
+          <div className="login-logo">
+            <img className="login-logo-img" src="/assets/logo.png" alt="Amali Kitukutu logo" />
+          </div>
+          <h2 className="login-title">Welcome back</h2>
+          <p className="login-subtitle">Sign in to your Amali School account</p>
 
-          <section className="login-card" aria-label="Login form">
-            <div className="login-logo">
-              <img className="login-logo-img" src="/assets/logo.png" alt="Amali Kitukutu logo" />
+          <form className="login-form" onSubmit={handleLogin}>
+            <div className="field">
+              <label htmlFor="email">Email address</label>
+              <div className="login-input-wrap">
+                <UserIcon />
+                <input
+                  id="email"
+                  className="login-input"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="you@amalischool.com"
+                  autoComplete="email"
+                  required
+                />
+              </div>
             </div>
-            <h2 className="login-title">Welcome back</h2>
-            <p className="login-subtitle">Sign in to your Amali School account</p>
-
-            <form className="login-form" onSubmit={handleLogin}>
-              <div className="field">
-                <label htmlFor="email">Email address</label>
-                <div className="login-input-wrap">
-                  <UserIcon />
-                  <input
-                    id="email"
-                    className="login-input"
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="you@amalischool.com"
-                    autoComplete="email"
-                    required
-                  />
-                </div>
+            <div className="field">
+              <label htmlFor="password">Password</label>
+              <div className="password-field login-input-wrap">
+                <LockIcon />
+                <input
+                  id="password"
+                  className="login-input"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  minLength={6}
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                >
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
               </div>
-              <div className="field">
-                <label htmlFor="password">Password</label>
-                <div className="password-field login-input-wrap">
-                  <LockIcon />
-                  <input
-                    id="password"
-                    className="login-input"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Enter your password"
-                    autoComplete="current-password"
-                    minLength={6}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    aria-pressed={showPassword}
-                  >
-                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                  </button>
-                </div>
-              </div>
-              <div className="login-options">
-                <label className="checkbox">
-                  <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
-                  <span>Remember me</span>
-                </label>
-                <a className="forgot-link" href="mailto:info@amalikitukutu.unaux.com?subject=Password%20Reset">Forgot password?</a>
-              </div>
-              {error && <p className="error-message" role="alert">{error}</p>}
-              <button className="login-button" type="submit" disabled={submitting}>
-                {submitting ? "Signing in…" : "Sign in"}
-              </button>
-            </form>
-          </section>
-        </div>
+            </div>
+            <div className="login-options">
+              <label className="checkbox">
+                <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
+                <span>Remember me</span>
+              </label>
+              <a className="forgot-link" href="mailto:info@amalikitukutu.unaux.com?subject=Password%20Reset">Forgot password?</a>
+            </div>
+            {error && <p className="error-message" role="alert">{error}</p>}
+            <button className="login-button" type="submit" disabled={submitting}>
+              {submitting ? "Signing in…" : "Sign in"}
+            </button>
+            <Link className="login-back" href="/">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+                <path d="m12 19-7-7 7-7" />
+                <path d="M19 12H5" />
+              </svg>
+              Back to Home
+            </Link>
+          </form>
+        </section>
       </main>
     </div>
   );

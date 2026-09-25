@@ -620,7 +620,7 @@ export default function StudentsManagement() {
           <input
             className="sm-search"
             type="text"
-            placeholder="Search by name or phone..."
+            placeholder="Search by name, registration no or phone..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -689,6 +689,7 @@ export default function StudentsManagement() {
                   />
                 </th>
                 <th>Student</th>
+                <th>Reg No</th>
                 <th>Class</th>
                 <th>Stream</th>
                 <th>Sex</th>
@@ -698,7 +699,7 @@ export default function StudentsManagement() {
             </thead>
             <tbody>
               {students.length === 0 && (
-                <tr><td colSpan={7} className="st-empty-state">
+                <tr><td colSpan={8} className="st-empty-state">
                   {hasFilters ? "No students match the current filters." : "No students registered yet."}
                 </td></tr>
               )}
@@ -723,6 +724,7 @@ export default function StudentsManagement() {
                       </div>
                     </div>
                   </td>
+                  <td><span className="st-regno">{row.registration_no ?? "—"}</span></td>
                   <td><span className="st-badge st-badge--form">{row.school_classes?.name ?? "—"}</span></td>
                   <td>{row.streams?.name ?? "—"}</td>
                   <td>
@@ -784,7 +786,13 @@ export default function StudentsManagement() {
 
             <div className="st-form">
               <div className="st-section">
-                <div className="st-section-label">Personal Details</div>
+                <div className="st-section-label">
+                  Personal Details
+                  {editingId && (() => {
+                    const reg = students.find((s) => s.id === editingId)?.registration_no;
+                    return reg ? <span className="st-regno-inline">Reg No: {reg}</span> : null;
+                  })()}
+                </div>
                 <div className="st-grid st-grid--3">
                   <label className="st-field">
                     <span className="st-field-label">First Name <em>*</em></span>

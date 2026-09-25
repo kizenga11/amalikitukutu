@@ -121,6 +121,17 @@ function formatDateRange(start: string, end: string): string {
   return s;
 }
 
+const ANNOUNCEMENT_DAYS = 7;
+
+function latestExamAnnouncement(exams: PublicExam[]): PublicExam | null {
+  if (exams.length === 0) return null;
+  const latest = [...exams].sort((a, b) => b.end_date.localeCompare(a.end_date))[0];
+  const end = new Date(`${latest.end_date}T23:59:59`);
+  if (isNaN(end.getTime())) return latest;
+  const expiresAt = end.getTime() + ANNOUNCEMENT_DAYS * 24 * 60 * 60 * 1000;
+  return Date.now() <= expiresAt ? latest : null;
+}
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -157,6 +168,8 @@ export default function Home() {
   async function handleLogout() {
     await supabase.auth.signOut();
   }
+
+  const announcement = latestExamAnnouncement(exams);
 
   if (loading) {
     return (
@@ -333,15 +346,13 @@ export default function Home() {
         <div className="container">
           <h2 className="section-title">Latest Announcements</h2>
           <div className="grid">
-            {exams.length > 0 ? (
-              exams.slice(0, 6).map((exam) => (
-                <div key={exam.id} className="card announcement">
-                  <div className="date-badge">{formatDateRange(exam.start_date, exam.end_date)}</div>
-                  <h3>{exam.name}</h3>
-                  <p>Matokeo ya mtihani huu yamechapishwa. Bonyeza Angalia Matokeo kuona matokeo kamili.</p>
-                  <a href={`/results?exam=${exam.id}`} className="btn btn-sm">Angalia Matokeo</a>
-                </div>
-              ))
+            {announcement ? (
+              <div className="card announcement">
+                <div className="date-badge">{formatDateRange(announcement.start_date, announcement.end_date)}</div>
+                <h3>{announcement.name}</h3>
+                <p>Matokeo ya mtihani huu yamechapishwa. Bonyeza Angalia Matokeo kuona matokeo kamili.</p>
+                <a href={`/results?exam=${announcement.id}`} className="btn btn-sm">Angalia Matokeo</a>
+              </div>
             ) : (
               <div className="card"><p>No announcements available at the moment.</p></div>
             )}

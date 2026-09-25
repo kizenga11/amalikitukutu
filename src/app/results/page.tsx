@@ -21,9 +21,7 @@ interface PublicSubject {
 
 interface PublicStudent {
   student_id: string;
-  first_name: string;
-  middle_name: string | null;
-  last_name: string;
+  registration_no: string | null;
   gender: string;
   class_name: string;
   stream_name: string;
@@ -64,8 +62,8 @@ function formatDateRange(start: string, end: string): string {
   return end && end !== start ? `${d1} – ${d2}` : d1;
 }
 
-function fullName(student: PublicStudent): string {
-  return `${student.first_name}${student.middle_name ? ` ${student.middle_name}` : ""} ${student.last_name}`;
+function registrationNumber(student: PublicStudent): string {
+  return student.registration_no ?? "—";
 }
 
 function ResultsView() {
@@ -137,8 +135,8 @@ function ResultsView() {
     const keyword = search.trim().toLowerCase();
     if (!keyword) return data.students;
     return data.students.filter((student) => {
-      const name = fullName(student).toLowerCase();
-      return keyword.split(/\s+/).every((part) => name.includes(part));
+      const regNo = registrationNumber(student).toLowerCase();
+      return regNo.includes(keyword);
     });
   }, [data, search]);
 
@@ -171,7 +169,7 @@ function ResultsView() {
         <div className="results-container">
           <div className="results-header">
             <h2 className="results-title">Matokeo ya Mitihani</h2>
-            <p className="results-subtitle">Tafuta jina la mwanafunzi kisha bonyeza kuona matokeo yake. Kama kuna mitihani mingi, chagua mtihani.</p>
+            <p className="results-subtitle">Tafuta kwa namba ya usajili ya mwanafunzi kisha bonyeza kuona matokeo yake. Kama kuna mitihani mingi, chagua mtihani.</p>
           </div>
 
           <div className="results-search-wrap">
@@ -201,7 +199,7 @@ function ResultsView() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
                 <input
                   type="search"
-                  placeholder="Tafuta jina la mwanafunzi…"
+                  placeholder="Tafuta kwa namba ya usajili (mf. S8384/0001/2026)…"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   className="results-search-input"
@@ -210,7 +208,7 @@ function ResultsView() {
 
               {!selectedStudent && (
                 <>
-                  <p className="results-hint">{filtered.length > 0 ? `Wanafunzi ${filtered.length} — bonyeza jina ili kuona matokeo` : "Hakuna mwanafunzi anayefanana na tafuta."}</p>
+                  <p className="results-hint">{filtered.length > 0 ? `Wanafunzi ${filtered.length} — bonyeza namba ya usajili ili kuona matokeo` : "Hakuna mwanafunzi anayefanana na namba hiyo."}</p>
                   <div className="results-list">
                     {filtered.map((student) => (
                       <button
@@ -219,7 +217,7 @@ function ResultsView() {
                         className="results-student-btn"
                         onClick={() => setSelectedStudentId(student.student_id)}
                       >
-                        <span className="results-student-name">{fullName(student)}</span>
+                        <span className="results-student-name">{registrationNumber(student)}</span>
                         <span className="results-student-meta">{student.class_name}{student.stream_name && student.stream_name !== "—" ? ` · ${student.stream_name}` : ""}</span>
                       </button>
                     ))}
@@ -245,7 +243,7 @@ function ResultsView() {
                     </button>
                   </div>
 
-                  <div className="slip-student">{fullName(selectedStudent)}</div>
+                  <div className="slip-student">{registrationNumber(selectedStudent)}</div>
                   <p className="slip-meta">
                     {selectedStudent.class_name}{selectedStudent.stream_name && selectedStudent.stream_name !== "—" ? ` · ${selectedStudent.stream_name}` : ""} · {genderLabel(selectedStudent.gender)} · Nafasi ya {selectedStudent.incomplete ? "—" : `#${selectedStudent.rank}`}
                   </p>

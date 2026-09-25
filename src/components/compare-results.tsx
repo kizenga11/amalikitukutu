@@ -128,6 +128,7 @@ export default function CompareResults() {
   const [error, setError] = useState("");
   const [kidatoFilter, setKidatoFilter] = useState("__all__");
   const [trendFilter, setTrendFilter] = useState<"all" | "up" | "down">("all");
+  const [pageOrientation, setPageOrientation] = useState<"portrait" | "landscape">("landscape");
 
   const sortedExams = useMemo(
     () => [...exams].sort((a, b) => a.start_date.localeCompare(b.start_date)),
@@ -333,13 +334,19 @@ export default function CompareResults() {
   if (error) return <div className="st-empty-state">{error}</div>;
 
   return (
-    <div className="result-page cmp-page">
+    <div className={`result-page cmp-page${pageOrientation === "landscape" ? " print-landscape" : ""}`}>
       <div className="page-head result-controls">
         <div>
           <h2 className="page-title">Compare Exams</h2>
           <p className="page-sub">Compare two exams — whole school, subjects and students (improved and declined).</p>
         </div>
-        <button className="cm-btn cm-btn--ghost no-print" onClick={() => window.print()}>Print A4 / PDF</button>
+        <div className="print-tools no-print">
+          <div className="result-mode-tabs print-orientation" role="group" aria-label="Print orientation">
+            <button type="button" className={`ex-tab${pageOrientation === "portrait" ? " ex-tab--active" : ""}`} onClick={() => setPageOrientation("portrait")}>Portrait</button>
+            <button type="button" className={`ex-tab${pageOrientation === "landscape" ? " ex-tab--active" : ""}`} onClick={() => setPageOrientation("landscape")}>Landscape</button>
+          </div>
+          <button className="cm-btn cm-btn--ghost" onClick={() => window.print()}>Print A4 / PDF</button>
+        </div>
       </div>
 
       <div className="res-toolbar no-print">
@@ -374,15 +381,25 @@ export default function CompareResults() {
           <div className="st-empty-state">Not enough exams for comparison. Make sure there are at least two exams.</div>
         ) : (
           <div className="result-paper">
-            <header className="result-header">
-              <div>{schoolInfo?.council ? `${schoolInfo.council}${schoolInfo.district ? ` — ${schoolInfo.district}` : ""}` : schoolInfo?.district || "DISTRICT COUNCIL"}</div>
-              <h1>{schoolInfo?.name || "School"}</h1>
-              <div>{schoolInfo?.address ? `P.O. Box ${schoolInfo.address.replace(/^S\.?L\.?\s*P\.?\s*\bBox\b.*/i, "").replace(/^P\.?O\.?\s*Box\s*/i, "").trim()}` : "P.O. Box"}</div>
-              <h2>EXAM COMPARISON</h2>
-              <div className="result-header-meta">
-                {previousExam ? `${previousExam.name.toUpperCase()} ${yearOf(previousExam.start_date)}` : "—"} vs{" "}
-                {currentExam.name.toUpperCase()} {yearOf(currentExam.start_date)}
-                {kidatoFilter !== "__all__" ? ` — ${kidatoFilter}` : ""}
+            <header className="result-header cmp-report-header">
+              <div className="cmp-header-top">
+                <img className="cmp-header-logo" src="/assets/logo.png" alt="School logo" />
+                <div className="cmp-header-school">
+                  <div className="cmp-header-council">{schoolInfo?.council ? `${schoolInfo.council}${schoolInfo.district ? ` — ${schoolInfo.district}` : ""}` : schoolInfo?.district || "DISTRICT COUNCIL"}</div>
+                  <h1>{schoolInfo?.name || "School"}</h1>
+                  <div className="cmp-header-address">{schoolInfo?.address ? `P.O. Box ${schoolInfo.address.replace(/^S\.?L\.?\s*P\.?\s*\bBox\b.*/i, "").replace(/^P\.?O\.?\s*Box\s*/i, "").trim()}` : "P.O. Box"}</div>
+                </div>
+              </div>
+              <div className="cmp-header-title">
+                <h2>EXAMINATIONS COMPARISON REPORT</h2>
+                <div className="cmp-header-period">
+                  {previousExam ? `${previousExam.name.toUpperCase()} ${yearOf(previousExam.start_date)}` : "—"} VS {currentExam.name.toUpperCase()} {yearOf(currentExam.start_date)}
+                </div>
+              </div>
+              <div className="cmp-header-meta">
+                <span>Cohort: {kidatoFilter !== "__all__" ? kidatoFilter : "Whole School"}</span>
+                <span>Academic Office</span>
+                <span>Issued: {shortDate(new Date().toISOString())}</span>
               </div>
             </header>
 

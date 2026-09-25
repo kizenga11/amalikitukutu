@@ -25,6 +25,7 @@ const admin: SupabaseClient = createClient(supabaseUrl, serviceRoleKey, {
 
 interface RawStudent {
   id: string;
+  registration_no: string | null;
   first_name: string;
   middle_name: string | null;
   last_name: string;
@@ -112,7 +113,7 @@ export async function GET(request: Request) {
 
   const { data: studentData, error: studentErr } = await admin
     .from("students")
-    .select("id, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name)")
+    .select("id, registration_no, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name)")
     .in("class_id", classIds);
   if (studentErr) return NextResponse.json({ error: "Could not load students" }, { status: 500 });
 
@@ -149,6 +150,11 @@ export async function GET(request: Request) {
       practical: row.practical_score !== null ? Number(row.practical_score) : null,
       is_absent: row.is_absent ?? false,
     };
+  }
+
+  const registrationByStudent = new Map<string, string | null>();
+  for (const raw of (studentData ?? []) as unknown as RawStudent[]) {
+    registrationByStudent.set(raw.id, raw.registration_no);
   }
 
   const classes = Array.from(classNames.entries())
@@ -216,9 +222,7 @@ export async function GET(request: Request) {
     const classId = classes.find((c) => c.students.some((s) => s.student_id === row.student.student_id))?.class_id ?? null;
     return {
       student_id: row.student.student_id,
-      first_name: row.student.first_name,
-      middle_name: row.student.middle_name,
-      last_name: row.student.last_name,
+      registration_no: registrationByStudent.get(row.student.student_id) ?? null,
       gender: row.student.gender,
       class_id: classId,
       class_name: classId ? classById.get(classId) ?? "—" : "—",
