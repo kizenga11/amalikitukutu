@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 interface PublicExam {
@@ -91,18 +92,15 @@ function ResultsView() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!selectedExamId) {
-      setData(null);
-      setSelectedStudentId("");
-      return;
-    }
+    if (!selectedExamId) return;
     let active = true;
-    setLoadingResults(true);
-    setError("");
-    setSelectedStudentId("");
-    fetch(`/api/public-results?examId=${encodeURIComponent(selectedExamId)}`)
-      .then((res) => res.json())
-      .then((payload: Partial<ResultsPayload> & { error?: string }) => {
+    (async () => {
+      setLoadingResults(true);
+      setError("");
+      setSelectedStudentId("");
+      try {
+        const res = await fetch(`/api/public-results?examId=${encodeURIComponent(selectedExamId)}`);
+        const payload: Partial<ResultsPayload> & { error?: string } = await res.json();
         if (!active) return;
         if (!payload || !Array.isArray(payload.students)) {
           setData(null);
@@ -110,13 +108,12 @@ function ResultsView() {
           return;
         }
         setData(payload as ResultsPayload);
-      })
-      .catch(() => {
+      } catch {
         if (active) setError("Could not load results for this exam.");
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoadingResults(false);
-      });
+      }
+    })();
     return () => {
       active = false;
     };
@@ -124,6 +121,10 @@ function ResultsView() {
 
   const selectExam = useCallback((examId: string) => {
     setSelectedExamId(examId);
+    if (!examId) {
+      setData(null);
+      setSelectedStudentId("");
+    }
     const url = new URL(window.location.href);
     if (examId) url.searchParams.set("exam", examId);
     else url.searchParams.delete("exam");
@@ -147,9 +148,9 @@ function ResultsView() {
       <header className="site-header">
         <div className="container header-flex">
           <div className="logo">
-            <a href="/" aria-label="Amali Kitukutu home">
+            <Link href="/" aria-label="Amali Kitukutu home">
               <img src="/assets/logo.png" alt="Amali Kitukutu Logo" />
-            </a>
+            </Link>
             <div className="logo-text">
               <strong>Amali Kitukutu</strong>
               <span>Kitukutu Technical Secondary School</span>
@@ -157,9 +158,9 @@ function ResultsView() {
           </div>
           <nav className="nav-desktop">
             <ul>
-              <li><a href="/">Home</a></li>
-              <li><a href="/#results">Results</a></li>
-              <li><a href="/login" className="login-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg> Staff Login</a></li>
+              <li><Link href="/">Home</Link></li>
+              <li><Link href="/#results">Results</Link></li>
+              <li><Link href="/login" className="login-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg> Staff Login</Link></li>
             </ul>
           </nav>
         </div>

@@ -394,17 +394,17 @@ export default function StudentReportCard() {
   }, []);
 
   useEffect(() => {
-    if (exams.length === 0) {
-      setMarksReady(true);
-      setMarksLoading(false);
-      setMarksByExam({});
-      return;
-    }
     let active = true;
-    setMarksLoading(true);
-    setMarksReady(false);
-    setMarksByExam({});
     (async () => {
+      if (exams.length === 0) {
+        setMarksReady(true);
+        setMarksLoading(false);
+        setMarksByExam({});
+        return;
+      }
+      setMarksLoading(true);
+      setMarksReady(false);
+      setMarksByExam({});
       await Promise.all(
         exams.map(async (exam) => {
           try {

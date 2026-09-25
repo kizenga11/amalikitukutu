@@ -139,7 +139,11 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const current = readStoredJson<NavKey>(navigationKey, "dashboard", isNavKey);
+    const group = navGroups.find((g) => g.items.some((n) => n.key === current)) ?? navGroups.find((g) => g.items.some((n) => n.key === "dashboard"));
+    return group ? { [group.key]: true } : {};
+  });
   const [activePeriod, setActivePeriod] = useState<Period>(loadStoredPeriod);
   const [viewPeriod, setViewPeriod] = useState<Period>(loadStoredPeriod);
 
@@ -166,16 +170,11 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
   const initials = (user.email ?? "U").split("@")[0].slice(0, 2).toUpperCase();
   const title = navGroups.flatMap((group) => group.items).find((n) => n.key === effectiveActive)?.label ?? "Dashboard";
 
-  useEffect(() => {
-    const activeGroup = navGroups.find((group) => group.items.some((n) => n.key === effectiveActive))?.key;
-    if (activeGroup) {
-      setOpenGroups((current) => ({ ...current, [activeGroup]: true }));
-    }
-  }, [effectiveActive]);
-
   function pickNav(key: NavKey) {
     if (!allowedKeys.includes(key)) return;
     setActive(key);
+    const group = navGroups.find((g) => g.items.some((n) => n.key === key));
+    if (group) setOpenGroups((current) => ({ ...current, [group.key]: true }));
     writeStoredJson(navigationKey, key);
     setSidebarOpen(false);
   }
