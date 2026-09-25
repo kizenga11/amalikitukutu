@@ -19,6 +19,7 @@ import ExamManagement from "@/components/exam-management";
 import ResultPage from "@/components/result-page";
 import StudentReportCard from "@/components/student-report-card";
 import CompareResults from "@/components/compare-results";
+import StudentEnrollmentStatistics from "@/components/student-enrollment-statistics";
 import { StatCardSkeleton, PanelSkeleton } from "@/components/loading";
 import { fetchAcademicSettings, fetchDashboardData, fetchSchoolInfo, saveAcademicSettings, saveSchoolInfo, type DashboardData, type SchoolInfo } from "@/lib/school-api";
 import { DEFAULT_SCHOOL_INFO } from "@/lib/school-api";
@@ -63,31 +64,61 @@ const icons = {
   check: <Icon paths={<><path d="M20 6 9 17l-5-5" /></>} />,
 };
 
-type NavKey = "dashboard" | "students" | "staff" | "classes" | "academic" | "reports" | "reportcard" | "compare" | "exams" | "settings";
+type NavKey = "dashboard" | "students" | "staff" | "classes" | "academic" | "reports" | "enrollment" | "reportcard" | "compare" | "exams" | "settings";
 
 function isNavKey(value: unknown): value is NavKey {
   return typeof value === "string" && [
-    "dashboard", "students", "staff", "classes", "academic", "reports", "reportcard", "compare", "exams", "settings",
+    "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "exams", "settings",
   ].includes(value);
 }
 
-const navItems: { key: NavKey; label: string; icon: React.ReactNode }[] = [
-  { key: "dashboard", label: "Dashboard", icon: icons.dashboard },
-  { key: "students", label: "Students", icon: icons.students },
-  { key: "staff", label: "Staff", icon: icons.staff },
-  { key: "classes", label: "Classes", icon: icons.classes },
-  { key: "academic", label: "Academic", icon: icons.academic },
-  { key: "reports", label: "Result", icon: icons.reports },
-  { key: "reportcard", label: "Report Card", icon: icons.reportcard },
-  { key: "compare", label: "Compare", icon: icons.compare },
-  { key: "exams", label: "Exams", icon: icons.exams },
-  { key: "settings", label: "Settings", icon: icons.settings },
+type NavItemDef = { key: NavKey; label: string; icon: React.ReactNode };
+type NavGroup = { key: string; label: string; items: NavItemDef[] };
+
+const navGroups: NavGroup[] = [
+  {
+    key: "overview",
+    label: "Overview",
+    items: [{ key: "dashboard", label: "Dashboard", icon: icons.dashboard }],
+  },
+  {
+    key: "records",
+    label: "Records",
+    items: [
+      { key: "students", label: "Students", icon: icons.students },
+      { key: "staff", label: "Staff", icon: icons.staff },
+      { key: "classes", label: "Classes", icon: icons.classes },
+    ],
+  },
+  {
+    key: "academics",
+    label: "Academics",
+    items: [
+      { key: "academic", label: "Subjects", icon: icons.academic },
+      { key: "exams", label: "Exams", icon: icons.exams },
+    ],
+  },
+  {
+    key: "reports",
+    label: "Reporting",
+    items: [
+      { key: "reports", label: "Result", icon: icons.reports },
+      { key: "enrollment", label: "Enrollment Report", icon: icons.reports },
+      { key: "reportcard", label: "Report Card", icon: icons.reportcard },
+      { key: "compare", label: "Compare", icon: icons.compare },
+    ],
+  },
+  {
+    key: "system",
+    label: "Settings",
+    items: [{ key: "settings", label: "Settings", icon: icons.settings }],
+  },
 ];
 
 const roleAccess: Record<Role, NavKey[]> = {
-  Headmaster: ["dashboard", "students", "staff", "classes", "academic", "reports", "reportcard", "compare", "exams", "settings"],
-  Academic: ["dashboard", "students", "staff", "classes", "academic", "reports", "reportcard", "compare", "exams", "settings"],
-  Teacher: ["dashboard", "exams", "reports", "reportcard", "compare"],
+  Headmaster: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "exams", "settings"],
+  Academic: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "exams", "settings"],
+  Teacher: ["dashboard", "exams", "reports", "compare"],
 };
 
 type Period = StoredPeriod;
@@ -108,6 +139,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [activePeriod, setActivePeriod] = useState<Period>(loadStoredPeriod);
   const [viewPeriod, setViewPeriod] = useState<Period>(loadStoredPeriod);
 
@@ -127,10 +159,19 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
   }, []);
 
   const allowedKeys = roleAccess[role] ?? roleAccess.Teacher;
-  const visibleNav = navItems.filter((n) => allowedKeys.includes(n.key));
+  const visibleNavGroups = navGroups
+    .map((group) => ({ ...group, items: group.items.filter((n) => allowedKeys.includes(n.key)) }))
+    .filter((group) => group.items.length > 0);
   const effectiveActive: NavKey = allowedKeys.includes(active) ? active : "dashboard";
   const initials = (user.email ?? "U").split("@")[0].slice(0, 2).toUpperCase();
-  const title = navItems.find((n) => n.key === effectiveActive)?.label ?? "Dashboard";
+  const title = navGroups.flatMap((group) => group.items).find((n) => n.key === effectiveActive)?.label ?? "Dashboard";
+
+  useEffect(() => {
+    const activeGroup = navGroups.find((group) => group.items.some((n) => n.key === effectiveActive))?.key;
+    if (activeGroup) {
+      setOpenGroups((current) => ({ ...current, [activeGroup]: true }));
+    }
+  }, [effectiveActive]);
 
   function pickNav(key: NavKey) {
     if (!allowedKeys.includes(key)) return;
@@ -163,16 +204,32 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
         </div>
 
         <nav className="side-nav">
-          {visibleNav.map((item) => (
-            <button
-              key={item.key}
-              className={`nav-item${effectiveActive === item.key ? " nav-item--active" : ""}`}
-              onClick={() => pickNav(item.key)}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          ))}
+          {visibleNavGroups.map((group) => {
+            const open = openGroups[group.key] === true;
+            return (
+              <div className={`nav-group${open ? " nav-group--open" : " nav-group--closed"}`} key={group.key}>
+                <button
+                  type="button"
+                  className="nav-group-label"
+                  onClick={() => setOpenGroups((current) => ({ ...current, [group.key]: !open }))}
+                  aria-expanded={open}
+                >
+                  <span>{group.label}</span>
+                  {icons.chevron}
+                </button>
+                {open && group.items.map((item) => (
+                  <button
+                    key={item.key}
+                    className={`nav-item${effectiveActive === item.key ? " nav-item--active" : ""}`}
+                    onClick={() => pickNav(item.key)}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
         </nav>
       </aside>
 
@@ -237,6 +294,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "staff" && <TeachersManagement />}
           {effectiveActive === "exams" && <ExamManagement teacherId={role === "Teacher" ? user.id : undefined} />}
           {effectiveActive === "reports" && <ResultPage role={role} />}
+          {effectiveActive === "enrollment" && <StudentEnrollmentStatistics />}
           {effectiveActive === "reportcard" && <StudentReportCard />}
           {effectiveActive === "compare" && <CompareResults />}
         </main>

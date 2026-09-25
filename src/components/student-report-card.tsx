@@ -197,7 +197,7 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
           <div className="rc-info-left">
             <span>Darasa: {classRow.class_name}</span>
             <span className="rc-sep">|</span>
-            <span>Wimbi: {streamName}</span>
+            <span>Mkondo: {streamName}</span>
             <span className="rc-sep">|</span>
             <span>Jinsia: {genderLabel(row.student.gender)}</span>
           </div>
@@ -362,6 +362,8 @@ export default function StudentReportCard() {
     competencyThresholds: DEFAULT_COMPETENCY_THRESHOLDS,
   });
   const [loading, setLoading] = useState(true);
+  const [marksLoading, setMarksLoading] = useState(false);
+  const [marksReady, setMarksReady] = useState(false);
   const [printAll, setPrintAll] = useState(false);
   const [showHistory, setShowHistory] = useState(true);
   const [historyCount, setHistoryCount] = useState(3);
@@ -392,18 +394,31 @@ export default function StudentReportCard() {
   }, []);
 
   useEffect(() => {
-    if (exams.length === 0) return;
+    if (exams.length === 0) {
+      setMarksReady(true);
+      setMarksLoading(false);
+      setMarksByExam({});
+      return;
+    }
     let active = true;
+    setMarksLoading(true);
+    setMarksReady(false);
+    setMarksByExam({});
     (async () => {
-      const entries: [string, ExamMarksData][] = [];
-      for (const exam of exams) {
-        try {
-          entries.push([exam.id, await fetchExamMarks(exam.id)]);
-        } catch {
-          // Skip exams whose marks cannot be loaded.
-        }
+      await Promise.all(
+        exams.map(async (exam) => {
+          try {
+            const data = await fetchExamMarks(exam.id);
+            if (active) setMarksByExam((current) => ({ ...current, [exam.id]: data }));
+          } catch {
+            // Skip exams whose marks cannot be loaded.
+          }
+        }),
+      );
+      if (active) {
+        setMarksLoading(false);
+        setMarksReady(true);
       }
-      if (active) setMarksByExam(Object.fromEntries(entries));
     })();
     return () => {
       active = false;
@@ -422,7 +437,6 @@ export default function StudentReportCard() {
     [currentClass, participants],
   );
   const currentStudent = classStudents.find((item) => item.student_id === selectedStudentId) ?? classStudents[0];
-  const marksLoading = exams.length > 0 && Object.keys(marksByExam).length < exams.length;
 
   const reportReady = useMemo(() => {
     if (!currentData || !currentClass || !currentStudent) return false;
@@ -446,6 +460,7 @@ export default function StudentReportCard() {
 
   if (loading) return <div className="me-loading"><Spinner size={20} /></div>;
   if (error) return <div className="st-empty-state">{error}</div>;
+  if (marksLoading || !marksReady) return <div className="me-loading"><Spinner size={20} /></div>;
   if (!currentData || !currentClass || !currentExam) {
     return <div className="st-empty-state">Hakuna mitihani, madarasa au wanafunzi kwa ripoti za matokeo.</div>;
   }

@@ -463,6 +463,158 @@ export async function fetchStudentSubjects(studentId: string): Promise<string[]>
   return (data ?? []).map((row) => row.subject_id);
 }
 
+export interface EnrollmentStreamStat {
+  classId: string | null;
+  className: string;
+  formLevel: number | null;
+  streamId: string | null;
+  streamName: string;
+  male: number;
+  female: number;
+  total: number;
+}
+
+export interface EnrollmentSubjectStat {
+  subjectId: string;
+  subjectName: string;
+  streams: EnrollmentStreamStat[];
+  male: number;
+  female: number;
+  total: number;
+}
+
+export interface EnrollmentStatistics {
+  streams: EnrollmentStreamStat[];
+  subjects: EnrollmentSubjectStat[];
+  male: number;
+  female: number;
+  total: number;
+}
+
+export async function fetchEnrollmentStatistics(): Promise<EnrollmentStatistics> {
+  const [classes, studentsResult, subjectsResult, assignmentsResult] = await Promise.all([
+    fetchClassesWithStreams(),
+    supabase.from("students").select("id, gender, class_id, stream_id"),
+    supabase.from("subjects").select("id, name").order("name"),
+    supabase.from("student_subjects").select("student_id, subject_id"),
+  ]);
+
+  if (studentsResult.error) throw studentsResult.error;
+  if (subjectsResult.error) throw subjectsResult.error;
+  if (assignmentsResult.error) throw assignmentsResult.error;
+
+  const streams: EnrollmentStreamStat[] = [];
+  const streamById = new Map<string, EnrollmentStreamStat>();
+  for (const cls of classes) {
+    for (const stream of cls.streams) {
+      const row: EnrollmentStreamStat = {
+        classId: cls.id,
+        className: cls.name,
+        formLevel: cls.form_level,
+        streamId: stream.id,
+        streamName: stream.name,
+        male: 0,
+        female: 0,
+        total: 0,
+      };
+      streams.push(row);
+      streamById.set(stream.id, row);
+    }
+  }
+
+  const students = (studentsResult.data ?? []) as { id: string; gender: Gender; class_id: string | null; stream_id: string | null }[];
+  const fallbackStreams = new Map<string, EnrollmentStreamStat>();
+  function statForStudent(student: { class_id: string | null; stream_id: string | null }): EnrollmentStreamStat {
+    if (student.stream_id && streamById.has(student.stream_id)) return streamById.get(student.stream_id)!;
+    const key = `${student.class_id ?? "unassigned"}:unassigned`;
+    const existing = fallbackStreams.get(key);
+    if (existing) return existing;
+    const className = classes.find((item) => item.id === student.class_id)?.name ?? "Unassigned";
+    const row: EnrollmentStreamStat = {
+      classId: student.class_id,
+      className,
+      formLevel: classes.find((item) => item.id === student.class_id)?.form_level ?? null,
+      streamId: null,
+      streamName: "Unassigned",
+      male: 0,
+      female: 0,
+      total: 0,
+    };
+    fallbackStreams.set(key, row);
+    streams.push(row);
+    return row;
+  }
+
+  for (const student of students) {
+    const row = statForStudent(student);
+    if (student.gender === "Male") row.male += 1;
+    if (student.gender === "Female") row.female += 1;
+    row.total += 1;
+  }
+
+  streams.sort((a, b) => a.className.localeCompare(b.className) || a.streamName.localeCompare(b.streamName));
+  const subjectRows = Array.from(
+    ((subjectsResult.data ?? []) as { id: string; name: string }[]).reduce(
+      (grouped, subject) => {
+        const key = subject.name.trim().toLocaleLowerCase();
+        const existing = grouped.get(key);
+        if (existing) {
+          existing.ids.push(subject.id);
+        } else {
+          grouped.set(key, { id: subject.id, name: subject.name.trim(), ids: [subject.id] });
+        }
+        return grouped;
+      },
+      new Map<string, { id: string; name: string; ids: string[] }>(),
+    ).values(),
+  );
+  const assignments = (assignmentsResult.data ?? []) as { student_id: string; subject_id: string }[];
+  const studentById = new Map(students.map((student) => [student.id, student]));
+  const assignmentsBySubject = new Map<string, { student_id: string; subject_id: string }[]>();
+  for (const assignment of assignments) {
+    const subjectAssignments = assignmentsBySubject.get(assignment.subject_id) ?? [];
+    subjectAssignments.push(assignment);
+    assignmentsBySubject.set(assignment.subject_id, subjectAssignments);
+  }
+  const subjects = subjectRows.map((subject) => {
+    const counts = new Map<string, EnrollmentStreamStat>();
+    const subjectStudents = subject.ids
+      .flatMap((subjectId) => assignmentsBySubject.get(subjectId) ?? [])
+      .map((assignment) => studentById.get(assignment.student_id))
+      .filter((student): student is (typeof students)[number] => Boolean(student));
+    const uniqueSubjectStudents = Array.from(
+      new Map(subjectStudents.map((student) => [student.id, student])).values(),
+    );
+    for (const student of uniqueSubjectStudents) {
+      const overallStream = statForStudent(student);
+      const key = `${overallStream.classId ?? "unassigned"}:${overallStream.streamId ?? "unassigned"}`;
+      const row = counts.get(key) ?? {
+        ...overallStream,
+        male: 0,
+        female: 0,
+        total: 0,
+      };
+      if (student.gender === "Male") row.male += 1;
+      if (student.gender === "Female") row.female += 1;
+      row.total += 1;
+      counts.set(key, row);
+    }
+    const subjectStreams = streams
+      .map((stream) => {
+        const key = `${stream.classId ?? "unassigned"}:${stream.streamId ?? "unassigned"}`;
+        return counts.get(key) ?? { ...stream, male: 0, female: 0, total: 0 };
+      })
+      .filter((stream) => stream.total > 0);
+    const male = subjectStreams.reduce((sum, row) => sum + row.male, 0);
+    const female = subjectStreams.reduce((sum, row) => sum + row.female, 0);
+    return { subjectId: subject.id, subjectName: subject.name, streams: subjectStreams, male, female, total: male + female };
+  });
+
+  const male = students.filter((student) => student.gender === "Male").length;
+  const female = students.filter((student) => student.gender === "Female").length;
+  return { streams, subjects, male, female, total: male + female };
+}
+
 export async function saveStudentSubjects(studentId: string, subjectIds: string[]): Promise<void> {
   const { data: currentRows, error: currentError } = await supabase
     .from("student_subjects")
