@@ -604,12 +604,18 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
   // Once subjects are selected, only show students who are enrolled in at
   // least one of those subjects. This prevents unrelated stream students from
   // appearing with non-editable cells in the marks grid.
-  const gridStudents = streamStudents.filter((st) =>
-    selectedSubjectSet.size === 0 ||
-    st.subjects.some((subjectId) =>
-      selectedSubjectSet.has(subjectId) && (!isTeacher || scopedTeacherSubjectIds.has(subjectId))
+  const gridStudents = streamStudents
+    .filter((st) =>
+      selectedSubjectSet.size === 0 ||
+      st.subjects.some((subjectId) =>
+        selectedSubjectSet.has(subjectId) && (!isTeacher || scopedTeacherSubjectIds.has(subjectId))
+      )
     )
-  );
+    .sort(
+      (a, b) =>
+        a.first_name.localeCompare(b.first_name) ||
+        a.last_name.localeCompare(b.last_name)
+    );
   const marksPageCount = Math.max(1, Math.ceil(gridStudents.length / MARKS_PAGE_SIZE));
   const safeMarksPage = Math.min(marksPage, marksPageCount);
   const pagedStudents = gridStudents.slice((safeMarksPage - 1) * MARKS_PAGE_SIZE, safeMarksPage * MARKS_PAGE_SIZE);
