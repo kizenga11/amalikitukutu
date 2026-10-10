@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import type { User } from "@supabase/supabase-js";
 import { BarChart, DonutChart, LineChart } from "@/components/charts";
 import {
@@ -10,18 +11,23 @@ import {
   type TermNumber,
   yearLabel,
 } from "@/lib/calendar";
-import ClassManagement from "@/components/class-management";
-import SubjectManagement from "@/components/subject-management";
-import StudentsManagement from "@/components/students-management";
-import TeachersManagement from "@/components/teachers-management";
 import TeacherDashboard from "@/components/teacher-dashboard";
-import SubjectAnalysis from "@/components/subject-analysis";
-import ExamManagement from "@/components/exam-management";
-import ResultPage from "@/components/result-page";
-import StudentReportCard from "@/components/student-report-card";
-import CompareResults from "@/components/compare-results";
-import StudentEnrollmentStatistics from "@/components/student-enrollment-statistics";
-import { StatCardSkeleton, PanelSkeleton } from "@/components/loading";
+import { StatCardSkeleton, PanelSkeleton, Spinner } from "@/components/loading";
+
+function PageLoading() {
+  return <div className="me-loading"><Spinner size={20} /></div>;
+}
+
+const ClassManagement = dynamic(() => import("@/components/class-management"), { ssr: false, loading: PageLoading });
+const SubjectManagement = dynamic(() => import("@/components/subject-management"), { ssr: false, loading: PageLoading });
+const StudentsManagement = dynamic(() => import("@/components/students-management"), { ssr: false, loading: PageLoading });
+const TeachersManagement = dynamic(() => import("@/components/teachers-management"), { ssr: false, loading: PageLoading });
+const SubjectAnalysis = dynamic(() => import("@/components/subject-analysis"), { ssr: false, loading: PageLoading });
+const ExamManagement = dynamic(() => import("@/components/exam-management"), { ssr: false, loading: PageLoading });
+const ResultPage = dynamic(() => import("@/components/result-page"), { ssr: false, loading: PageLoading });
+const StudentReportCard = dynamic(() => import("@/components/student-report-card"), { ssr: false, loading: PageLoading });
+const CompareResults = dynamic(() => import("@/components/compare-results"), { ssr: false, loading: PageLoading });
+const StudentEnrollmentStatistics = dynamic(() => import("@/components/student-enrollment-statistics"), { ssr: false, loading: PageLoading });
 import { fetchAcademicSettings, fetchDashboardData, fetchSchoolInfo, saveAcademicSettings, saveSchoolInfo, type DashboardData, type SchoolInfo } from "@/lib/school-api";
 import { DEFAULT_SCHOOL_INFO } from "@/lib/school-api";
 import { readStoredJson, readStoredPeriod, writeStoredJson, writeStoredPeriod, type StoredPeriod } from "@/lib/preferences";
