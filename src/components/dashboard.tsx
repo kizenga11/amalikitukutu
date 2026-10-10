@@ -24,9 +24,11 @@ const StudentsManagement = dynamic(() => import("@/components/students-managemen
 const TeachersManagement = dynamic(() => import("@/components/teachers-management"), { ssr: false, loading: PageLoading });
 const SubjectAnalysis = dynamic(() => import("@/components/subject-analysis"), { ssr: false, loading: PageLoading });
 const ExamManagement = dynamic(() => import("@/components/exam-management"), { ssr: false, loading: PageLoading });
+const ExamAttendance = dynamic(() => import("@/components/exam-attendance"), { ssr: false, loading: PageLoading });
 const ResultPage = dynamic(() => import("@/components/result-page"), { ssr: false, loading: PageLoading });
 const StudentReportCard = dynamic(() => import("@/components/student-report-card"), { ssr: false, loading: PageLoading });
 const CompareResults = dynamic(() => import("@/components/compare-results"), { ssr: false, loading: PageLoading });
+const BestStudentYearly = dynamic(() => import("@/components/best-student-yearly"), { ssr: false, loading: PageLoading });
 const StudentEnrollmentStatistics = dynamic(() => import("@/components/student-enrollment-statistics"), { ssr: false, loading: PageLoading });
 import { fetchAcademicSettings, fetchDashboardData, fetchSchoolInfo, saveAcademicSettings, saveSchoolInfo, type DashboardData, type SchoolInfo } from "@/lib/school-api";
 import { DEFAULT_SCHOOL_INFO } from "@/lib/school-api";
@@ -61,6 +63,7 @@ const icons = {
   compare: <Icon paths={<><path d="M8 3v9" /><path d="M4 12h8v9H4z" /><path d="M16 3h4v9h-4z" /><path d="M16 16h4v5h-4z" /></>} />,
   analysis: <Icon paths={<><path d="M3 3v18h18" /><rect x="7" y="10" width="3" height="8" /><rect x="12" y="6" width="3" height="12" /><rect x="17" y="13" width="3" height="5" /></>} />,
   exams: <Icon paths={<><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="1" /><path d="m9 14 2 2 4-4" /></>} />,
+  attendance: <Icon paths={<><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M8 2v4" /><path d="M16 2v4" /><path d="M3 10h18" /><path d="m9 15 1.6 1.6L14 13" /></>} />,
   settings: <Icon paths={<><circle cx="12" cy="12" r="3" /><path d="M12 2h1v3" /><path d="M12 19v3" /><path d="M2 12h3" /><path d="M19 12h3" /></>} />,
   bell: <Icon paths={<><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></>} />,
   logout: <Icon paths={<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><line x1="21" y1="12" x2="9" y2="12" /></>} />,
@@ -72,11 +75,11 @@ const icons = {
   check: <Icon paths={<><path d="M20 6 9 17l-5-5" /></>} />,
 };
 
-type NavKey = "dashboard" | "students" | "staff" | "classes" | "academic" | "reports" | "enrollment" | "reportcard" | "compare" | "analysis" | "exams" | "settings";
+type NavKey = "dashboard" | "students" | "staff" | "classes" | "academic" | "reports" | "enrollment" | "reportcard" | "compare" | "beststudent" | "analysis" | "exams" | "attendance" | "settings";
 
 function isNavKey(value: unknown): value is NavKey {
   return typeof value === "string" && [
-    "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "analysis", "exams", "settings",
+    "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "analysis", "exams", "attendance", "settings",
   ].includes(value);
 }
 
@@ -104,6 +107,7 @@ const navGroups: NavGroup[] = [
     items: [
       { key: "academic", label: "Subjects", icon: icons.academic },
       { key: "exams", label: "Exams", icon: icons.exams },
+      { key: "attendance", label: "Attendance", icon: icons.attendance },
     ],
   },
   {
@@ -115,6 +119,7 @@ const navGroups: NavGroup[] = [
       { key: "enrollment", label: "Enrollment Report", icon: icons.reports },
       { key: "reportcard", label: "Report Card", icon: icons.reportcard },
       { key: "compare", label: "Compare", icon: icons.compare },
+      { key: "beststudent", label: "Best Student", icon: icons.trendUp },
     ],
   },
   {
@@ -125,9 +130,9 @@ const navGroups: NavGroup[] = [
 ];
 
 const roleAccess: Record<Role, NavKey[]> = {
-  Headmaster: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "exams", "settings"],
-  Academic: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "exams", "settings"],
-  Teacher: ["dashboard", "exams", "reports", "analysis", "compare"],
+  Headmaster: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "exams", "attendance", "settings"],
+  Academic: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "exams", "attendance", "settings"],
+  Teacher: ["dashboard", "exams", "attendance", "reports", "analysis", "compare"],
 };
 
 type Period = StoredPeriod;
@@ -301,11 +306,13 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "students" && <StudentsManagement />}
           {effectiveActive === "staff" && <TeachersManagement />}
           {effectiveActive === "exams" && <ExamManagement teacherId={role === "Teacher" ? user.id : undefined} />}
+          {effectiveActive === "attendance" && <ExamAttendance teacherId={role === "Teacher" ? user.id : undefined} />}
           {effectiveActive === "reports" && <ResultPage role={role} />}
           {effectiveActive === "analysis" && <SubjectAnalysis authUserId={user.id} />}
           {effectiveActive === "enrollment" && <StudentEnrollmentStatistics />}
           {effectiveActive === "reportcard" && <StudentReportCard />}
           {effectiveActive === "compare" && <CompareResults role={role} teacherId={role === "Teacher" ? user.id : undefined} />}
+          {effectiveActive === "beststudent" && <BestStudentYearly />}
         </main>
       </div>
     </div>

@@ -2306,8 +2306,8 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 .result-table td:not(:nth-child(2)) { white-space: nowrap; }
 .result-division-wrap { display: flex; justify-content: center; overflow: visible; border: 1px solid var(--table-border); }
 .result-division-heading { text-align: center; }
-.result-division-table { width: auto; min-width: 0; margin: 0 auto; }
-.result-division-table th, .result-division-table td { text-align: center; padding: .4rem 1rem; font-size: .76rem; }
+.result-division-table { width: 100%; max-width: 42rem; min-width: 30rem; margin: 0 auto; }
+.result-division-table th, .result-division-table td { text-align: center; padding: .45rem 1.25rem; font-size: .78rem; }
 .result-division-table td { background: var(--white); }
 .result-division-incomplete td { background: var(--page); font-style: italic; }
 .result-students-table th:first-child, .result-students-table td:first-child, .result-students-table th:nth-child(3), .result-students-table td:nth-child(3), .result-students-table th:nth-child(4), .result-students-table td:nth-child(4), .result-students-table th:nth-child(5), .result-students-table td:nth-child(5), .result-students-table th:nth-child(6), .result-students-table td:nth-child(6), .result-students-table th:nth-child(7), .result-students-table td:nth-child(7) { text-align: center; }
@@ -3009,3 +3009,232 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
   .cmp-subject-grid { grid-template-columns: repeat(2, 1fr); }
   .cmp-student-row { border-color: var(--line); }
 }
+
+/* ---------- Teacher exam comparison (form -> subject -> exam A/B) ---------- */
+.tcmp-page { width: 100%; }
+.tcmp-controls {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: .7rem; align-items: end; margin-bottom: 1rem;
+}
+.tcmp-controls .res-select { min-width: 0; width: 100%; }
+.tcmp-compare-btn { height: 2.6rem; padding: 0 1.4rem; white-space: nowrap; }
+.tcmp-message { color: #b91c1c; font-size: .82rem; margin: .4rem 0 1rem; }
+.tcmp-paper { margin-top: .5rem; }
+.tcmp-print-btn { white-space: nowrap; }
+
+.tcmp-header-top { display: flex; align-items: center; justify-content: center; gap: 1rem; }
+.tcmp-header-logo { width: 4rem; height: 4rem; object-fit: contain; }
+.tcmp-header-school { text-align: left; }
+.tcmp-header-council { font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.tcmp-header-school h1 { margin: .1rem 0; font-size: 1.2rem; font-weight: 800; }
+.tcmp-header-address { font-size: .75rem; color: var(--muted); }
+.tcmp-header-title h2 { margin: .8rem 0 .15rem; font-size: 1rem; font-weight: 800; }
+.tcmp-header-period { font-weight: 700; font-size: .85rem; }
+.tcmp-header-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem 1rem; margin-top: .5rem; color: var(--muted); font-size: .76rem; }
+
+.tcmp-verdict { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .7rem .9rem; border: 1px solid var(--line); border-left: 4px solid var(--muted); background: var(--page); margin-bottom: .9rem; }
+.tcmp-verdict--improved { border-left-color: #16a34a; }
+.tcmp-verdict--dropped { border-left-color: #dc2626; }
+.tcmp-verdict-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.tcmp-verdict-value { font-size: 1.05rem; }
+
+.tcmp-metric-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .5rem; }
+.tcmp-metric { display: flex; flex-direction: column; gap: .3rem; padding: .55rem .7rem; border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: .35rem; background: var(--white); }
+.tcmp-metric-label { font-size: .6rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.tcmp-metric-values { display: flex; flex-direction: column; gap: .12rem; font-weight: 700; font-size: .82rem; font-variant-numeric: tabular-nums; line-height: 1.3; }
+.tcmp-metric-values em { color: var(--muted); font-style: normal; font-size: .6rem; font-weight: 700; letter-spacing: .02em; margin-right: .25rem; }
+.tcmp-metric-diff { font-size: .7rem; font-weight: 700; border-top: 1px dashed var(--line); padding-top: .24rem; }
+
+.tcmp-counts { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .9rem; }
+.tcmp-count { display: inline-flex; align-items: center; gap: .3rem; padding: .32rem .7rem; border-radius: 999px; border: 1px solid var(--line); font-size: .76rem; }
+.tcmp-count--up { color: #16a34a; border-color: rgba(22, 163, 74, .3); }
+.tcmp-count--down { color: #dc2626; border-color: rgba(220, 38, 38, .3); }
+.tcmp-count--same { color: #52525b; }
+
+.tcmp-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line); border-radius: .5rem; }
+.tcmp-table { width: 100%; border-collapse: collapse; min-width: 40rem; }
+.tcmp-table th, .tcmp-table td { padding: .5rem .6rem; border-bottom: 1px solid var(--line); font-size: .78rem; text-align: center; }
+.tcmp-table thead th { position: sticky; top: 0; background: var(--page); color: var(--muted); font-size: .66rem; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; z-index: 3; }
+.tcmp-table tbody tr:last-child td { border-bottom: 0; }
+.tcmp-grade-table { min-width: 0; }
+.tcmp-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tcmp-grade-cell { white-space: nowrap; }
+
+.tcmp-table .tcmp-col-no { position: sticky; left: 0; z-index: 2; width: 2.4rem; background: var(--white); color: var(--muted); }
+.tcmp-table .tcmp-col-name { position: sticky; left: 2.4rem; z-index: 2; min-width: 12rem; text-align: left; background: var(--white); box-shadow: 7px 0 12px -8px rgba(24, 24, 27, .5); }
+.tcmp-table thead .tcmp-col-no, .tcmp-table thead .tcmp-col-name { z-index: 4; background: var(--page); }
+.tcmp-student-name { display: block; font-weight: 600; font-size: .8rem; }
+.tcmp-student-meta { display: block; font-size: .68rem; color: var(--muted); }
+
+.tcmp-sort { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-transform: inherit; letter-spacing: inherit; font-weight: 700; }
+.tcmp-sort-print { display: none; }
+
+.tcmp-status { white-space: nowrap; font-weight: 600; }
+.tcmp-status-sym { margin-right: .25rem; }
+.tcmp-status--improved { color: #16a34a; }
+.tcmp-status--dropped { color: #dc2626; }
+.tcmp-status--same { color: #52525b; }
+.tcmp-status--absent { color: var(--muted); font-weight: 400; }
+.tcmp-row-absent { opacity: .7; }
+
+@media (max-width: 1100px) {
+  .tcmp-metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 900px) {
+  .tcmp-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tcmp-controls .tcmp-compare-btn { grid-column: 1 / -1; }
+}
+
+@media (max-width: 640px) {
+  .tcmp-controls { grid-template-columns: 1fr; }
+  .tcmp-controls .res-select { min-height: 44px; height: 44px; }
+  .tcmp-compare-btn { width: 100%; min-height: 44px; }
+  .tcmp-print-btn { width: 100%; min-height: 44px; }
+  .tcmp-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tcmp-header-top { flex-direction: column; text-align: center; }
+  .tcmp-header-school { text-align: center; }
+}
+
+@media print {
+  .tcmp-page .no-print { display: none !important; }
+  .tcmp-controls { display: none !important; }
+  .tcmp-message { display: none !important; }
+  .tcmp-table-wrap { overflow: visible; border: 0; border-radius: 0; }
+  .tcmp-table { min-width: 0; width: 100%; }
+  .tcmp-table thead { display: table-header-group; }
+  .tcmp-table tr { break-inside: avoid; page-break-inside: avoid; }
+  .tcmp-table th, .tcmp-table td { padding: .22rem .35rem; font-size: 7.8pt; color: #000; }
+  .tcmp-table thead th { position: static; background: #fff; border-bottom: 1px solid #000; color: #000; }
+  .tcmp-table .tcmp-col-no, .tcmp-table .tcmp-col-name { position: static; box-shadow: none; background: #fff; }
+  .tcmp-sort { display: none; }
+  .tcmp-sort-print { display: inline; }
+  .tcmp-status, .tcmp-metric-diff, .tcmp-num { color: #000 !important; }
+  .tcmp-verdict { border: 1px solid #000; background: #fff; }
+  .tcmp-metric-grid { grid-template-columns: repeat(3, 1fr); gap: .35rem; }
+  .tcmp-metric { border: 1px solid #000; }
+  .tcmp-report-header { border-bottom: 2px solid #000; }
+  .tcmp-counts { display: none; }
+}
+
+/* ---------- Subject Analysis summary (compact) ---------- */
+.sa-summary-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: .5rem; margin-top: .9rem; }
+.sa-summary-grid > div { gap: .2rem; padding: .5rem .65rem; border: 1px solid var(--line); border-top: 2px solid var(--primary); border-radius: .3rem; background: var(--white); }
+.sa-summary-grid span { font-size: .6rem; }
+.sa-summary-grid strong { font-size: .95rem; }
+
+@media (max-width: 1100px) {
+  .sa-summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .sa-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media print {
+  .sa-summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .3rem; margin-top: .5rem; }
+  .sa-summary-grid > div { border-color: #000; border-top-color: #000; border-radius: 0; padding: .3rem .4rem; }
+  .sa-summary-grid span { font-size: 6.5pt; }
+  .sa-summary-grid strong { font-size: 8.5pt; }
+}
+
+/* ---------- Results page summary (compact) ---------- */
+.rp-summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; margin-top: 1rem; }
+.rp-summary-grid > div { gap: .2rem; padding: .5rem .7rem; border: 1px solid var(--line); border-top: 2px solid var(--primary); border-radius: .3rem; background: var(--white); }
+.rp-summary-grid span { font-size: .6rem; }
+.rp-summary-grid strong { font-size: 1rem; }
+
+@media (max-width: 640px) {
+  .rp-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media print {
+  .rp-summary-grid > div { border-color: #000; border-top-color: #000; border-radius: 0; padding: .3rem .4rem; }
+  .rp-summary-grid span { font-size: 6.5pt; }
+  .rp-summary-grid strong { font-size: 9pt; }
+}
+
+/* ---------- Exam attendance signing sheets ---------- */
+.att-page { width: 100%; }
+.att-step-actions { display: flex; justify-content: flex-start; margin-top: 1rem; }
+.me-card--selected { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+
+.att-toolbar {
+  display: flex; align-items: flex-end; gap: .8rem; flex-wrap: wrap;
+  padding: .9rem 1rem; border: 1px solid var(--line); border-radius: .55rem;
+  background: var(--white); margin-bottom: .9rem;
+}
+.att-field { display: grid; gap: .3rem; }
+.att-field-label { font-size: .72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.att-select {
+  min-width: 13rem; border: 1px solid var(--table-border); border-radius: .4rem;
+  padding: .5rem .65rem; background: #fff; color: var(--ink);
+}
+.att-toolbar-actions { display: flex; align-items: center; gap: .6rem; margin-left: auto; flex-wrap: wrap; }
+.att-count { font-size: .78rem; font-weight: 600; color: var(--muted); margin-right: .2rem; }
+.att-hint { font-size: .8rem; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; padding: .55rem .8rem; border-radius: .45rem; margin: 0 0 .9rem; }
+
+.att-sheets { display: grid; gap: 1.4rem; }
+.att-sheet {
+  width: 100%; max-width: 1120px; margin: 0 auto; background: var(--white);
+  border: 1px solid var(--line); border-radius: .55rem; padding: 1.6rem 1.8rem;
+  box-shadow: 0 6px 20px rgba(24, 24, 27, .06); color: #000;
+}
+.att-header { display: flex; align-items: center; gap: 1rem; border-bottom: 2px solid #000; padding-bottom: .7rem; margin-bottom: .8rem; }
+.att-logo { width: 3.6rem; height: 3.6rem; object-fit: contain; flex-shrink: 0; }
+.att-logo--placeholder { display: block; }
+.att-header-info { flex: 1; text-align: center; line-height: 1.35; }
+.att-council { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; }
+.att-school { font-size: 1.15rem; font-weight: 800; letter-spacing: .04em; }
+.att-address { font-size: .72rem; color: #333; }
+.att-title { margin-top: .35rem; font-size: .85rem; font-weight: 700; letter-spacing: .12em; }
+.att-exam { font-size: 1rem; font-weight: 800; letter-spacing: .04em; }
+
+.att-meta { display: flex; flex-wrap: wrap; gap: .35rem 1.6rem; font-size: .82rem; margin-bottom: .7rem; align-items: flex-end; }
+.att-meta strong { font-weight: 700; }
+.att-date { margin-left: auto; display: inline-flex; align-items: center; gap: .4rem; }
+.att-date-line { display: inline-block; min-width: 11rem; border-bottom: 1px solid #000; height: .95rem; }
+
+.att-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.att-table th, .att-table td { border: 1px solid #000; padding: .34rem .5rem; font-size: .82rem; vertical-align: middle; }
+.att-table thead th { background: #f1f1f2; font-weight: 700; text-align: center; text-transform: uppercase; font-size: .68rem; letter-spacing: .04em; }
+.att-col-no { width: 3.2rem; text-align: center; }
+.att-col-reg { width: 22%; }
+.att-col-name { width: 38%; }
+.att-col-sign { width: 20%; }
+.att-col-score { width: 14%; text-align: center; }
+.att-table .att-col-sign, .att-table .att-col-score { height: 2rem; }
+.att-empty { text-align: center; padding: 1.4rem; color: var(--muted); }
+
+.att-signatures { display: flex; justify-content: space-between; gap: 2rem; margin-top: 1.4rem; }
+.att-sig { flex: 1; display: grid; gap: .25rem; font-size: .78rem; }
+.att-sig-line { border-bottom: 1px solid #000; height: 1.6rem; }
+
+@media (max-width: 720px) {
+  .att-toolbar-actions { margin-left: 0; width: 100%; }
+  .att-select { min-width: 0; width: 100%; }
+  .att-field { flex: 1; }
+  .att-date { margin-left: 0; }
+  .att-sheet { padding: 1rem; }
+}
+
+@media print {
+  @page att { size: A4 landscape; margin: 8mm; }
+  .att-page { page: att; }
+  .att-no-print { display: none !important; }
+  .topbar, .sidebar { display: none !important; }
+  .app-main, .content, .att-page { max-width: none; padding: 0; margin: 0; }
+  .att-sheets { display: block; }
+  .att-sheet {
+    width: auto; max-width: none; min-height: 0; margin: 0; padding: 0;
+    border: 0; border-radius: 0; box-shadow: none;
+    break-after: page; page-break-after: always;
+  }
+  .att-sheet:last-child { break-after: auto; page-break-after: auto; }
+  .att-table th, .att-table td { font-size: 9pt; padding: .2rem .35rem; }
+  .att-table thead th { font-size: 7.5pt; background: #fff; }
+  .att-header { padding-bottom: .45rem; margin-bottom: .5rem; }
+  .att-meta { font-size: .78rem; margin-bottom: .5rem; }
+  .att-signatures { margin-top: 1rem; }
+}
+

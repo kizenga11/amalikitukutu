@@ -182,7 +182,7 @@ export default function ResultPage({ role }: { role?: string }) {
             <div className="result-table-wrap result-division-wrap"><table className="result-table result-division-table"><thead><tr><th>Div</th><th>Boys</th><th>Girls</th><th>Total</th></tr></thead><tbody>{report.divisions.map((row) => <tr key={row.division}><td>{row.division}</td><td>{row.boys}</td><td>{row.girls}</td><td>{row.boys + row.girls}</td></tr>)}<tr className="result-division-incomplete"><td>Incomplete</td><td>{report.students.filter((row) => row.student.incomplete && genderLabel(row.student.gender) === "M").length}</td><td>{report.students.filter((row) => row.student.incomplete && genderLabel(row.student.gender) === "F").length}</td><td>{report.students.filter((row) => row.student.incomplete).length}</td></tr></tbody></table></div>
           </section>
 
-          <section className="result-summary-grid">
+          <section className="result-summary-grid rp-summary-grid">
             <div><span>Average (%)</span><strong>{displayNumber(report.summary.average)}</strong></div>
             <div><span>Grade</span><strong>{report.summary.grade}</strong></div>
             <div><span>Students</span><strong>{report.summary.students}</strong></div>

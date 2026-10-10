@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Spinner } from "@/components/loading";
+import TeacherExamCompare from "@/components/teacher-exam-compare";
 import {
   buildClassResults,
   buildSchoolReport,
@@ -143,6 +144,14 @@ interface SubjectStudentCompareRow {
 }
 
 export default function CompareResults({ role, teacherId }: { role?: string; teacherId?: string }) {
+  const isTeacher = role === "Teacher" || Boolean(teacherId);
+  if (isTeacher && teacherId) {
+    return <TeacherExamCompare teacherId={teacherId} />;
+  }
+  return <AdminCompareResults role={role} teacherId={teacherId} />;
+}
+
+function AdminCompareResults({ role, teacherId }: { role?: string; teacherId?: string }) {
   const isTeacher = role === "Teacher" || Boolean(teacherId);
 
   const [exams, setExams] = useState<DbExamRow[]>([]);

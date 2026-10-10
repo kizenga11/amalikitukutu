@@ -1452,6 +1452,115 @@ export async function saveExamMarks(
   }
 }
 
+// ── Exam attendance (printable signing sheets) ────────────
+// Read-only projection of an exam: classes, their examined
+// subjects, and the students enrolled per class/stream. Loaded
+// with chunked `.in()` queries so exams with 1000+ students
+// never hit a request that is too large.
+
+export interface ExamAttendanceStudent {
+  student_id: string;
+  registration_no: string | null;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string;
+  gender: string;
+  stream_id: string | null;
+  stream_name: string;
+  subjects: string[];
+}
+
+export interface ExamAttendanceSubject {
+  subject_id: string;
+  code: string;
+  name: string;
+}
+
+export interface ExamAttendanceClass {
+  class_id: string;
+  class_name: string;
+  subjects: ExamAttendanceSubject[];
+  students: ExamAttendanceStudent[];
+}
+
+export interface ExamAttendanceData {
+  classes: ExamAttendanceClass[];
+}
+
+export async function fetchExamAttendance(examId: string): Promise<ExamAttendanceData> {
+  const detail = await fetchExamDetail(examId);
+  const classIds = detail.classes.map((c) => c.id);
+  if (classIds.length === 0) return { classes: [] };
+
+  const { data: studentData, error: studentErr } = await supabase
+    .from("students")
+    .select("id, registration_no, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name)")
+    .in("class_id", classIds);
+  if (studentErr) throw studentErr;
+
+  interface StudentRaw {
+    id: string;
+    registration_no: string | null;
+    first_name: string;
+    middle_name: string | null;
+    last_name: string;
+    gender: string;
+    class_id: string;
+    stream_id: string | null;
+    stream: { name: string }[] | { name: string } | null;
+  }
+
+  const studentRows = (studentData ?? []) as unknown as StudentRaw[];
+  const studentIds = studentRows.map((s) => s.id);
+
+  // Batch student ids (100 per request) so a class of 1000 students
+  // is fetched reliably instead of one oversized `.in()` filter.
+  const studentSubjects = new Map<string, Set<string>>();
+  const BATCH_SIZE = 100;
+  for (let i = 0; i < studentIds.length; i += BATCH_SIZE) {
+    const batch = studentIds.slice(i, i + BATCH_SIZE);
+    const { data, error } = await supabase
+      .from("student_subjects")
+      .select("student_id, subject_id")
+      .in("student_id", batch);
+    if (error) throw error;
+    for (const row of data ?? []) {
+      const set = studentSubjects.get(row.student_id) ?? new Set<string>();
+      set.add(row.subject_id);
+      studentSubjects.set(row.student_id, set);
+    }
+  }
+
+  const studentsByClass = new Map<string, ExamAttendanceStudent[]>();
+  for (const raw of studentRows) {
+    const stream = Array.isArray(raw.stream) ? raw.stream[0] : raw.stream;
+    const list = studentsByClass.get(raw.class_id) ?? [];
+    list.push({
+      student_id: raw.id,
+      registration_no: raw.registration_no,
+      first_name: raw.first_name,
+      middle_name: raw.middle_name,
+      last_name: raw.last_name,
+      gender: raw.gender,
+      stream_id: raw.stream_id,
+      stream_name: raw.stream_id ? stream?.name ?? "—" : "Haijafungwa",
+      subjects: Array.from(studentSubjects.get(raw.id) ?? []),
+    });
+    studentsByClass.set(raw.class_id, list);
+  }
+
+  const classes: ExamAttendanceClass[] = detail.classes.map((c) => ({
+    class_id: c.id,
+    class_name: c.name,
+    subjects: c.subjects.map((s) => ({ subject_id: s.id, code: s.code, name: s.name })),
+    students: (studentsByClass.get(c.id) ?? []).sort(
+      (a, b) => a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name),
+    ),
+  }));
+
+  return { classes };
+}
+
 // ---------------------------------------------------------------
 // Grading settings (NECTA boundaries stored as JSON in academic_settings)
 // ---------------------------------------------------------------

@@ -1,0 +1,16 @@
+ELIGIBILITY RULES (critical)
+- Subject rankings, best student per subject, subject class average, pass rate and grade distribution must include ONLY students currently enrolled/assigned to that subject for the selected academic year. Take the roster from the enrollment table (find it in the schema), never from the results table.
+- Overall (general) ranking must include only active students of the selected form/class for that year.
+- A student must have sat at least N% (default 50%) of the selected exams in that subject to be ranked in it. Make N a variable at the top of the file.
+- Students who have results but are no longer enrolled in the subject, or are below the minimum, must NOT be ranked or counted in class statistics. List them in a separate collapsed section "Hawajapangwa / Waliohama" with the reason (left subject / too few exams). Their scores stay in their personal history.
+- Add an unchecked option "Jumuisha waliohama" to include them if the user wants.
+- If no enrollment table exists, STOP and tell me before creating anything. Do not guess the roster from results.
+- Test with this case: a student with one 100% score who left the subject must not appear as best student, and must not change the class average.
+
+MINIMUM EXAMS RULE (replaces the percentage rule)
+- A student must have sat at least 5 exams in that subject, among the selected exams, to be ranked in it (best student per subject, subject ranking, class average, pass rate, grade distribution).
+- Put the number in ONE variable at the top of the file: MIN_EXAMS_PER_SUBJECT = 5. Do not hardcode 5 anywhere else.
+- Count only exams the student actually sat (absent is not counted, and a 0 recorded for absence must not count as sat if the system distinguishes them).
+- Overall (general) yearly ranking: a student is ranked only if he/she meets the minimum in the subjects that count toward the general average (state the exact rule you used in one line on the page).
+- Students below the minimum go to the collapsed section "Hawajapangwa" with the reason: "Amefanya mitihani X kati ya 5 inayohitajika".
+- If the teacher selects fewer than 5 exams, show a warning at the selection step: "Umechagua mitihani chini ya 5, hakuna mwanafunzi atakayepangwa", and let the minimum become min(5, number of selected exams) only if I confirm it. Default is to show the warning and not rank.

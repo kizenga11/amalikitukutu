@@ -296,7 +296,7 @@ export default function SubjectAnalysis({ authUserId }: { authUserId: string }) 
             </div>
           </header>
 
-          <section className="result-summary-grid">
+          <section className="result-summary-grid sa-summary-grid">
             <div><span>Registered</span><strong>{analysis.registered}</strong></div>
             <div><span>Sat</span><strong>{analysis.sat}</strong></div>
             <div><span>Absent</span><strong>{analysis.absent}</strong></div>
@@ -307,7 +307,7 @@ export default function SubjectAnalysis({ authUserId }: { authUserId: string }) 
             <div><span>Competency</span><strong>{analysis.competency}</strong></div>
           </section>
 
-          <section className="result-summary-grid">
+          <section className="result-summary-grid sa-summary-grid">
             <div><span>Passed</span><strong>{analysis.passed}</strong></div>
             <div><span>Failed</span><strong>{analysis.failed}</strong></div>
             <div><span>Pass Average</span><strong>{displayNumber(analysis.passAverage)}</strong></div>
