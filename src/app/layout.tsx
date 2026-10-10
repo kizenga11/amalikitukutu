@@ -1,21 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Script from "next/script";
-import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
-
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-poppins",
-});
-
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_ID ?? "G-XXXXXXXXXX";
+const hasAnalytics = gaMeasurementId !== "G-XXXXXXXXXX";
 
 const siteUrl = "https://www.amalikitukutu.com";
 
@@ -67,24 +56,28 @@ const webSiteJsonLd = `{"@context":"https://schema.org","@type":"WebSite","@id":
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className={`${inter.variable} ${poppins.variable} min-h-full flex flex-col`}>
-        <Script
-          id="ga-script"
-          strategy="beforeInteractive"
-          src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
-        />
-        <Script
-          id="ga-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', '${gaMeasurementId}');
-            `,
-          }}
-        />
+      <body className="min-h-full flex flex-col">
+        {hasAnalytics && (
+          <>
+            <Script
+              id="ga-script"
+              strategy="afterInteractive"
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
+            />
+            <Script
+              id="ga-init"
+              strategy="afterInteractive"
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${gaMeasurementId}');
+                `,
+              }}
+            />
+          </>
+        )}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLd }}

@@ -66,6 +66,7 @@ function parseJson<T>(raw: string | undefined, fallback: T): T {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const examId = url.searchParams.get("examId")?.trim();
+  const registrationNo = url.searchParams.get("registrationNo")?.trim();
 
   if (!examId) {
     return NextResponse.json({ error: "examId is required" }, { status: 400 });
@@ -114,7 +115,8 @@ export async function GET(request: Request) {
   const { data: studentData, error: studentErr } = await admin
     .from("students")
     .select("id, registration_no, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name)")
-    .in("class_id", classIds);
+    .in("class_id", classIds)
+    .ilike("registration_no", registrationNo ? `%${registrationNo}%` : "%");
   if (studentErr) return NextResponse.json({ error: "Could not load students" }, { status: 500 });
 
   const studentIds = (studentData ?? []).map((s) => s.id);

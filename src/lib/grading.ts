@@ -285,6 +285,196 @@ export function buildClassResults(
   return { class_id: classRow.class_id, class_name: classRow.class_name, subjects: classRow.subjects, students };
 }
 
+// ────────────────────────────────────────────────────────────
+// Single-subject analysis: deep dive for one subject in one
+// exam (grade counts by sex, averages, GPA, pass/fail…).
+// ────────────────────────────────────────────────────────────
+
+export interface SubjectGradeRow {
+  grade: string;
+  points: number;
+  count: number;
+  boys: number;
+  girls: number;
+  percent: number | null;
+  avg: number | null;
+}
+
+export interface SubjectGenderRow {
+  label: string;
+  registered: number;
+  sat: number;
+  passed: number;
+  passRate: number | null;
+  average: number | null;
+}
+
+export interface SubjectStudentRow {
+  student_id: string;
+  name: string;
+  gender: string;
+  stream: string;
+  score: number | null;
+  grade: string;
+  points: number | null;
+  passed: boolean | null;
+  rank: number | null;
+}
+
+export interface SubjectAnalysis {
+  registered: number;
+  sat: number;
+  absent: number;
+  average: number | null;
+  grade: string;
+  gpa: number | null;
+  competency: string;
+  passed: number;
+  failed: number;
+  passRate: number | null;
+  passAverage: number | null;
+  failAverage: number | null;
+  highest: number | null;
+  lowest: number | null;
+  grades: SubjectGradeRow[];
+  genders: SubjectGenderRow[];
+  students: SubjectStudentRow[];
+}
+
+export interface SubjectAnalysisOpts {
+  gradeBoundaries: GradeBoundary[];
+  competencyThresholds: CompetencyThreshold[];
+}
+
+function isGirl(gender: string): boolean {
+  return gender.toLowerCase().startsWith("f");
+}
+
+export function buildSubjectAnalysis(
+  results: ClassResults,
+  subjectId: string,
+  opts: SubjectAnalysisOpts,
+): SubjectAnalysis {
+  const passThreshold =
+    opts.gradeBoundaries.length > 0
+      ? Math.max(...opts.gradeBoundaries.map((b) => b.points))
+      : 5;
+
+  const entries: { student: StudentResult; subject: SubjectResult }[] = [];
+  for (const student of results.students) {
+    const subject = student.subjects.find((s) => s.subject_id === subjectId);
+    if (subject) entries.push({ student, subject });
+  }
+  const registered = entries.length;
+
+  const satEntries = entries.filter((e) => e.subject.total_score !== null);
+  const scores = satEntries.map((e) => e.subject.total_score as number);
+  const meanScore = mean(scores);
+  const average = meanScore === null ? null : round1(meanScore);
+
+  const passedEntries = satEntries.filter((e) => e.subject.points < passThreshold);
+  const failedEntries = satEntries.filter((e) => e.subject.points >= passThreshold);
+  const passedScores = passedEntries.map((e) => e.subject.total_score as number);
+  const failedScores = failedEntries.map((e) => e.subject.total_score as number);
+
+  const points = satEntries.map((e) => e.subject.points);
+  const gpa = points.length > 0 ? round2(points.reduce((a, b) => a + b, 0) / points.length) : null;
+
+  const gradeOrder = [...opts.gradeBoundaries].sort((a, b) => a.points - b.points);
+  const knownGrades = new Set(gradeOrder.map((b) => b.grade));
+  const extraGrades = [...new Set(satEntries.map((e) => e.subject.grade))].filter((g) => !knownGrades.has(g));
+  const gradeLabels = [
+    ...gradeOrder.map((b) => ({ grade: b.grade, points: b.points })),
+    ...extraGrades.map((g) => ({ grade: g, points: 0 })),
+  ];
+
+  const grades: SubjectGradeRow[] = gradeLabels.map(({ grade, points: gradePoints }) => {
+    const inGrade = satEntries.filter((e) => e.subject.grade === grade);
+    const gradeScores = inGrade.map((e) => e.subject.total_score as number);
+    return {
+      grade,
+      points: gradePoints,
+      count: inGrade.length,
+      boys: inGrade.filter((e) => !isGirl(e.student.gender)).length,
+      girls: inGrade.filter((e) => isGirl(e.student.gender)).length,
+      percent: satEntries.length > 0 ? round1((inGrade.length / satEntries.length) * 100) : null,
+      avg: gradeScores.length > 0 ? round1(gradeScores.reduce((a, b) => a + b, 0) / gradeScores.length) : null,
+    };
+  });
+
+  const genderRow = (label: string, match: (gender: string) => boolean): SubjectGenderRow => {
+    const all = entries.filter((e) => match(e.student.gender));
+    const sat = all.filter((e) => e.subject.total_score !== null);
+    const done = sat.filter((e) => e.subject.points < passThreshold);
+    const genderScores = sat.map((e) => e.subject.total_score as number);
+    return {
+      label,
+      registered: all.length,
+      sat: sat.length,
+      passed: done.length,
+      passRate: sat.length > 0 ? round1((done.length / sat.length) * 100) : null,
+      average: genderScores.length > 0 ? round1(genderScores.reduce((a, b) => a + b, 0) / genderScores.length) : null,
+    };
+  };
+
+  const genders: SubjectGenderRow[] = [
+    genderRow("Boys", (g) => !isGirl(g)),
+    genderRow("Girls", (g) => isGirl(g)),
+  ];
+
+  const sorted = [...entries].sort((a, b) => {
+    const as = a.subject.total_score;
+    const bs = b.subject.total_score;
+    if (as === null && bs === null) return a.student.last_name.localeCompare(b.student.last_name) || a.student.first_name.localeCompare(b.student.first_name);
+    if (as === null) return 1;
+    if (bs === null) return -1;
+    return bs - as || a.student.last_name.localeCompare(b.student.last_name) || a.student.first_name.localeCompare(b.student.first_name);
+  });
+
+  const students: SubjectStudentRow[] = [];
+  let lastScore: number | null = null;
+  let lastRank = 0;
+  sorted.forEach((entry, index) => {
+    const score = entry.subject.total_score;
+    const rank = score === null ? null : score === lastScore ? lastRank : index + 1;
+    if (score !== null) {
+      lastScore = score;
+      lastRank = rank ?? 0;
+    }
+    students.push({
+      student_id: entry.student.student_id,
+      name: `${entry.student.first_name}${entry.student.middle_name ? ` ${entry.student.middle_name}` : ""} ${entry.student.last_name}`,
+      gender: entry.student.gender,
+      stream: entry.student.stream_name,
+      score,
+      grade: entry.subject.grade,
+      points: score !== null ? entry.subject.points : null,
+      passed: score === null ? null : entry.subject.points < passThreshold,
+      rank,
+    });
+  });
+
+  return {
+    registered,
+    sat: satEntries.length,
+    absent: registered - satEntries.length,
+    average,
+    grade: average !== null ? computeGradeAndPoints(average, opts.gradeBoundaries).grade : "—",
+    gpa,
+    competency: competencyLabel(average, opts.competencyThresholds),
+    passed: passedEntries.length,
+    failed: failedEntries.length,
+    passRate: satEntries.length > 0 ? round1((passedEntries.length / satEntries.length) * 100) : null,
+    passAverage: passedScores.length > 0 ? round1(passedScores.reduce((a, b) => a + b, 0) / passedScores.length) : null,
+    failAverage: failedScores.length > 0 ? round1(failedScores.reduce((a, b) => a + b, 0) / failedScores.length) : null,
+    highest: scores.length > 0 ? Math.max(...scores) : null,
+    lowest: scores.length > 0 ? Math.min(...scores) : null,
+    grades,
+    genders,
+    students,
+  };
+}
+
 export interface RankedStudent {
   student: StudentResult;
   rank: number;

@@ -13,11 +13,23 @@ const admin: SupabaseClient = createClient(supabaseUrl, serviceRoleKey, {
 });
 
 export async function GET() {
-  const { data, error } = await admin
-    .from("exams")
-    .select("id, name, start_date, end_date")
-    .eq("status", "published")
-    .order("start_date", { ascending: false });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+  let result;
+  try {
+    result = await admin
+      .from("exams")
+      .select("id, name, start_date, end_date")
+      .eq("status", "published")
+      .order("start_date", { ascending: false })
+      .abortSignal(controller.signal);
+  } catch {
+    clearTimeout(timeout);
+    return NextResponse.json({ exams: [] }, { status: 200 });
+  }
+  clearTimeout(timeout);
+
+  const { data, error } = result;
 
   if (error) {
     return NextResponse.json({ exams: [] }, { status: 200 });

@@ -224,15 +224,13 @@ export async function fetchDashboardData(yearId: string, term: number): Promise<
   });
 
   // ---- Gender distribution ----
-  const { data: studentGenders, error: gendersError } = await supabase
-    .from("students")
-    .select("gender");
-  if (gendersError) throw gendersError;
-  const genderCounts = { Male: 0, Female: 0 };
-  for (const row of studentGenders ?? []) {
-    if (row.gender === "Male") genderCounts.Male += 1;
-    if (row.gender === "Female") genderCounts.Female += 1;
-  }
+  const [maleResult, femaleResult] = await Promise.all([
+    supabase.from("students").select("id", { count: "exact", head: true }).eq("gender", "Male"),
+    supabase.from("students").select("id", { count: "exact", head: true }).eq("gender", "Female"),
+  ]);
+  if (maleResult.error) throw maleResult.error;
+  if (femaleResult.error) throw femaleResult.error;
+  const genderCounts = { Male: maleResult.count ?? 0, Female: femaleResult.count ?? 0 };
   const genderTotal = genderCounts.Male + genderCounts.Female;
   const genderDistribution = [
     { label: "Boys", value: genderTotal ? Math.round((genderCounts.Male / genderTotal) * 100) : 0 },
@@ -250,7 +248,8 @@ export async function fetchDashboardData(yearId: string, term: number): Promise<
 
   const { data: performanceRows, error: perfError } = await supabase
     .from("performance")
-    .select("mean_score, term, academic_year, subject:subjects(name), class:school_classes(name)");
+    .select("mean_score, term, academic_year, subject:subjects(name), class:school_classes(name)")
+    .in("academic_year", [yearId, term === 1 ? String(Number(yearId) - 1) : yearId]);
   if (perfError) throw perfError;
 
   const typedRows: PerformanceRow[] = (performanceRows ?? []).map((row) => {
@@ -790,7 +789,8 @@ export async function fetchTeachingAssignmentCounts(teacherIds: string[]): Promi
   if (teacherIds.length === 0) return {};
   const { data, error } = await supabase
     .from("teaching_assignments")
-    .select("teacher_id");
+    .select("teacher_id")
+    .in("teacher_id", teacherIds);
   if (error) throw error;
   const counts: Record<string, number> = Object.fromEntries(teacherIds.map((id) => [id, 0]));
   for (const row of data ?? []) {

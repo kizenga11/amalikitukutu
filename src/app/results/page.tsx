@@ -79,7 +79,9 @@ function ResultsView() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/public-exams")
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
+    fetch("/api/public-exams", { signal: controller.signal })
       .then((res) => res.json())
       .then((payload: { exams: PublicExam[] }) => {
         const list = Array.isArray(payload.exams) ? payload.exams : [];
@@ -88,18 +90,35 @@ function ResultsView() {
         setSelectedExamId(initial || list[0]?.id || "");
       })
       .catch(() => setError("Could not load exams."))
-      .finally(() => setLoadingList(false));
+      .finally(() => {
+        window.clearTimeout(timeout);
+        setLoadingList(false);
+      });
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
   }, [searchParams]);
 
   useEffect(() => {
-    if (!selectedExamId) return;
+    const keyword = search.trim();
+    if (!selectedExamId || keyword.length < 2) {
+      setData(null);
+      setSelectedStudentId("");
+      setLoadingResults(false);
+      return;
+    }
     let active = true;
+    const timer = window.setTimeout(() => {
+    const controller = new AbortController();
+    const requestTimeout = window.setTimeout(() => controller.abort(), 12000);
     (async () => {
       setLoadingResults(true);
       setError("");
       setSelectedStudentId("");
       try {
-        const res = await fetch(`/api/public-results?examId=${encodeURIComponent(selectedExamId)}`);
+        const params = new URLSearchParams({ examId: selectedExamId, registrationNo: keyword });
+        const res = await fetch(`/api/public-results?${params.toString()}`, { signal: controller.signal });
         const payload: Partial<ResultsPayload> & { error?: string } = await res.json();
         if (!active) return;
         if (!payload || !Array.isArray(payload.students)) {
@@ -111,13 +130,16 @@ function ResultsView() {
       } catch {
         if (active) setError("Could not load results for this exam.");
       } finally {
+        window.clearTimeout(requestTimeout);
         if (active) setLoadingResults(false);
       }
     })();
+    }, 400);
     return () => {
       active = false;
+      window.clearTimeout(timer);
     };
-  }, [selectedExamId]);
+  }, [selectedExamId, search]);
 
   const selectExam = useCallback((examId: string) => {
     setSelectedExamId(examId);
@@ -131,15 +153,7 @@ function ResultsView() {
     window.history.replaceState({}, "", url.toString());
   }, []);
 
-  const filtered = useMemo(() => {
-    if (!data) return [];
-    const keyword = search.trim().toLowerCase();
-    if (!keyword) return data.students;
-    return data.students.filter((student) => {
-      const regNo = registrationNumber(student).toLowerCase();
-      return regNo.includes(keyword);
-    });
-  }, [data, search]);
+  const filtered = useMemo(() => data?.students ?? [], [data]);
 
   const selectedStudent = data?.students.find((student) => student.student_id === selectedStudentId) ?? null;
 
@@ -185,7 +199,24 @@ function ResultsView() {
             </select>
           </div>
 
-          {loadingResults ? (
+          <div className="results-search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+            <input
+              type="search"
+              placeholder="Tafuta kwa namba ya usajili (mf. S8384/0001/2026)…"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="results-search-input"
+              disabled={!selectedExamId}
+            />
+          </div>
+
+          {search.trim().length < 2 ? (
+            <div className="results-empty">
+              <p style={{ fontSize: 15, fontWeight: 600, color: "#495057", marginBottom: 6 }}>Andika namba ya usajili</p>
+              <p style={{ fontSize: 13 }}>Weka angalau herufi au tarakimu 2 za namba ya usajili ili kutafuta matokeo.</p>
+            </div>
+          ) : loadingResults ? (
             <div className="results-loading">Inapakia matokeo…</div>
           ) : error ? (
             <div className="results-empty"><p style={{ fontSize: 15, fontWeight: 600, color: "#495057" }}>{error}</p></div>
@@ -196,17 +227,6 @@ function ResultsView() {
             </div>
           ) : (
             <>
-              <div className="results-search-box">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
-                <input
-                  type="search"
-                  placeholder="Tafuta kwa namba ya usajili (mf. S8384/0001/2026)…"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  className="results-search-input"
-                />
-              </div>
-
               {!selectedStudent && (
                 <>
                   <p className="results-hint">{filtered.length > 0 ? `Wanafunzi ${filtered.length} — bonyeza namba ya usajili ili kuona matokeo` : "Hakuna mwanafunzi anayefanana na namba hiyo."}</p>

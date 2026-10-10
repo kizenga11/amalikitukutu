@@ -2,8 +2,23 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import dynamic from "next/dynamic";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
-import Dashboard from "@/components/dashboard";
+
+const Dashboard = dynamic(() => import("@/components/dashboard"), {
+  ssr: false,
+  loading: () => (
+    <main className="loading-screen">
+      <div className="loader">
+        <div className="loader-logo">
+          <img src="/assets/logo.png" alt="Amali Kitukutu logo" />
+        </div>
+        <p className="muted">Loading portal...</p>
+      </div>
+    </main>
+  ),
+});
 
 const SLIDES = [
   { src: "/assets/slide1.jpg", alt: "Amali Kitukutu school campus" },
@@ -150,10 +165,17 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/public-exams")
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
+    fetch("/api/public-exams", { signal: controller.signal })
       .then((res) => res.json())
       .then((data) => setExams(Array.isArray(data.exams) ? data.exams : []))
-      .catch(() => setExams([]));
+      .catch(() => setExams([]))
+      .finally(() => window.clearTimeout(timeout));
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
   }, []);
 
   const goSlide = useCallback((index: number) => {
@@ -241,11 +263,20 @@ export default function Home() {
           <div
             key={slide.src}
             className={`slide${index === currentSlide ? " active" : ""}`}
-            style={{ backgroundImage: `url('${slide.src}')` }}
             role="img"
             aria-label={slide.alt}
             aria-hidden={index !== currentSlide}
-          />
+          >
+            <Image
+              src={slide.src}
+              alt=""
+              fill
+              priority={index === 0}
+              loading={index === 0 ? "eager" : "lazy"}
+              sizes="100vw"
+              className="slide-img"
+            />
+          </div>
         ))}
         <div className="hero-overlay">
           <div className="container">
@@ -367,7 +398,7 @@ export default function Home() {
           <div className="grid">
             {PROGRAMS.map((program) => (
               <div key={program.title} className="card">
-                <img src={program.img} alt={program.title} />
+                <Image src={program.img} alt={program.title} width={360} height={200} sizes="(max-width: 768px) 100vw, 360px" />
                 <ProgramIcon name={program.icon} />
                 <h3>{program.title}</h3>
                 <p>{program.desc}</p>

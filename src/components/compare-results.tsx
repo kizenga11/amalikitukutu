@@ -15,6 +15,8 @@ import {
   fetchExams,
   fetchGradingSettings,
   fetchSchoolInfo,
+  fetchTeacherByAuth,
+  fetchTeachingAssignments,
   type DbExamRow,
   type ExamMarksData,
   type SchoolInfo,
@@ -50,6 +52,10 @@ function genderLabel(value: string): string {
   return normalized.startsWith("f") ? "F" : normalized.startsWith("m") ? "M" : value;
 }
 
+function mean(values: number[]): number | null {
+  return values.length === 0 ? null : round1(values.reduce((a, b) => a + b, 0) / values.length);
+}
+
 const FORM_RANK: Record<string, number> = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 };
 
 function formRank(value: string): number {
@@ -79,6 +85,15 @@ function trendLabel(trend: Trend): string {
     case "down": return "Declined";
     case "new": return "New";
     default: return "No change";
+  }
+}
+
+function trendArrow(trend: Trend): string {
+  switch (trend) {
+    case "up": return "▲";
+    case "down": return "▼";
+    case "new": return "＋";
+    default: return "—";
   }
 }
 
@@ -113,7 +128,23 @@ interface SubjectCompareRow {
   delta: number | null;
 }
 
-export default function CompareResults() {
+interface SubjectStudentCompareRow {
+  student_id: string;
+  fullName: string;
+  className: string;
+  streamName: string;
+  gender: string;
+  currentScore: number | null;
+  currentGrade: string;
+  previousScore: number | null;
+  previousGrade: string;
+  delta: number | null;
+  trend: Trend;
+}
+
+export default function CompareResults({ role, teacherId }: { role?: string; teacherId?: string }) {
+  const isTeacher = role === "Teacher" || Boolean(teacherId);
+
   const [exams, setExams] = useState<DbExamRow[]>([]);
   const [currentExamId, setCurrentExamId] = useState("");
   const [previousExamId, setPreviousExamId] = useState("");
@@ -129,6 +160,10 @@ export default function CompareResults() {
   const [kidatoFilter, setKidatoFilter] = useState("__all__");
   const [trendFilter, setTrendFilter] = useState<"all" | "up" | "down">("all");
   const [pageOrientation, setPageOrientation] = useState<"portrait" | "landscape">("landscape");
+
+  const [teacherSubjectIds, setTeacherSubjectIds] = useState<Set<string>>(new Set());
+  const [pickedSubjectIds, setPickedSubjectIds] = useState<string[] | null>(null);
+  const [selectedSubjectForDetail, setSelectedSubjectForDetail] = useState<string | null>(null);
 
   const sortedExams = useMemo(
     () => [...exams].sort((a, b) => a.start_date.localeCompare(b.start_date)),
@@ -163,6 +198,24 @@ export default function CompareResults() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!teacherId) return;
+    let active = true;
+    (async () => {
+      try {
+        const teacher = await fetchTeacherByAuth(teacherId);
+        if (!teacher) return;
+        const assignments = await fetchTeachingAssignments(teacher.id);
+        if (active) setTeacherSubjectIds(new Set(assignments.map((a) => a.subject_id)));
+      } catch {
+        // Teacher scope unavailable - fall back to whole-school data.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [teacherId]);
 
   useEffect(() => {
     const ids = [currentExamId, previousExamId].filter(Boolean);
@@ -314,6 +367,90 @@ export default function CompareResults() {
     return rows;
   }, [currentReport, previousReport]);
 
+  const mySubjectRows = useMemo(
+    () => (isTeacher ? subjectRows.filter((row) => teacherSubjectIds.has(row.subject_id)) : subjectRows),
+    [subjectRows, teacherSubjectIds, isTeacher],
+  );
+
+  const allMySubjectIds = useMemo(() => mySubjectRows.map((row) => row.subject_id), [mySubjectRows]);
+
+  const selectedSubjectIds = useMemo(() => {
+    if (pickedSubjectIds === null) return new Set(allMySubjectIds);
+    const valid = pickedSubjectIds.filter((id) => allMySubjectIds.includes(id));
+    return new Set(valid);
+  }, [pickedSubjectIds, allMySubjectIds]);
+
+  const visibleSubjects = useMemo(
+    () => mySubjectRows.filter((row) => selectedSubjectIds.has(row.subject_id)),
+    [mySubjectRows, selectedSubjectIds],
+  );
+
+
+
+  function toggleSubject(id: string) {
+    setPickedSubjectIds((prev) => {
+      const base = prev ?? allMySubjectIds;
+      const next = base.includes(id) ? base.filter((item) => item !== id) : [...base, id];
+      if (next.length === 1) setSelectedSubjectForDetail(next[0]);
+      if (next.length === 0) setSelectedSubjectForDetail(null);
+      return next;
+    });
+  }
+
+  const teacherStats = useMemo(() => {
+    let up = 0;
+    let down = 0;
+    let same = 0;
+    let fresh = 0;
+    const currentAvgs: number[] = [];
+    const previousAvgs: number[] = [];
+    for (const row of visibleSubjects) {
+      if (row.current?.avg != null) currentAvgs.push(row.current.avg);
+      if (row.previous?.avg != null) previousAvgs.push(row.previous.avg);
+      if (row.delta === null) fresh += 1;
+      else if (row.delta > 0) up += 1;
+      else if (row.delta < 0) down += 1;
+      else same += 1;
+    }
+    return {
+      up,
+      down,
+      same,
+      fresh,
+      currentAvg: mean(currentAvgs),
+      previousAvg: mean(previousAvgs),
+    };
+  }, [visibleSubjects]);
+
+  const subjectStudentRows = useMemo<SubjectStudentCompareRow[]>(() => {
+    if (!selectedSubjectForDetail || !currentReport) return [];
+    const prevById = new Map((previousReport?.students ?? []).map((row) => [row.student.student_id, row]));
+    const rows: SubjectStudentCompareRow[] = currentReport.students.map((row) => {
+      const currentSr = row.student.subjects.find((s) => s.subject_id === selectedSubjectForDetail);
+      const prev = prevById.get(row.student.student_id);
+      const prevSr = prev?.student.subjects.find((s) => s.subject_id === selectedSubjectForDetail);
+      const currentScore = currentSr?.total_score ?? null;
+      const previousScore = prevSr?.total_score ?? null;
+      const delta = currentScore !== null && previousScore !== null ? round1(currentScore - previousScore) : null;
+      const trend: Trend = !prevSr ? (currentScore !== null ? "new" : "same") : delta === null ? "same" : delta > 0 ? "up" : delta < 0 ? "down" : "same";
+      return {
+        student_id: row.student.student_id,
+        fullName: `${row.student.first_name}${row.student.middle_name ? ` ${row.student.middle_name}` : ""} ${row.student.last_name}`,
+        className: studentClassMap.get(row.student.student_id) ?? "—",
+        streamName: row.student.stream_name === "—" ? "Unassigned" : row.student.stream_name,
+        gender: genderLabel(row.student.gender),
+        currentScore,
+        currentGrade: currentSr?.grade ?? "—",
+        previousScore,
+        previousGrade: prevSr?.grade ?? "—",
+        delta,
+        trend,
+      };
+    });
+    rows.sort((a, b) => (b.currentScore ?? -1) - (a.currentScore ?? -1));
+    return rows;
+  }, [selectedSubjectForDetail, currentReport, previousReport, studentClassMap]);
+
   const divisionRows = useMemo(() => {
     if (!currentReport) return [];
     const prevById = new Map((previousReport?.divisions ?? []).map((row) => [row.division, row.boys + row.girls]));
@@ -333,19 +470,26 @@ export default function CompareResults() {
   if (loading) return <div className="me-loading"><Spinner size={20} /></div>;
   if (error) return <div className="st-empty-state">{error}</div>;
 
+  const noData = !currentReport || !currentExam;
+  const teacherNoSubjects = isTeacher && marksLoading === false && mySubjectRows.length === 0;
+
   return (
     <div className={`result-page cmp-page${pageOrientation === "landscape" ? " print-landscape" : ""}`}>
       <div className="page-head result-controls">
         <div>
           <h2 className="page-title">Compare Exams</h2>
-          <p className="page-sub">Compare two exams — whole school, subjects and students (improved and declined).</p>
+          <p className="page-sub">
+            {isTeacher
+              ? "Compare your subjects across two exams — averages, grades, competency and pass rates."
+              : "Compare two exams — whole school, subjects and students (improved and declined)."}
+          </p>
         </div>
         <div className="print-tools no-print">
           <div className="result-mode-tabs print-orientation" role="group" aria-label="Print orientation">
             <button type="button" className={`ex-tab${pageOrientation === "portrait" ? " ex-tab--active" : ""}`} onClick={() => setPageOrientation("portrait")}>Portrait</button>
             <button type="button" className={`ex-tab${pageOrientation === "landscape" ? " ex-tab--active" : ""}`} onClick={() => setPageOrientation("landscape")}>Landscape</button>
           </div>
-          <button className="cm-btn cm-btn--ghost" onClick={() => window.print()}>Print A4 / PDF</button>
+          <button className="cm-btn cm-btn--ghost" onClick={() => window.print()} disabled={noData}>Print A4 / PDF</button>
         </div>
       </div>
 
@@ -361,23 +505,27 @@ export default function CompareResults() {
             {exams.filter((item) => item.id !== currentExamId).map((item) => <option key={item.id} value={item.id}>{item.name} ({shortDate(item.start_date)})</option>)}
           </select>
         </label>
-        <label className="res-field"><span className="res-field-label">Form</span>
-          <select className="res-select" value={kidatoFilter} onChange={(event) => setKidatoFilter(event.target.value)}>
-            <option value="__all__">Whole School</option>
-            {kidatos.map((name) => <option key={name} value={name}>{name}</option>)}
-          </select>
-        </label>
-        <label className="res-field"><span className="res-field-label">Trend</span>
-          <select className="res-select" value={trendFilter} onChange={(event) => setTrendFilter(event.target.value as "all" | "up" | "down")}>
-            <option value="all">All</option>
-            <option value="up">Improved</option>
-            <option value="down">Declined</option>
-          </select>
-        </label>
+        {!isTeacher && (
+          <label className="res-field"><span className="res-field-label">Form</span>
+            <select className="res-select" value={kidatoFilter} onChange={(event) => setKidatoFilter(event.target.value)}>
+              <option value="__all__">Whole School</option>
+              {kidatos.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </label>
+        )}
+        {!isTeacher && (
+          <label className="res-field"><span className="res-field-label">Trend</span>
+            <select className="res-select" value={trendFilter} onChange={(event) => setTrendFilter(event.target.value as "all" | "up" | "down")}>
+              <option value="all">All</option>
+              <option value="up">Improved</option>
+              <option value="down">Declined</option>
+            </select>
+          </label>
+        )}
       </div>
 
       {marksLoading ? <div className="me-loading"><Spinner size={20} /></div> : (
-        !currentReport || !currentExam ? (
+        noData ? (
           <div className="st-empty-state">Not enough exams for comparison. Make sure there are at least two exams.</div>
         ) : (
           <div className="result-paper">
@@ -387,154 +535,220 @@ export default function CompareResults() {
                 <div className="cmp-header-school">
                   <div className="cmp-header-council">{schoolInfo?.council ? `${schoolInfo.council}${schoolInfo.district ? ` — ${schoolInfo.district}` : ""}` : schoolInfo?.district || "DISTRICT COUNCIL"}</div>
                   <h1>{schoolInfo?.name || "School"}</h1>
-                  <div className="cmp-header-address">{schoolInfo?.address ? `P.O. Box ${schoolInfo.address.replace(/^S\.?L\.?\s*P\.?\s*\bBox\b.*/i, "").replace(/^P\.?O\.?\s*Box\s*/i, "").trim()}` : "P.O. Box"}</div>
+                  <div className="cmp-header-address">{schoolInfo?.address ? `P.O. Box ${schoolInfo.address.replace(/^P\.?O\.?\s*Box\s*/i, "")}` : "P.O. Box"}</div>
                 </div>
               </div>
               <div className="cmp-header-title">
-                <h2>EXAMINATIONS COMPARISON REPORT</h2>
+                <h2>{isTeacher ? "MY SUBJECTS COMPARISON REPORT" : "EXAMINATIONS COMPARISON REPORT"}</h2>
                 <div className="cmp-header-period">
                   {previousExam ? `${previousExam.name.toUpperCase()} ${yearOf(previousExam.start_date)}` : "—"} VS {currentExam.name.toUpperCase()} {yearOf(currentExam.start_date)}
                 </div>
               </div>
               <div className="cmp-header-meta">
-                <span>Cohort: {kidatoFilter !== "__all__" ? kidatoFilter : "Whole School"}</span>
-                <span>Academic Office</span>
+                <span>{isTeacher ? `${visibleSubjects.length} subject${visibleSubjects.length === 1 ? "" : "s"}` : `Cohort: ${kidatoFilter !== "__all__" ? kidatoFilter : "Whole School"}`}</span>
+                <span>{isTeacher ? "Subject Teacher" : "Academic Office"}</span>
                 <span>Issued: {shortDate(new Date().toISOString())}</span>
               </div>
             </header>
 
-            <section className="result-section">
-              <h3>School Summary</h3>
-              <div className="cmp-summary-grid">
-                <div className="result-summary-grid">
-                  <div><span>Current Average</span><strong>{displayNumber(currentReport.summary.average)}%</strong></div>
-                  <div><span>Previous Average</span><strong>{displayNumber(previousReport?.summary.average ?? null)}%</strong></div>
-                  <div><span>Change</span><strong className={deltaClass(avgDelta(currentReport.summary.average, previousReport?.summary.average ?? null))}>{displayDelta(avgDelta(currentReport.summary.average, previousReport?.summary.average ?? null))}</strong></div>
-                  <div><span>School GPA</span><strong>{displayNumber(currentReport.summary.gpa)}</strong></div>
-                </div>
-                <div className="result-summary-grid">
-                  <div><span>Students</span><strong>{counts.total}</strong></div>
-                  <div><span>Improved</span><strong className="cmp-trend-up">{counts.up}</strong></div>
-                  <div><span>Declined</span><strong className="cmp-trend-down">{counts.down}</strong></div>
-                  <div><span>New</span><strong>{counts.fresh}</strong></div>
-                </div>
-              </div>
-            </section>
-
-            {previousReport && (
+            {isTeacher ? (
               <section className="result-section">
-                <h3>Students Improved / Declined</h3>
-                <div className="cmp-counts">
-                  <div className="cmp-count cmp-count--up"><span className="cmp-count-value">{counts.up}</span><span className="cmp-count-label">Improved</span></div>
-                  <div className="cmp-count cmp-count--down"><span className="cmp-count-value">{counts.down}</span><span className="cmp-count-label">Declined</span></div>
-                  <div className="cmp-count"><span className="cmp-count-value">{counts.fresh}</span><span className="cmp-count-label">New</span></div>
+                <h3>Overview</h3>
+                <div className="cmp-summary-grid">
+                  <div className="result-summary-grid">
+                    <div><span>Current Average</span><strong>{displayNumber(teacherStats.currentAvg)}%</strong></div>
+                    <div><span>Previous Average</span><strong>{displayNumber(teacherStats.previousAvg)}%</strong></div>
+                    <div><span>Change</span><strong className={deltaClass(avgDelta(teacherStats.currentAvg, teacherStats.previousAvg))}>{displayDelta(avgDelta(teacherStats.currentAvg, teacherStats.previousAvg))}</strong></div>
+                    <div><span>Subjects</span><strong>{visibleSubjects.length}</strong></div>
+                  </div>
+                  <div className="result-summary-grid">
+                    <div><span>Improved</span><strong className="cmp-trend-up">{teacherStats.up}</strong></div>
+                    <div><span>Declined</span><strong className="cmp-trend-down">{teacherStats.down}</strong></div>
+                    <div><span>No Change</span><strong>{teacherStats.same}</strong></div>
+                    <div><span>New</span><strong>{teacherStats.fresh}</strong></div>
+                  </div>
+                </div>
+              </section>
+            ) : (
+              <section className="result-section">
+                <h3>School Summary</h3>
+                <div className="cmp-summary-grid">
+                  <div className="result-summary-grid">
+                    <div><span>Current Average</span><strong>{displayNumber(currentReport.summary.average)}%</strong></div>
+                    <div><span>Previous Average</span><strong>{displayNumber(previousReport?.summary.average ?? null)}%</strong></div>
+                    <div><span>Change</span><strong className={deltaClass(avgDelta(currentReport.summary.average, previousReport?.summary.average ?? null))}>{displayDelta(avgDelta(currentReport.summary.average, previousReport?.summary.average ?? null))}</strong></div>
+                    <div><span>School GPA</span><strong>{displayNumber(currentReport.summary.gpa)}</strong></div>
+                  </div>
+                  <div className="result-summary-grid">
+                    <div><span>Students</span><strong>{counts.total}</strong></div>
+                    <div><span>Improved</span><strong className="cmp-trend-up">{counts.up}</strong></div>
+                    <div><span>Declined</span><strong className="cmp-trend-down">{counts.down}</strong></div>
+                    <div><span>New</span><strong>{counts.fresh}</strong></div>
+                  </div>
                 </div>
               </section>
             )}
 
+            {isTeacher && (
+              <section className="result-section cmp-picker no-print">
+                <div className="cmp-picker-head">
+                  <h3>Choose Subjects to Compare</h3>
+                  <div className="cmp-picker-actions">
+                    <button type="button" className="cmp-picker-btn" onClick={() => setPickedSubjectIds(null)}>All</button>
+                    <button type="button" className="cmp-picker-btn" onClick={() => setPickedSubjectIds([])}>Clear</button>
+                  </div>
+                </div>
+                {mySubjectRows.length === 0 ? (
+                  <p className="cmp-empty">None of your subjects were registered in these exams.</p>
+                ) : (
+                  <>
+                    <div className="cmp-subject-chips">
+                      {mySubjectRows.map((row) => {
+                        const active = selectedSubjectIds.has(row.subject_id);
+                        const detailActive = selectedSubjectForDetail === row.subject_id;
+                        return (
+                          <button
+                            key={row.subject_id}
+                            type="button"
+                            className={`cmp-subject-chip${active ? " cmp-subject-chip--active" : ""}${detailActive ? " cmp-subject-chip--detail" : ""}`}
+                            onClick={() => toggleSubject(row.subject_id)}
+                            aria-pressed={active}
+                          >
+                            <span className="cmp-chip-code">{row.subject_code}</span>
+                            <span className="cmp-chip-name">{row.subject_name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="cmp-picker-hint">{visibleSubjects.length} of {mySubjectRows.length} subjects selected</p>
+                  </>
+                )}
+              </section>
+            )}
+
             <section className="result-section">
-              <h3>Subject Comparison</h3>
-              <div className="result-table-wrap">
-                <table className="result-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Subject</th>
-                      <th>Current Avg</th>
-                      <th>Previous Avg</th>
-                      <th>Change</th>
-                      <th>Current Grade</th>
-                      <th>Previous Grade</th>
-                      <th>Current Competency</th>
-                      <th>Previous Competency</th>
-                      <th>Current Passed</th>
-                      <th>Previous Passed</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {subjectRows.map((row, index) => (
-                      <tr key={row.subject_id}>
-                        <td>{index + 1}</td>
-                        <td className="result-subjects"><strong>{row.subject_code}</strong> — {row.subject_name}</td>
-                        <td>{displayNumber(row.current?.avg ?? null)}</td>
-                        <td>{displayNumber(row.previous?.avg ?? null)}</td>
-                        <td><span className={deltaClass(row.delta)}>{displayDelta(row.delta)}</span></td>
-                        <td>{row.current?.grade ?? "—"}</td>
-                        <td>{row.previous?.grade ?? "—"}</td>
-                        <td>{row.current?.competency ?? "—"}</td>
-                        <td>{row.previous?.competency ?? "—"}</td>
-                        <td>{row.current?.passed ?? "—"}</td>
-                        <td>{row.previous?.passed ?? "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <h3>{isTeacher ? "My Subjects Comparison" : "Subject Comparison"}</h3>
+              {teacherNoSubjects ? (
+                <p className="cmp-empty">You have no subject assignments registered in these exams.</p>
+              ) : visibleSubjects.length === 0 ? (
+                <p className="cmp-empty">{isTeacher ? "Select at least one subject above to compare." : "No subjects found."}</p>
+              ) : (
+                <div className="cmp-subject-grid">
+                  {visibleSubjects.map((row) => (
+                    <article
+                      className={`cmp-subject-card${selectedSubjectForDetail === row.subject_id ? " cmp-subject-card--active" : ""}`}
+                      key={row.subject_id}
+                      onClick={() => setSelectedSubjectForDetail(selectedSubjectForDetail === row.subject_id ? null : row.subject_id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setSelectedSubjectForDetail(selectedSubjectForDetail === row.subject_id ? null : row.subject_id))}
+                    >
+                      <div className="cmp-subject-card-head">
+                        <div className="cmp-subject-title">
+                          <span className="cmp-subject-code">{row.subject_code}</span>
+                          <span className="cmp-subject-name">{row.subject_name}</span>
+                        </div>
+                        <span className={`cmp-subject-tag${row.delta === null ? "" : row.delta > 0 ? " cmp-subject-tag--up" : row.delta < 0 ? " cmp-subject-tag--down" : ""}`}>
+                          {row.delta === null ? "New" : displayDelta(row.delta)}
+                        </span>
+                      </div>
+                      <div className="cmp-compare-cols">
+                        <div className="cmp-compare-col">
+                          <span className="cmp-col-label">Current</span>
+                          <span className="cmp-col-value">{displayNumber(row.current?.avg ?? null)}</span>
+                          <span className="cmp-col-sub">Grade {row.current?.grade ?? "—"} · {row.current?.competency ?? "—"}</span>
+                          <span className="cmp-col-sub">Passed {row.current?.passed ?? 0}/{row.current?.sat ?? 0}</span>
+                        </div>
+                        <div className="cmp-compare-col">
+                          <span className="cmp-col-label">Previous</span>
+                          <span className="cmp-col-value">{displayNumber(row.previous?.avg ?? null)}</span>
+                          <span className="cmp-col-sub">Grade {row.previous?.grade ?? "—"} · {row.previous?.competency ?? "—"}</span>
+                          <span className="cmp-col-sub">Passed {row.previous?.passed ?? 0}/{row.previous?.sat ?? 0}</span>
+                        </div>
+                      </div>
+                      {isTeacher && selectedSubjectForDetail === row.subject_id && (
+                        <p className="cmp-subject-hint">Per-student comparison below</p>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
             </section>
 
-            {previousReport && (
+            {!isTeacher && previousReport && (
               <section className="result-section">
                 <h3>Division Comparison</h3>
-                <div className="result-table-wrap"><table className="result-table">
-                  <thead>
-                    <tr><th>Division</th><th>Current</th><th>Previous</th><th>Change</th></tr>
-                  </thead>
-                  <tbody>
-                    {divisionRows.map((row) => (
-                      <tr key={row.division}>
-                        <td>{row.label}</td>
-                        <td>{row.current}</td>
-                        <td>{row.previous}</td>
-                        <td><span className={deltaClass(row.delta)}>{row.delta > 0 ? `+${row.delta}` : row.delta}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table></div>
+                <div className="cmp-division-grid">
+                  {divisionRows.map((row) => (
+                    <div className="cmp-division-card" key={row.division}>
+                      <span className="cmp-division-label">{row.label}</span>
+                      <div className="cmp-division-values">
+                        <strong>{row.current}</strong>
+                        <span className="cmp-division-prev">was {row.previous}</span>
+                      </div>
+                      <span className={`cmp-division-delta ${deltaClass(row.delta)}`}>{row.delta > 0 ? `▲ +${row.delta}` : row.delta < 0 ? `▼ ${row.delta}` : "—"}</span>
+                    </div>
+                  ))}
+                </div>
               </section>
             )}
 
-            <section className="result-section">
-              <h3>Student Comparison</h3>
-              <div className="result-table-wrap">
-                <table className="result-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Class / Stream</th>
-                      <th>Sex</th>
-                      <th>Current Avg</th>
-                      <th>Previous Avg</th>
-                      <th>Change</th>
-                      <th>Current Rank</th>
-                      <th>Previous Rank</th>
-                      <th>Trend</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredStudents.length === 0 && (
-                      <tr><td colSpan={9} className="result-subjects">No students match this selection.</td></tr>
-                    )}
+            {!isTeacher && (
+              <section className="result-section">
+                <h3>Student Comparison</h3>
+                {filteredStudents.length === 0 ? (
+                  <p className="cmp-empty">No students match this selection.</p>
+                ) : (
+                  <div className="cmp-student-list">
                     {filteredStudents.map((row) => (
-                      <tr key={row.student_id}>
-                        <td className="result-subjects">{row.fullName}</td>
-                        <td>{row.className} — {row.streamName}</td>
-                        <td>{row.gender}</td>
-                        <td>{displayNumber(row.current?.avg ?? null)}</td>
-                        <td>{displayNumber(row.previous?.avg ?? null)}</td>
-                        <td><span className={deltaClass(row.delta)}>{displayDelta(row.delta)}</span></td>
-                        <td>{row.current?.rank || "—"}</td>
-                        <td>{row.previous?.rank || "—"}</td>
-                        <td>
-                          {row.trend === "up" ? "▲" : row.trend === "down" ? "▼" : row.trend === "new" ? "＋" : "—"} {trendLabel(row.trend)}
-                        </td>
-                      </tr>
+                      <article className="cmp-student-row" key={row.student_id}>
+                        <div className="cmp-student-main">
+                          <span className="cmp-student-name">{row.fullName}</span>
+                          <span className="cmp-student-meta">{row.className} — {row.streamName} · {row.gender}</span>
+                        </div>
+                        <div className="cmp-student-metrics">
+                          <div className="cmp-student-metric"><span>Current</span><strong>{displayNumber(row.current?.avg ?? null)}</strong></div>
+                          <div className="cmp-student-metric"><span>Previous</span><strong>{displayNumber(row.previous?.avg ?? null)}</strong></div>
+                          <div className="cmp-student-metric"><span>Change</span><strong className={deltaClass(row.delta)}>{displayDelta(row.delta)}</strong></div>
+                          <div className="cmp-student-metric"><span>Rank</span><strong>{row.current?.rank || "—"}{row.previous ? ` ← ${row.previous.rank || "—"}` : ""}</strong></div>
+                          <div className="cmp-student-metric"><span>Trend</span><strong className={row.trend === "up" ? "cmp-trend-up" : row.trend === "down" ? "cmp-trend-down" : ""}>{trendArrow(row.trend)} {trendLabel(row.trend)}</strong></div>
+                        </div>
+                      </article>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+                  </div>
+                )}
+              </section>
+            )}
 
-            <footer className="result-footer">This report was issued by the Academic Office | Date: {shortDate(new Date().toISOString())}</footer>
+            {isTeacher && selectedSubjectForDetail && (
+              <section className="result-section">
+                <h3>Comparison by Student — {mySubjectRows.find((s) => s.subject_id === selectedSubjectForDetail)?.subject_name || ""}</h3>
+                {subjectStudentRows.length === 0 ? (
+                  <p className="cmp-empty">No students found for this subject.</p>
+                ) : (
+                  <div className="cmp-student-list cmp-student-list--subject">
+                    {subjectStudentRows.map((row) => (
+                      <article className="cmp-student-row" key={row.student_id}>
+                        <div className="cmp-student-main">
+                          <span className="cmp-student-name">{row.fullName}</span>
+                          <span className="cmp-student-meta">{row.className} — {row.streamName} · {row.gender}</span>
+                        </div>
+                        <div className="cmp-student-metrics">
+                          <div className="cmp-student-metric"><span>Current</span><strong>{displayNumber(row.currentScore)}</strong><small className="cmp-metric-sub">({row.currentGrade})</small></div>
+                          <div className="cmp-student-metric"><span>Previous</span><strong>{displayNumber(row.previousScore)}</strong><small className="cmp-metric-sub">({row.previousGrade})</small></div>
+                          <div className="cmp-student-metric"><span>Change</span><strong className={deltaClass(row.delta)}>{displayDelta(row.delta)}</strong></div>
+                          <div className="cmp-student-metric"><span>Trend</span><strong className={row.trend === "up" ? "cmp-trend-up" : row.trend === "down" ? "cmp-trend-down" : ""}>{trendArrow(row.trend)} {trendLabel(row.trend)}</strong></div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+
+            <footer className="result-footer">
+              {isTeacher ? "Issued by Subject Teacher" : "This report was issued by the Academic Office"} | Date: {shortDate(new Date().toISOString())}
+            </footer>
           </div>
         )
       )}

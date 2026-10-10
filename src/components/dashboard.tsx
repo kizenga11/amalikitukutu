@@ -15,6 +15,7 @@ import SubjectManagement from "@/components/subject-management";
 import StudentsManagement from "@/components/students-management";
 import TeachersManagement from "@/components/teachers-management";
 import TeacherDashboard from "@/components/teacher-dashboard";
+import SubjectAnalysis from "@/components/subject-analysis";
 import ExamManagement from "@/components/exam-management";
 import ResultPage from "@/components/result-page";
 import StudentReportCard from "@/components/student-report-card";
@@ -52,6 +53,7 @@ const icons = {
   reports: <Icon paths={<><line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line x1="6" y1="20" x2="6" y2="16" /></>} />,
   reportcard: <Icon paths={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" /><path d="M9 13h6" /><path d="M9 17h6" /></>} />,
   compare: <Icon paths={<><path d="M8 3v9" /><path d="M4 12h8v9H4z" /><path d="M16 3h4v9h-4z" /><path d="M16 16h4v5h-4z" /></>} />,
+  analysis: <Icon paths={<><path d="M3 3v18h18" /><rect x="7" y="10" width="3" height="8" /><rect x="12" y="6" width="3" height="12" /><rect x="17" y="13" width="3" height="5" /></>} />,
   exams: <Icon paths={<><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="1" /><path d="m9 14 2 2 4-4" /></>} />,
   settings: <Icon paths={<><circle cx="12" cy="12" r="3" /><path d="M12 2h1v3" /><path d="M12 19v3" /><path d="M2 12h3" /><path d="M19 12h3" /></>} />,
   bell: <Icon paths={<><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></>} />,
@@ -64,11 +66,11 @@ const icons = {
   check: <Icon paths={<><path d="M20 6 9 17l-5-5" /></>} />,
 };
 
-type NavKey = "dashboard" | "students" | "staff" | "classes" | "academic" | "reports" | "enrollment" | "reportcard" | "compare" | "exams" | "settings";
+type NavKey = "dashboard" | "students" | "staff" | "classes" | "academic" | "reports" | "enrollment" | "reportcard" | "compare" | "analysis" | "exams" | "settings";
 
 function isNavKey(value: unknown): value is NavKey {
   return typeof value === "string" && [
-    "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "exams", "settings",
+    "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "analysis", "exams", "settings",
   ].includes(value);
 }
 
@@ -103,6 +105,7 @@ const navGroups: NavGroup[] = [
     label: "Reporting",
     items: [
       { key: "reports", label: "Result", icon: icons.reports },
+      { key: "analysis", label: "Subject Analysis", icon: icons.analysis },
       { key: "enrollment", label: "Enrollment Report", icon: icons.reports },
       { key: "reportcard", label: "Report Card", icon: icons.reportcard },
       { key: "compare", label: "Compare", icon: icons.compare },
@@ -118,7 +121,7 @@ const navGroups: NavGroup[] = [
 const roleAccess: Record<Role, NavKey[]> = {
   Headmaster: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "exams", "settings"],
   Academic: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "exams", "settings"],
-  Teacher: ["dashboard", "exams", "reports", "compare"],
+  Teacher: ["dashboard", "exams", "reports", "analysis", "compare"],
 };
 
 type Period = StoredPeriod;
@@ -293,9 +296,10 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "staff" && <TeachersManagement />}
           {effectiveActive === "exams" && <ExamManagement teacherId={role === "Teacher" ? user.id : undefined} />}
           {effectiveActive === "reports" && <ResultPage role={role} />}
+          {effectiveActive === "analysis" && <SubjectAnalysis authUserId={user.id} />}
           {effectiveActive === "enrollment" && <StudentEnrollmentStatistics />}
           {effectiveActive === "reportcard" && <StudentReportCard />}
-          {effectiveActive === "compare" && <CompareResults />}
+          {effectiveActive === "compare" && <CompareResults role={role} teacherId={role === "Teacher" ? user.id : undefined} />}
         </main>
       </div>
     </div>

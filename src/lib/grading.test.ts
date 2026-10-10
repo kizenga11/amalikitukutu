@@ -6,6 +6,7 @@ import {
   MIN_SUBJECTS_FOR_DIVISION,
   buildClassResults,
   buildSchoolReport,
+  buildSubjectAnalysis,
   competencyLabel,
   computeGradeAndPoints,
   computeStudentResult,
@@ -357,5 +358,106 @@ describe("competencyLabel", () => {
     expect(competencyLabel(30, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Unsatisfactory");
     expect(competencyLabel(29, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Fail");
     expect(competencyLabel(0, DEFAULT_COMPETENCY_THRESHOLDS)).toBe("Fail");
+  });
+});
+
+describe("buildSubjectAnalysis", () => {
+  const subjects: ClassSubjectsInput[] = [
+    { id: "m", code: "M", name: "Maths", has_practical: false },
+    { id: "e", code: "E", name: "English", has_practical: false },
+  ];
+
+  function mathsClassResults(): ClassResults {
+    return buildClassResults(
+      {
+        class_id: "c1",
+        class_name: "Form 1A",
+        subjects,
+        students: [
+          { student_id: "sa", first_name: "Amina", middle_name: null, last_name: "Sule", gender: "Male", stream_id: null, stream_name: "A", subjects: ["m", "e"] },
+          { student_id: "sb", first_name: "Baraka", middle_name: null, last_name: "Temu", gender: "Female", stream_id: null, stream_name: "A", subjects: ["m", "e"] },
+          { student_id: "sc", first_name: "Chausiku", middle_name: null, last_name: "Chambo", gender: "Female", stream_id: null, stream_name: "B", subjects: ["m"] },
+          { student_id: "sd", first_name: "Doto", middle_name: null, last_name: "Daudi", gender: "Male", stream_id: null, stream_name: "B", subjects: ["m"] },
+          { student_id: "se", first_name: "Ester", middle_name: null, last_name: "Eli", gender: "Female", stream_id: null, stream_name: "A", subjects: ["m", "e"] },
+        ],
+      },
+      {
+        "sa|m": { theory: 80, practical: null, is_absent: false },
+        "sa|e": { theory: 75, practical: null, is_absent: false },
+        "sb|m": { theory: 70, practical: null, is_absent: false },
+        "sb|e": { theory: 65, practical: null, is_absent: false },
+        "sc|m": { theory: 50, practical: null, is_absent: false },
+        "sd|m": { theory: 20, practical: null, is_absent: false },
+        "se|e": { theory: 60, practical: null, is_absent: false },
+      },
+    );
+  }
+
+  const opts = {
+    gradeBoundaries: DEFAULT_GRADE_BOUNDARIES,
+    competencyThresholds: DEFAULT_COMPETENCY_THRESHOLDS,
+  };
+
+  it("summarises registration, averages, grade, GPA and pass statistics", () => {
+    const analysis = buildSubjectAnalysis(mathsClassResults(), "m", opts);
+
+    expect(analysis.registered).toBe(5);
+    expect(analysis.sat).toBe(4);
+    expect(analysis.absent).toBe(1);
+    expect(analysis.average).toBe(55);
+    expect(analysis.grade).toBe("C");
+    expect(analysis.gpa).toBe(2.75);
+    expect(analysis.passed).toBe(3);
+    expect(analysis.failed).toBe(1);
+    expect(analysis.passRate).toBe(75);
+    expect(analysis.passAverage).toBe(66.7);
+    expect(analysis.failAverage).toBe(20);
+    expect(analysis.highest).toBe(80);
+    expect(analysis.lowest).toBe(20);
+    expect(analysis.competency).toBe("Average");
+  });
+
+  it("counts every grade by sex and averages each grade", () => {
+    const analysis = buildSubjectAnalysis(mathsClassResults(), "m", opts);
+    const byGrade = new Map(analysis.grades.map((row) => [row.grade, row]));
+
+    expect(analysis.grades.map((row) => row.grade)).toEqual(["A", "B", "C", "D", "F"]);
+    expect(byGrade.get("A")).toMatchObject({ count: 1, boys: 1, girls: 0, percent: 25, avg: 80 });
+    expect(byGrade.get("B")).toMatchObject({ count: 1, boys: 0, girls: 1, percent: 25, avg: 70 });
+    expect(byGrade.get("C")).toMatchObject({ count: 1, boys: 0, girls: 1, percent: 25, avg: 50 });
+    expect(byGrade.get("D")).toMatchObject({ count: 0, boys: 0, girls: 0, percent: 0, avg: null });
+    expect(byGrade.get("F")).toMatchObject({ count: 1, boys: 1, girls: 0, percent: 25, avg: 20 });
+  });
+
+  it("splits registration, pass rate and average by sex", () => {
+    const analysis = buildSubjectAnalysis(mathsClassResults(), "m", opts);
+
+    expect(analysis.genders).toHaveLength(2);
+    expect(analysis.genders[0]).toEqual({ label: "Boys", registered: 2, sat: 2, passed: 1, passRate: 50, average: 50 });
+    expect(analysis.genders[1]).toEqual({ label: "Girls", registered: 3, sat: 2, passed: 2, passRate: 100, average: 60 });
+  });
+
+  it("ranks students by mark and marks absentees without a rank", () => {
+    const analysis = buildSubjectAnalysis(mathsClassResults(), "m", opts);
+
+    expect(analysis.students.map((row) => [row.name, row.score, row.grade, row.passed, row.rank])).toEqual([
+      ["Amina Sule", 80, "A", true, 1],
+      ["Baraka Temu", 70, "B", true, 2],
+      ["Chausiku Chambo", 50, "C", true, 3],
+      ["Doto Daudi", 20, "F", false, 4],
+      ["Ester Eli", null, "ABS", null, null],
+    ]);
+  });
+
+  it("returns an empty analysis when no student takes the subject", () => {
+    const analysis = buildSubjectAnalysis(mathsClassResults(), "missing", opts);
+
+    expect(analysis.registered).toBe(0);
+    expect(analysis.sat).toBe(0);
+    expect(analysis.average).toBeNull();
+    expect(analysis.grade).toBe("—");
+    expect(analysis.gpa).toBeNull();
+    expect(analysis.passRate).toBeNull();
+    expect(analysis.students).toHaveLength(0);
   });
 });
