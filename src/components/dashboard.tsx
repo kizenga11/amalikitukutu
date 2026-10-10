@@ -132,7 +132,7 @@ const navGroups: NavGroup[] = [
 const roleAccess: Record<Role, NavKey[]> = {
   Headmaster: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "exams", "attendance", "settings"],
   Academic: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "exams", "attendance", "settings"],
-  Teacher: ["dashboard", "exams", "attendance", "reports", "analysis", "compare"],
+  Teacher: ["dashboard", "exams", "attendance", "reports", "analysis", "compare", "beststudent"],
 };
 
 type Period = StoredPeriod;
@@ -454,9 +454,9 @@ function DashboardView({
           <div className="panel-head">
             <div>
               <h3 className="panel-title">Student Attendance</h3>
-              <p className="panel-sub">Daily attendance rate this week</p>
+              <p className="panel-sub">Share of {yearLabel(yearId)} exam sittings attended, by class</p>
             </div>
-            <span className="panel-badge">Weekly</span>
+            <span className="panel-badge">By class</span>
           </div>
           <BarChart data={data.attendance} highlight={3} />
         </div>
@@ -506,7 +506,7 @@ function DashboardView({
           <div className="panel-head">
             <div>
               <h3 className="panel-title">Subject Performance</h3>
-              <p className="panel-sub">End of term mean scores</p>
+              <p className="panel-sub">Mean score per subject · {termLabel(term)} {yearLabel(yearId)}</p>
             </div>
           </div>
           <table className="subject-table">
@@ -518,6 +518,11 @@ function DashboardView({
               </tr>
             </thead>
             <tbody>
+              {data.subjectPerformance.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="subject-empty">No exam marks recorded for this period yet.</td>
+                </tr>
+              )}
               {data.subjectPerformance.map((row) => (
                 <tr key={row.subject}>
                   <td><div className="subject-name">{row.subject}</div><div className="subject-class">{row.class}</div></td>

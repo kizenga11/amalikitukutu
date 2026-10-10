@@ -1,7 +1,16 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Script from "next/script";
+import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+  variable: "--font-poppins",
+  display: "swap",
+});
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_ID ?? "G-XXXXXXXXXX";
 const hasAnalytics = gaMeasurementId !== "G-XXXXXXXXXX";
@@ -55,7 +64,7 @@ const webSiteJsonLd = `{"@context":"https://schema.org","@type":"WebSite","@id":
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`h-full antialiased ${inter.variable} ${poppins.variable}`}>
       <body className="min-h-full flex flex-col">
         {hasAnalytics && (
           <>

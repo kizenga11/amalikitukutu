@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import {
+  computeSubjectScore,
   DEFAULT_DIVISION_RANGES,
   DEFAULT_GRADE_BOUNDARIES,
   DEFAULT_COMPETENCY_THRESHOLDS,
@@ -168,68 +169,88 @@ function average(values: number[]): number {
   return Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10;
 }
 
-interface PerformanceRow {
-  class_name: string;
-  subject_name: string;
-  mean_score: number;
-  term: number;
-  academic_year: string;
+async function countWhere(table: string, column: string, value: string): Promise<number> {
+  const { count, error } = await supabase
+    .from(table)
+    .select("id", { count: "exact", head: true })
+    .eq(column, value);
+  if (error) throw error;
+  return count ?? 0;
 }
 
-function mondayOfCurrentWeek(): Date {
-  const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(now.getDate() - ((day + 6) % 7));
-  return monday;
+async function fetchAllRows<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const PAGE = 1000;
+  const rows: T[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await build(from, from + PAGE - 1);
+    if (error) throw error;
+    const batch = data ?? [];
+    rows.push(...batch);
+    if (batch.length < PAGE) break;
+    from += PAGE;
+  }
+  return rows;
 }
 
-function formatDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+interface DashboardMarkRow {
+  exam_id: string;
+  class_id: string;
+  subject_id: string;
+  theory_score: number | null;
+  practical_score: number | null;
+  is_absent: boolean;
+}
+
+function termOfDate(date: string): 1 | 2 {
+  const month = Number(date.slice(5, 7));
+  return month >= 7 ? 2 : 1;
 }
 
 export async function fetchDashboardData(yearId: string, term: number): Promise<DashboardData> {
+  const yearStart = `${yearId}-01-01`;
+  const yearEnd = `${Number(yearId) + 1}-01-01`;
+
   const [totalStudents, teachingStaff, activeClasses, totalSubjects] = await Promise.all([
     count("students"),
-    count("staff"),
-    count("streams"),
+    countWhere("staff", "role", "Teacher"),
+    count("school_classes"),
     count("subjects"),
   ]);
 
-  // ---- Attendance: Mon–Fri of the current week ----
-  const monday = mondayOfCurrentWeek();
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 7);
-  const { data: attendanceRows, error: attendanceError } = await supabase
-    .from("attendance")
-    .select("attendance_date, present, total")
-    .gte("attendance_date", formatDate(monday))
-    .lt("attendance_date", formatDate(sunday));
-  if (attendanceError) throw attendanceError;
-
-  const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-  const attendanceMap = new Map<string, { present: number; total: number }>();
-  for (const row of attendanceRows ?? []) {
-    const dayName = new Date(`${row.attendance_date}T00:00:00`).toLocaleDateString("en-US", { weekday: "short" });
-    if (!WEEKDAYS.includes(dayName)) continue;
-    const acc = attendanceMap.get(dayName) ?? { present: 0, total: 0 };
-    acc.present += row.present;
-    acc.total += row.total;
-    attendanceMap.set(dayName, acc);
-  }
-  const attendance = WEEKDAYS.map((label) => {
-    const acc = attendanceMap.get(label);
-    return { label, value: acc ? Math.round((acc.present / acc.total) * 100) : 0 };
-  });
-
-  // ---- Gender distribution ----
-  const [maleResult, femaleResult] = await Promise.all([
+  // ---- Live source data: exams of the year, their marks, subjects, classes ----
+  const [examResult, subjectResult, classResult, maleResult, femaleResult] = await Promise.all([
+    supabase.from("exams").select("id, name, start_date").gte("start_date", yearStart).lt("start_date", yearEnd),
+    supabase.from("subjects").select("id, name"),
+    supabase.from("school_classes").select("id, name"),
     supabase.from("students").select("id", { count: "exact", head: true }).eq("gender", "Male"),
     supabase.from("students").select("id", { count: "exact", head: true }).eq("gender", "Female"),
   ]);
+  if (examResult.error) throw examResult.error;
+  if (subjectResult.error) throw subjectResult.error;
+  if (classResult.error) throw classResult.error;
   if (maleResult.error) throw maleResult.error;
   if (femaleResult.error) throw femaleResult.error;
+
+  const exams = (examResult.data ?? []) as { id: string; name: string; start_date: string }[];
+  const examIds = exams.map((exam) => exam.id);
+  const examTermById = new Map(exams.map((exam) => [exam.id, termOfDate(exam.start_date)]));
+  const subjectNameById = new Map((subjectResult.data ?? []).map((s) => [s.id, s.name]));
+  const classNameById = new Map((classResult.data ?? []).map((c) => [c.id, c.name]));
+
+  const marks = examIds.length
+    ? await fetchAllRows<DashboardMarkRow>((from, to) =>
+        supabase
+          .from("exam_marks")
+          .select("exam_id, class_id, subject_id, theory_score, practical_score, is_absent")
+          .in("exam_id", examIds)
+          .range(from, to),
+      )
+    : [];
+
+  // ---- Gender distribution ----
   const genderCounts = { Male: maleResult.count ?? 0, Female: femaleResult.count ?? 0 };
   const genderTotal = genderCounts.Male + genderCounts.Female;
   const genderDistribution = [
@@ -237,70 +258,74 @@ export async function fetchDashboardData(yearId: string, term: number): Promise<
     { label: "Girls", value: genderTotal ? Math.round((genderCounts.Female / genderTotal) * 100) : 0 },
   ];
 
-  // ---- Performance ----
-  interface RawPerformanceRow {
-    mean_score: number;
-    term: number;
-    academic_year: string;
-    subject: { name: string }[] | { name: string } | null;
-    class: { name: string }[] | { name: string } | null;
-  }
+  // ---- Aggregate marks into performance + attendance metrics ----
+  const termScores: Record<number, number[]> = { 1: [], 2: [] };
+  const periodScores: number[] = [];
+  const subjectAgg = new Map<string, { scores: number[]; prevScores: number[]; classes: Map<string, number> }>();
+  const classSittings = new Map<string, { present: number; total: number }>();
 
-  const { data: performanceRows, error: perfError } = await supabase
-    .from("performance")
-    .select("mean_score, term, academic_year, subject:subjects(name), class:school_classes(name)")
-    .in("academic_year", [yearId, term === 1 ? String(Number(yearId) - 1) : yearId]);
-  if (perfError) throw perfError;
-
-  const typedRows: PerformanceRow[] = (performanceRows ?? []).map((row) => {
-    const raw = row as unknown as RawPerformanceRow;
-    const subject = Array.isArray(raw.subject) ? raw.subject[0] : raw.subject;
-    const klass = Array.isArray(raw.class) ? raw.class[0] : raw.class;
-    return {
-      mean_score: Number(raw.mean_score),
-      term: raw.term,
-      academic_year: raw.academic_year,
-      subject_name: subject?.name ?? "Unknown",
-      class_name: klass?.name ?? "Unknown",
-    };
-  });
-
-  // Average performance for the selected period
-  const periodRows = typedRows.filter((r) => r.academic_year === yearId && r.term === term);
-  const avgPerformance = average(periodRows.map((r) => r.mean_score));
-
-  // Trend per term for the selected year
-  const performanceTrend = [1, 2].map((t) => {
-    const vals = typedRows.filter((r) => r.academic_year === yearId && r.term === t).map((r) => r.mean_score);
-    return { label: `Term ${t}`, value: average(vals) };
-  });
-
-  // Subject performance for current period, top 5 with "up" vs previous term
   const prevTerm = term === 1 ? 2 : 1;
-  const prevYear = term === 1 ? String(Number(yearId) - 1) : yearId;
-  const subjectAgg = new Map<string, { subject: string; klass: string; scores: number[]; prevAvg: number }>();
-  for (const r of typedRows) {
-    if (r.academic_year === yearId && r.term === term) {
-      const acc = subjectAgg.get(r.subject_name) ?? { subject: r.subject_name, klass: r.class_name, scores: [], prevAvg: 0 };
-      acc.scores.push(r.mean_score);
-      subjectAgg.set(r.subject_name, acc);
+  const hasPreviousTerm = term !== 1;
+
+  for (const mark of marks) {
+    const markTerm = examTermById.get(mark.exam_id);
+    if (!markTerm) continue;
+
+    const sitting = classSittings.get(mark.class_id) ?? { present: 0, total: 0 };
+    sitting.total += 1;
+    if (!mark.is_absent) sitting.present += 1;
+    classSittings.set(mark.class_id, sitting);
+
+    const score = computeSubjectScore(mark.theory_score, mark.practical_score, mark.is_absent);
+    if (score === null) continue;
+
+    termScores[markTerm].push(score);
+
+    const agg =
+      subjectAgg.get(mark.subject_id) ??
+      { scores: [] as number[], prevScores: [] as number[], classes: new Map<string, number>() };
+    if (markTerm === term) {
+      periodScores.push(score);
+      agg.scores.push(score);
+      agg.classes.set(mark.class_id, (agg.classes.get(mark.class_id) ?? 0) + 1);
+    } else if (hasPreviousTerm && markTerm === prevTerm) {
+      agg.prevScores.push(score);
     }
+    subjectAgg.set(mark.subject_id, agg);
   }
-  for (const r of typedRows) {
-    if (r.academic_year === prevYear && r.term === prevTerm) {
-      const acc = subjectAgg.get(r.subject_name);
-      if (acc) acc.prevAvg += r.mean_score;
-    }
-  }
-  const subjectPerformance = Array.from(subjectAgg.values())
-    .map((s) => {
-      const count = s.prevAvg > 0 ? 4 : 1;
-      const current = average(s.scores);
-      const prev = s.prevAvg > 0 ? Math.round((s.prevAvg / count) * 10) / 10 : current;
-      return { subject: s.subject, class: `${s.klass} · ${yearId}`, score: current, up: current >= prev };
+
+  const avgPerformance = average(periodScores);
+
+  const performanceTrend = [1, 2].map((t) => ({ label: `Term ${t}`, value: average(termScores[t]) }));
+
+  const subjectPerformance = Array.from(subjectAgg.entries())
+    .filter(([, agg]) => agg.scores.length > 0)
+    .map(([subjectId, agg]) => {
+      const current = average(agg.scores);
+      const prev = average(agg.prevScores);
+      const topClass = [...agg.classes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+      const classLabel = agg.classes.size > 1 ? `${agg.classes.size} classes` : classNameById.get(topClass ?? "") ?? "—";
+      return {
+        subject: subjectNameById.get(subjectId) ?? "Unknown",
+        class: `${classLabel} · ${yearId}`,
+        score: current,
+        up: agg.prevScores.length === 0 || current >= prev,
+      };
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
+
+  // ---- Attendance: share of expected subject sittings actually attended ----
+  let attendance = Array.from(classSittings.entries())
+    .map(([classId, acc]) => ({
+      label: classNameById.get(classId) ?? "—",
+      value: acc.total > 0 ? Math.round((acc.present / acc.total) * 100) : 0,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+    .slice(0, 6);
+  if (attendance.length === 0) {
+    attendance = (classResult.data ?? []).slice(0, 6).map((c) => ({ label: c.name, value: 0 }));
+  }
 
   return {
     totalStudents,
@@ -965,53 +990,86 @@ export async function fetchTeacherDashboard(teacherId: string, yearId: string, t
   const studentCount = distinctStudents.size;
   const enrollmentCount = assignments.reduce((sum, a) => sum + a.students.length, 0);
 
-  // ---- Performance scoped to the teacher's subject × class pairs ----
+  // ---- Performance scoped to the teacher's subject × class pairs (live exam marks) ----
   const pairKey = (subjectId: string, classId: string) => `${subjectId}:${classId}`;
   const pairSet = new Set(assignments.map((a) => pairKey(a.subject_id, a.class_id)));
   const subjectNameById = new Map(assignments.map((a) => [a.subject_id, a.subject_name]));
   const classNameById = new Map(assignments.map((a) => [a.class_id, a.class_name]));
 
-  const { data: perfRows, error: perfError } = await supabase
-    .from("performance")
-    .select("subject_id, class_id, mean_score, term, academic_year")
-    .in("subject_id", subjectIds)
-    .in("class_id", classIds);
-  if (perfError) throw perfError;
+  const { data: yearExams, error: yearExamsError } = await supabase
+    .from("exams")
+    .select("id, start_date")
+    .gte("start_date", `${yearId}-01-01`)
+    .lt("start_date", `${Number(yearId) + 1}-01-01`);
+  if (yearExamsError) throw yearExamsError;
 
-  const myRows: { subject_id: string; class_id: string; mean_score: number; term: number; academic_year: string }[] = (
-    perfRows ?? []
-  )
-    .filter((r) => pairSet.has(pairKey(r.subject_id, r.class_id)))
-    .map((r) => ({ subject_id: r.subject_id, class_id: r.class_id, mean_score: Number(r.mean_score), term: r.term, academic_year: r.academic_year }));
+  const examIds = (yearExams ?? []).map((exam) => exam.id);
+  const examTermById = new Map((yearExams ?? []).map((exam) => [exam.id, termOfDate(exam.start_date)]));
 
-  const periodRows = myRows.filter((r) => r.academic_year === yearId && r.term === term);
-  const avgPerformance = average(periodRows.map((r) => r.mean_score));
+  interface TeacherMarkRow {
+    exam_id: string;
+    subject_id: string;
+    class_id: string;
+    theory_score: number | null;
+    practical_score: number | null;
+    is_absent: boolean;
+  }
 
-  const performanceTrend = [1, 2].map((t) => ({
-    label: `Term ${t}`,
-    value: average(myRows.filter((r) => r.academic_year === yearId && r.term === t).map((r) => r.mean_score)),
-  }));
+  const markRows = examIds.length
+    ? await fetchAllRows<TeacherMarkRow>((from, to) =>
+        supabase
+          .from("exam_marks")
+          .select("exam_id, subject_id, class_id, theory_score, practical_score, is_absent")
+          .in("exam_id", examIds)
+          .in("subject_id", subjectIds)
+          .in("class_id", classIds)
+          .range(from, to),
+      )
+    : [];
 
+  const termScores: Record<number, number[]> = { 1: [], 2: [] };
+  const periodScores: number[] = [];
   const prevTerm = term === 1 ? 2 : 1;
-  const prevYear = term === 1 ? String(Number(yearId) - 1) : yearId;
   const subjAgg = new Map<string, { subject: string; klass: string; scores: number[]; prevScores: number[] }>();
-  for (const r of myRows) {
-    const key = pairKey(r.subject_id, r.class_id);
+
+  for (const mark of markRows) {
+    if (!pairSet.has(pairKey(mark.subject_id, mark.class_id))) continue;
+    const markTerm = examTermById.get(mark.exam_id);
+    if (!markTerm) continue;
+    const score = computeSubjectScore(mark.theory_score, mark.practical_score, mark.is_absent);
+    if (score === null) continue;
+
+    termScores[markTerm].push(score);
+
+    const key = pairKey(mark.subject_id, mark.class_id);
     const acc = subjAgg.get(key) ?? {
-      subject: subjectNameById.get(r.subject_id) ?? "Unknown",
-      klass: classNameById.get(r.class_id) ?? "Unknown",
+      subject: subjectNameById.get(mark.subject_id) ?? "Unknown",
+      klass: classNameById.get(mark.class_id) ?? "Unknown",
       scores: [],
       prevScores: [],
     };
-    if (r.academic_year === yearId && r.term === term) acc.scores.push(r.mean_score);
-    if (r.academic_year === prevYear && r.term === prevTerm) acc.prevScores.push(r.mean_score);
+    if (markTerm === term) {
+      periodScores.push(score);
+      acc.scores.push(score);
+    } else if (term === 2 && markTerm === prevTerm) {
+      acc.prevScores.push(score);
+    }
     subjAgg.set(key, acc);
   }
+
+  const avgPerformance = average(periodScores);
+
+  const performanceTrend = [1, 2].map((t) => ({
+    label: `Term ${t}`,
+    value: average(termScores[t]),
+  }));
+
   const subjectPerformance = Array.from(subjAgg.values())
+    .filter((s) => s.scores.length > 0)
     .map((s) => {
       const current = average(s.scores);
       const prev = average(s.prevScores);
-      return { subject: s.subject, class: s.klass, score: current, up: current >= prev };
+      return { subject: s.subject, class: s.klass, score: current, up: s.prevScores.length === 0 || current >= prev };
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, 6);

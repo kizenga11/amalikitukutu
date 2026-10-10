@@ -79,7 +79,6 @@ function AttendanceSheetView({
         <thead>
           <tr>
             <th className="att-col-no">No</th>
-            <th className="att-col-reg">Registration No</th>
             <th className="att-col-name">Student Name</th>
             <th className="att-col-sign">Signature</th>
             <th className="att-col-score">Marks</th>
@@ -88,7 +87,7 @@ function AttendanceSheetView({
         <tbody>
           {sheet.students.length === 0 && (
             <tr>
-              <td colSpan={5} className="att-empty">
+              <td colSpan={4} className="att-empty">
                 No students for this subject in this stream.
               </td>
             </tr>
@@ -96,7 +95,6 @@ function AttendanceSheetView({
           {sheet.students.map((student) => (
             <tr key={student.student_id}>
               <td className="att-col-no">{student.no}</td>
-              <td className="att-col-reg">{student.registration_no ?? "—"}</td>
               <td className="att-col-name">{student.full_name}</td>
               <td className="att-col-sign" />
               <td className="att-col-score" />

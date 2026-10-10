@@ -228,7 +228,7 @@ export default function SubjectAnalysis({ authUserId }: { authUserId: string }) 
   const showMarksLoading = marksLoading && !analysis;
 
   return (
-    <div className={`result-page${pageOrientation === "landscape" ? " print-landscape" : ""}`}>
+    <div className={`result-page sa-page${pageOrientation === "landscape" ? " print-landscape" : ""}`}>
       <div className="page-head result-controls">
         <div className="no-print">
           <h2 className="page-title">Subject Analysis</h2>
@@ -395,7 +395,28 @@ export default function SubjectAnalysis({ authUserId }: { authUserId: string }) 
 
           <section className="result-section">
             <h3>Students ({analysis.sat} sat, {analysis.absent} absent)</h3>
-            <div className="result-table-wrap">
+            <div className="sa-cards">
+              {analysis.students.length === 0 && (
+                <div className="sa-card-empty">No student data for this subject in the selected exam.</div>
+              )}
+              {analysis.students.map((row) => (
+                <div className="sa-card" key={row.student_id}>
+                  <div className="sa-card-head">
+                    <span className="sa-card-rank">{row.rank ?? "—"}</span>
+                    <span className="sa-card-name">{row.name}</span>
+                    <span className={`sa-card-status sa-card-status--${row.passed === null ? "abs" : row.passed ? "pass" : "fail"}`}>
+                      {row.passed === null ? "ABS" : row.passed ? "PASS" : "FAIL"}
+                    </span>
+                  </div>
+                  <div className="sa-card-grid">
+                    <div><span>Stream</span><strong>{row.stream === "—" ? "—" : row.stream}</strong></div>
+                    <div><span>Mark</span><strong>{displayNumber(row.score)}</strong></div>
+                    <div><span>Grade</span><strong>{row.grade}</strong></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="result-table-wrap sa-students-wrap">
               <table className="result-table">
                 <thead>
                   <tr><th>#</th><th>Student</th><th>Sex</th><th>Stream</th><th>Mark</th><th>Grade</th><th>Points</th><th>Result</th></tr>

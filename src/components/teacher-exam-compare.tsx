@@ -539,8 +539,43 @@ export default function TeacherExamCompare({ teacherId }: { teacherId?: string }
                 {sortedStudents.length === 0 ? (
                   <p className="cmp-empty">No students for this subject.</p>
                 ) : (
-                  <div className="tcmp-table-wrap">
-                    <table className="tcmp-table">
+                  <>
+                    <div className="tcmp-cards">
+                      {sortedStudents.map((row, index) => (
+                        <div key={row.student_id} className={`tcmp-card${row.status === "absent" ? " tcmp-card--absent" : ""}`}>
+                          <div className="tcmp-card-head">
+                            <span className="tcmp-card-no">{index + 1}</span>
+                            <span className="tcmp-card-name">{row.name}</span>
+                            <span className={`tcmp-status tcmp-status--${row.status}`}>
+                              <span className="tcmp-status-sym">{STATUS_SYMBOL[row.status]}</span>
+                              <span className="tcmp-status-text">{STATUS_LABEL[row.status]}</span>
+                            </span>
+                          </div>
+                          <div className="tcmp-card-grid">
+                            <div className="tcmp-card-cell">
+                              <span className="tcmp-card-label">{result.examA.name}</span>
+                              <span className="tcmp-card-score">
+                                {displayNumber(row.scoreA)}
+                                {row.scoreA !== null && <span className={`res-grd grd-${row.gradeA}`}>{row.gradeA}</span>}
+                              </span>
+                            </div>
+                            <div className="tcmp-card-cell">
+                              <span className="tcmp-card-label">{result.examB.name}</span>
+                              <span className="tcmp-card-score">
+                                {displayNumber(row.scoreB)}
+                                {row.scoreB !== null && <span className={`res-grd grd-${row.gradeB}`}>{row.gradeB}</span>}
+                              </span>
+                            </div>
+                            <div className="tcmp-card-cell">
+                              <span className="tcmp-card-label">Difference</span>
+                              <span className={`tcmp-card-diff ${row.diff === null ? "" : row.diff > 0 ? "cmp-trend-up" : row.diff < 0 ? "cmp-trend-down" : ""}`}>{displayDiff(row.diff)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="tcmp-table-wrap tcmp-desktop-table">
+                      <table className="tcmp-table">
                       <thead>
                         <tr>
                           <th className="tcmp-col-no">No.</th>
@@ -583,7 +618,8 @@ export default function TeacherExamCompare({ teacherId }: { teacherId?: string }
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                    </div>
+                  </>
                 )}
               </section>
 

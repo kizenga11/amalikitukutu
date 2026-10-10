@@ -139,7 +139,7 @@ export default function ResultPage({ role }: { role?: string }) {
   const heading = `${exam.name} ${displayDate(exam.start_date)}`.toUpperCase();
 
   return (
-    <div className={`result-page${pageOrientation === "landscape" ? " print-landscape" : ""}`}>
+    <div className={`result-page rp-page${pageOrientation === "landscape" ? " print-landscape" : ""}`}>
       <div className="page-head result-controls">
         <div className="no-print">
           <h2 className="page-title">Result</h2>
@@ -191,12 +191,64 @@ export default function ResultPage({ role }: { role?: string }) {
 
           <section className="result-section">
             <h3>Students&apos; Results</h3>
-            <div className="result-table-wrap"><table className="result-table result-students-table"><thead><tr><th>#</th><th>Student Name</th><th>Sex</th><th>Avg</th><th>Grade</th><th>Pts</th><th>Div</th><th>Subjects ({viewMode === "grades" ? "Grades" : "Marks"})</th></tr></thead><tbody>{report.students.map((row) => <tr key={row.student.student_id}><td>{row.rank || "—"}</td><td>{row.student.first_name}{row.student.middle_name ? ` ${row.student.middle_name}` : ""} {row.student.last_name}</td><td>{genderLabel(row.student.gender)}</td><td>{displayNumber(row.avg)}</td><td>{row.grade}</td><td>{row.student.incomplete ? "—" : row.student.total_points}</td><td>{row.divisionCode}</td><td className="result-subjects">{viewMode === "grades" ? subjectGrades(row.student.subjects) : subjectMarks(row.student.subjects)}</td></tr>)}</tbody></table></div>
+            <div className="rp-cards">
+              {report.students.length === 0 && <div className="rp-card-empty">No students found in this selection.</div>}
+              {report.students.map((row) => (
+                <div className="rp-card" key={row.student.student_id}>
+                  <div className="rp-card-head">
+                    <span className="rp-card-rank">{row.rank || "—"}</span>
+                    <span className="rp-card-name">{row.student.first_name}{row.student.middle_name ? ` ${row.student.middle_name}` : ""} {row.student.last_name}</span>
+                    <span className="rp-card-div">{row.divisionCode}</span>
+                  </div>
+                  <div className="rp-card-grid">
+                    <div><span>Sex</span><strong>{genderLabel(row.student.gender)}</strong></div>
+                    <div><span>Avg</span><strong>{displayNumber(row.avg)}</strong></div>
+                    <div><span>Grade</span><strong>{row.grade}</strong></div>
+                    <div><span>Pts</span><strong>{row.student.incomplete ? "—" : row.student.total_points}</strong></div>
+                  </div>
+                  <div className="rp-card-subjects">{viewMode === "grades" ? subjectGrades(row.student.subjects) : subjectMarks(row.student.subjects)}</div>
+                </div>
+              ))}
+            </div>
+            <div className="result-table-wrap rp-students-wrap"><table className="result-table result-students-table"><thead><tr><th>#</th><th>Student Name</th><th>Sex</th><th>Avg</th><th>Grade</th><th>Pts</th><th>Div</th><th>Subjects ({viewMode === "grades" ? "Grades" : "Marks"})</th></tr></thead><tbody>{report.students.map((row) => <tr key={row.student.student_id}><td>{row.rank || "—"}</td><td>{row.student.first_name}{row.student.middle_name ? ` ${row.student.middle_name}` : ""} {row.student.last_name}</td><td>{genderLabel(row.student.gender)}</td><td>{displayNumber(row.avg)}</td><td>{row.grade}</td><td>{row.student.incomplete ? "—" : row.student.total_points}</td><td>{row.divisionCode}</td><td className="result-subjects">{viewMode === "grades" ? subjectGrades(row.student.subjects) : subjectMarks(row.student.subjects)}</td></tr>)}</tbody></table></div>
           </section>
 
           <section className="result-section">
             <h3>Subject Performance Summary</h3>
-            <div className="result-table-wrap"><table className="result-table result-subject-table"><thead><tr><th rowSpan={2}>#</th><th rowSpan={2}>Subject</th><th colSpan={3}>A</th><th colSpan={3}>B</th><th colSpan={3}>C</th><th colSpan={3}>D</th><th colSpan={3}>F</th><th rowSpan={2}>Avg</th><th rowSpan={2}>Grade</th><th rowSpan={2}>REG</th><th rowSpan={2}>SAT</th><th rowSpan={2}>PASS</th><th rowSpan={2}>GPA</th><th rowSpan={2}>Competency</th></tr><tr>{["A", "B", "C", "D", "F"].map((grade) => [<th key={`${grade}-f`} className="result-gender-th">F</th>, <th key={`${grade}-m`} className="result-gender-th">M</th>, <th key={`${grade}-t`} className="result-gender-th">T</th>])}</tr></thead><tbody>{report.subjects.map((subject, index) => <tr key={subject.subject_id}><td>{index + 1}</td><td><strong>{subject.subject_code}</strong> — {subject.subject_name}</td>{["A", "B", "C", "D", "F"].map((grade) => { const f = subject.countsF[grade] ?? 0; const m = subject.countsM[grade] ?? 0; return [<td key={`${grade}-f`} className="result-gender-cells">{f}</td>, <td key={`${grade}-m`} className="result-gender-cells">{m}</td>, <td key={`${grade}-t`} className="result-gender-cells">{f + m}</td>]; })}<td>{displayNumber(subject.avg)}</td><td>{subject.grade}</td><td>{subject.registered}</td><td>{subject.sat}</td><td>{subject.passed}</td><td>{displayNumber(subject.gpa)}</td><td>{subject.competency}</td></tr>)}</tbody></table></div>
+            <div className="rp-subj-cards">
+              {report.subjects.map((subject, index) => (
+                <div className="rp-subj-card" key={subject.subject_id}>
+                  <div className="rp-subj-head">
+                    <span className="rp-subj-no">{index + 1}</span>
+                    <span className="rp-subj-name"><strong>{subject.subject_code}</strong> — {subject.subject_name}</span>
+                    <span className="rp-subj-grade">{subject.grade}</span>
+                  </div>
+                  <div className="rp-subj-grades">
+                    {["A", "B", "C", "D", "F"].map((grade) => {
+                      const f = subject.countsF[grade] ?? 0;
+                      const m = subject.countsM[grade] ?? 0;
+                      return (
+                        <div className="rp-subj-gcell" key={grade}>
+                          <span className="rp-subj-glabel">{grade}</span>
+                          <span className="rp-subj-gcount">{f + m}</span>
+                          <span className="rp-subj-gsplit">{f}F · {m}M</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="rp-subj-meta">
+                    <div><span>Avg</span><strong>{displayNumber(subject.avg)}</strong></div>
+                    <div><span>Grade</span><strong>{subject.grade}</strong></div>
+                    <div><span>Reg</span><strong>{subject.registered}</strong></div>
+                    <div><span>Sat</span><strong>{subject.sat}</strong></div>
+                    <div><span>Pass</span><strong>{subject.passed}</strong></div>
+                    <div><span>GPA</span><strong>{displayNumber(subject.gpa)}</strong></div>
+                  </div>
+                  <div className="rp-subj-comp">{subject.competency}</div>
+                </div>
+              ))}
+            </div>
+            <div className="result-table-wrap rp-subject-wrap"><table className="result-table result-subject-table"><thead><tr><th rowSpan={2}>#</th><th rowSpan={2}>Subject</th><th colSpan={3}>A</th><th colSpan={3}>B</th><th colSpan={3}>C</th><th colSpan={3}>D</th><th colSpan={3}>F</th><th rowSpan={2}>Avg</th><th rowSpan={2}>Grade</th><th rowSpan={2}>REG</th><th rowSpan={2}>SAT</th><th rowSpan={2}>PASS</th><th rowSpan={2}>GPA</th><th rowSpan={2}>Competency</th></tr><tr>{["A", "B", "C", "D", "F"].map((grade) => [<th key={`${grade}-f`} className="result-gender-th">F</th>, <th key={`${grade}-m`} className="result-gender-th">M</th>, <th key={`${grade}-t`} className="result-gender-th">T</th>])}</tr></thead><tbody>{report.subjects.map((subject, index) => <tr key={subject.subject_id}><td>{index + 1}</td><td><strong>{subject.subject_code}</strong> — {subject.subject_name}</td>{["A", "B", "C", "D", "F"].map((grade) => { const f = subject.countsF[grade] ?? 0; const m = subject.countsM[grade] ?? 0; return [<td key={`${grade}-f`} className="result-gender-cells">{f}</td>, <td key={`${grade}-m`} className="result-gender-cells">{m}</td>, <td key={`${grade}-t`} className="result-gender-cells">{f + m}</td>]; })}<td>{displayNumber(subject.avg)}</td><td>{subject.grade}</td><td>{subject.registered}</td><td>{subject.sat}</td><td>{subject.passed}</td><td>{displayNumber(subject.gpa)}</td><td>{subject.competency}</td></tr>)}</tbody></table></div>
           </section>
 
           <footer className="result-footer">Generated: {generated}</footer>

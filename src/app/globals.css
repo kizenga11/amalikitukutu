@@ -1036,7 +1036,7 @@ button:disabled, select:disabled { cursor: not-allowed; }
 	display: flex; align-items: center; justify-content: space-between; width: 100%;
 	margin: 0; padding: .45rem .8rem; border: 0; border-radius: .45rem;
 	background: transparent; cursor: pointer;
-	font-size: .68rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted);
+	font-size: .74rem; font-weight: 600; letter-spacing: .01em; color: var(--muted);
 	transition: background .15s, color .15s;
 }
 .nav-group-label:hover { background: var(--page); color: var(--ink); }
@@ -1238,6 +1238,7 @@ button:disabled, select:disabled { cursor: not-allowed; }
 .subject-table tr:last-child td { border-bottom: 0; }
 .subject-name { font-size: .8125rem; font-weight: 600; }
 .subject-class { font-size: .7rem; color: var(--muted); margin-top: .1rem; }
+.subject-empty { text-align: center; color: var(--muted); font-size: .8rem; padding: 1.4rem .4rem; }
 .score-bar { height: .45rem; border-radius: 999px; background: #f1f1f4; overflow: hidden; min-width: 5.5rem; }
 .score-bar-fill { height: 100%; border-radius: 999px; }
 .score-bar-fill--good { background: #059669; }
@@ -2776,15 +2777,16 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 		flex: 0 0 auto;
 	}
 	.me-steps {
-		flex-wrap: nowrap;
-		overflow-x: auto;
-		padding-bottom: .25rem;
-		-webkit-overflow-scrolling: touch;
+		flex-wrap: wrap;
+		gap: .3rem;
+		padding: .6rem 0 .8rem;
 	}
 	.me-step {
-		flex: 0 0 auto;
-		min-height: 2.75rem;
+		min-height: 0;
+		padding: .3rem .5rem;
+		font-size: .72rem;
 	}
+	.me-step + .me-step::before { display: none; }
 	.me-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
@@ -3199,10 +3201,9 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 .att-table th, .att-table td { border: 1px solid #000; padding: .34rem .5rem; font-size: .82rem; vertical-align: middle; }
 .att-table thead th { background: #f1f1f2; font-weight: 700; text-align: center; text-transform: uppercase; font-size: .68rem; letter-spacing: .04em; }
 .att-col-no { width: 3.2rem; text-align: center; }
-.att-col-reg { width: 22%; }
-.att-col-name { width: 38%; }
-.att-col-sign { width: 20%; }
-.att-col-score { width: 14%; text-align: center; }
+.att-col-name { width: 52%; }
+.att-col-sign { width: 22%; }
+.att-col-score { width: 16%; text-align: center; }
 .att-table .att-col-sign, .att-table .att-col-score { height: 2rem; }
 .att-empty { text-align: center; padding: 1.4rem; color: var(--muted); }
 
@@ -3211,11 +3212,206 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 .att-sig-line { border-bottom: 1px solid #000; height: 1.6rem; }
 
 @media (max-width: 720px) {
-  .att-toolbar-actions { margin-left: 0; width: 100%; }
+  .att-toolbar { padding: .75rem; gap: .6rem; }
+  .att-toolbar-actions { margin-left: 0; width: 100%; gap: .5rem; }
+  .att-toolbar-actions .cm-btn { flex: 1 1 auto; }
   .att-select { min-width: 0; width: 100%; }
-  .att-field { flex: 1; }
+  .att-field { flex: 1; min-width: 0; }
+  .att-count { flex: 1 1 100%; margin-right: 0; }
   .att-date { margin-left: 0; }
-  .att-sheet { padding: 1rem; }
+
+  .att-sheets { gap: 1rem; }
+  .att-sheet { padding: .8rem; }
+  .att-header { gap: .45rem; padding-bottom: .55rem; margin-bottom: .55rem; }
+  .att-logo { width: 2.4rem; height: 2.4rem; }
+  .att-council { font-size: .6rem; }
+  .att-school { font-size: .92rem; }
+  .att-address { font-size: .62rem; }
+  .att-title { font-size: .7rem; letter-spacing: .06em; margin-top: .25rem; }
+  .att-exam { font-size: .82rem; }
+  .att-meta { gap: .3rem .9rem; font-size: .72rem; }
+  .att-date-line { min-width: 7rem; }
+
+  .att-table { table-layout: auto; }
+  .att-table th, .att-table td { padding: .28rem .3rem; font-size: .72rem; }
+  .att-table thead th { font-size: .56rem; letter-spacing: .01em; padding: .3rem .2rem; }
+  .att-col-no { width: 1.7rem; }
+  .att-col-name { width: auto; }
+  .att-col-sign { width: 18%; }
+  .att-col-score { width: 12%; }
+  .att-table .att-col-sign, .att-table .att-col-score { height: 1.7rem; }
+
+  .att-signatures { gap: 1rem; margin-top: 1rem; }
+  .att-sig { font-size: .7rem; }
+  .att-sig-line { height: 1.3rem; }
+}
+
+/* ---- Marks entry: simple mobile student cards ---- */
+.me-mobile-marks { display: none; }
+.me-mobile-exams { display: none; }
+.tcmp-cards { display: none; }
+.sa-cards { display: none; }
+.rp-cards { display: none; }
+.rp-subj-cards { display: none; }
+
+@media (max-width: 640px) {
+  .ex-desktop-table { display: none !important; }
+  .tcmp-desktop-table { display: none !important; }
+  .me-mobile-marks { display: grid; gap: .5rem; margin: 0 .2rem; }
+  .tcmp-cards { display: grid; gap: .55rem; }
+  .tcmp-grade-wrap { overflow-x: visible; }
+  .tcmp-grade-table { table-layout: fixed; }
+  .tcmp-grade-table th, .tcmp-grade-table td { padding: .4rem .3rem; font-size: .76rem; }
+  .tcmp-grade-table thead th { white-space: normal; word-break: break-word; position: static; }
+  .tcmp-grade-table th:first-child, .tcmp-grade-table td:first-child { width: 3.2rem; }
+  .tcmp-grade-table th:last-child, .tcmp-grade-table td:last-child { width: 4.2rem; }
+
+  /* Subject Analysis: fit tables + student cards */
+  .sa-page .result-table-wrap { overflow-x: visible; }
+  .sa-page .result-table { min-width: 0; table-layout: fixed; }
+  .sa-page .result-table th, .sa-page .result-table td {
+    padding: .32rem .22rem; font-size: .68rem; white-space: normal; overflow-wrap: break-word;
+  }
+  .sa-page .sa-students-wrap { display: none; }
+  .sa-cards { display: grid; gap: .55rem; }
+  .sa-card {
+    background: #fff; border: 1px solid var(--line); border-radius: .65rem;
+    padding: .55rem .6rem; box-shadow: 0 1px 3px rgba(24, 24, 27, .06);
+  }
+  .sa-card-empty { padding: .8rem; text-align: center; color: var(--muted); font-size: .85rem; }
+  .sa-card-head { display: flex; align-items: center; gap: .5rem; }
+  .sa-card-rank {
+    flex: 0 0 auto; min-width: 1.6rem; height: 1.6rem; padding: 0 .3rem; border-radius: 999px;
+    background: var(--page); color: var(--muted); font-size: .72rem; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .sa-card-name { flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: .88rem; word-break: break-word; }
+  .sa-card-status { flex: 0 0 auto; font-size: .68rem; font-weight: 800; letter-spacing: .02em; }
+  .sa-card-status--pass { color: #16a34a; }
+  .sa-card-status--fail { color: #dc2626; }
+  .sa-card-status--abs { color: var(--muted); }
+  .sa-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .3rem; margin-top: .55rem; }
+  .sa-card-grid > div {
+    background: var(--page); border: 1px solid var(--line); border-radius: .5rem;
+    padding: .35rem .2rem; text-align: center; min-width: 0;
+  }
+  .sa-card-grid span {
+    display: block; font-size: .58rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .02em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sa-card-grid strong { display: block; margin-top: .1rem; font-size: .85rem; font-variant-numeric: tabular-nums; }
+
+  /* Result page: division fit + students/subjects cards */
+  .rp-page .result-division-wrap { overflow-x: visible; }
+  .rp-page .result-division-table { min-width: 0; width: 100%; }
+  .rp-page .result-division-table th, .rp-page .result-division-table td { padding: .4rem .5rem; font-size: .74rem; }
+  .rp-page .rp-students-wrap, .rp-page .rp-subject-wrap { display: none; }
+  .rp-cards, .rp-subj-cards { display: grid; gap: .55rem; }
+  .rp-card, .rp-subj-card {
+    background: #fff; border: 1px solid var(--line); border-radius: .65rem;
+    padding: .55rem .6rem; box-shadow: 0 1px 3px rgba(24, 24, 27, .06);
+  }
+  .rp-card-empty { padding: .8rem; text-align: center; color: var(--muted); font-size: .85rem; }
+  .rp-card-head, .rp-subj-head { display: flex; align-items: center; gap: .5rem; }
+  .rp-card-rank, .rp-subj-no {
+    flex: 0 0 auto; min-width: 1.6rem; height: 1.6rem; padding: 0 .3rem; border-radius: 999px;
+    background: var(--page); color: var(--muted); font-size: .72rem; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .rp-card-name, .rp-subj-name { flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: .88rem; word-break: break-word; }
+  .rp-card-div, .rp-subj-grade {
+    flex: 0 0 auto; padding: .15rem .45rem; border-radius: 999px; background: var(--primary);
+    color: #fff; font-size: .7rem; font-weight: 800; white-space: nowrap;
+  }
+  .rp-card-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .3rem; margin-top: .55rem; }
+  .rp-card-grid > div, .rp-subj-meta > div {
+    background: var(--page); border: 1px solid var(--line); border-radius: .5rem;
+    padding: .35rem .2rem; text-align: center; min-width: 0;
+  }
+  .rp-card-grid span, .rp-subj-meta span {
+    display: block; font-size: .58rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .02em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rp-card-grid strong, .rp-subj-meta strong { display: block; margin-top: .1rem; font-size: .85rem; font-variant-numeric: tabular-nums; }
+  .rp-card-subjects {
+    margin-top: .5rem; padding-top: .45rem; border-top: 1px dashed var(--line);
+    font-size: .74rem; line-height: 1.6; color: var(--muted); word-break: break-word;
+  }
+  .rp-subj-grades { display: grid; grid-template-columns: repeat(5, 1fr); gap: .3rem; margin-top: .55rem; }
+  .rp-subj-gcell {
+    background: var(--page); border: 1px solid var(--line); border-radius: .5rem;
+    padding: .3rem .15rem; text-align: center; min-width: 0;
+  }
+  .rp-subj-glabel { display: block; font-size: .62rem; font-weight: 800; color: var(--primary); }
+  .rp-subj-gcount { display: block; font-size: .95rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .rp-subj-gsplit { display: block; font-size: .55rem; color: var(--muted); white-space: nowrap; }
+  .rp-subj-meta { display: grid; grid-template-columns: repeat(6, 1fr); gap: .3rem; margin-top: .45rem; }
+  .rp-subj-comp {
+    margin-top: .45rem; padding: .3rem .5rem; border-radius: .5rem; background: var(--page);
+    font-size: .72rem; font-weight: 700; color: var(--muted); text-align: center;
+  }
+  .tcmp-card {
+    background: #fff; border: 1px solid var(--line); border-radius: .65rem;
+    padding: .55rem .6rem; box-shadow: 0 1px 3px rgba(24, 24, 27, .06);
+  }
+  .tcmp-card--absent { background: #fef2f2; border-color: #fecaca; }
+  .tcmp-card-head { display: flex; align-items: center; gap: .5rem; }
+  .tcmp-card-no {
+    flex: 0 0 auto; width: 1.6rem; height: 1.6rem; border-radius: 999px;
+    background: var(--page); color: var(--muted); font-size: .75rem; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .tcmp-card-name { flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: .88rem; word-break: break-word; }
+  .tcmp-card-head .tcmp-status { flex: 0 0 auto; font-size: .72rem; }
+  .tcmp-card--absent .tcmp-card-name { text-decoration: line-through; color: var(--muted); }
+  .tcmp-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin-top: .55rem; }
+  .tcmp-card-cell {
+    background: var(--page); border: 1px solid var(--line); border-radius: .5rem;
+    padding: .4rem .35rem; text-align: center; min-width: 0;
+  }
+  .tcmp-card-label {
+    display: block; font-size: .62rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .02em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tcmp-card-score, .tcmp-card-diff {
+    display: inline-flex; align-items: center; justify-content: center; gap: .25rem;
+    margin-top: .15rem; font-size: .9rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  }
+  .me-mcard {
+    background: #fff; border: 1px solid var(--line); border-radius: .65rem;
+    padding: .5rem .55rem; box-shadow: 0 1px 3px rgba(24, 24, 27, .06);
+  }
+  .me-mcard--absent { background: #fef2f2; border-color: #fecaca; }
+  .me-mcard-head { display: flex; align-items: center; gap: .45rem; }
+  .me-mcard-no { width: 1.3rem; flex-shrink: 0; color: var(--muted); font-size: .76rem; text-align: center; }
+  .me-mcard-name { flex: 1; min-width: 0; font-size: .95rem; font-weight: 600; word-break: break-word; line-height: 1.2; }
+  .me-mcard-stream { display: block; font-size: .66rem; font-weight: 500; color: var(--muted); }
+  .me-mcard--absent .me-mcard-name { text-decoration: line-through; color: var(--muted); }
+  .me-mcard-absent {
+    display: inline-flex; align-items: center; gap: .25rem; flex-shrink: 0;
+    padding: .25rem .45rem; border: 1px solid #fecaca; border-radius: .5rem;
+    background: #fff; font-size: .78rem; font-weight: 800; color: #dc2626; cursor: pointer;
+  }
+  .me-mcard-absent input { width: 1.1rem; height: 1.1rem; accent-color: #dc2626; margin: 0; }
+  .me-mcard-marks { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .45rem; }
+  .me-mcard-marks .ex-score-input { width: 4.4rem; height: 2.6rem; font-size: 1rem; }
+  .me-mcard-marks .ex-na { text-align: center; min-width: 1.5rem; }
+  .me-mcard-total { margin-left: auto; font-size: .82rem; font-weight: 800; color: var(--primary); white-space: nowrap; }
+  .me-mcard--absent .me-mcard-total { color: #dc2626; }
+
+  /* Exam list cards */
+  .me-mobile-exams { display: grid; gap: .5rem; margin-bottom: 1rem; }
+  .me-ecard {
+    background: #fff; border: 1px solid var(--line); border-radius: .65rem;
+    padding: .6rem .65rem; box-shadow: 0 1px 3px rgba(24, 24, 27, .06);
+  }
+  .me-ecard-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
+  .me-ecard-title { min-width: 0; }
+  .me-ecard-title .ex-name { font-size: .95rem; word-break: break-word; }
+  .me-ecard-title .ex-dates { margin-top: .15rem; }
+  .me-ecard-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .5rem; }
+  .me-ecard-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .6rem; }
+  .me-ecard-actions .cm-btn { flex: 1 1 auto; min-height: 2.5rem; }
 }
 
 @media print {

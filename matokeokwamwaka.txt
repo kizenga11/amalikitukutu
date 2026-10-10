@@ -1,16 +1,99 @@
-ELIGIBILITY RULES (critical)
-- Subject rankings, best student per subject, subject class average, pass rate and grade distribution must include ONLY students currently enrolled/assigned to that subject for the selected academic year. Take the roster from the enrollment table (find it in the schema), never from the results table.
-- Overall (general) ranking must include only active students of the selected form/class for that year.
-- A student must have sat at least N% (default 50%) of the selected exams in that subject to be ranked in it. Make N a variable at the top of the file.
-- Students who have results but are no longer enrolled in the subject, or are below the minimum, must NOT be ranked or counted in class statistics. List them in a separate collapsed section "Hawajapangwa / Waliohama" with the reason (left subject / too few exams). Their scores stay in their personal history.
-- Add an unchecked option "Jumuisha waliohama" to include them if the user wants.
-- If no enrollment table exists, STOP and tell me before creating anything. Do not guess the roster from results.
-- Test with this case: a student with one 100% score who left the subject must not appear as best student, and must not change the class average.
+"use client";
 
-MINIMUM EXAMS RULE (replaces the percentage rule)
-- A student must have sat at least 5 exams in that subject, among the selected exams, to be ranked in it (best student per subject, subject ranking, class average, pass rate, grade distribution).
-- Put the number in ONE variable at the top of the file: MIN_EXAMS_PER_SUBJECT = 5. Do not hardcode 5 anywhere else.
-- Count only exams the student actually sat (absent is not counted, and a 0 recorded for absence must not count as sat if the system distinguishes them).
-- Overall (general) yearly ranking: a student is ranked only if he/she meets the minimum in the subjects that count toward the general average (state the exact rule you used in one line on the page).
-- Students below the minimum go to the collapsed section "Hawajapangwa" with the reason: "Amefanya mitihani X kati ya 5 inayohitajika".
-- If the teacher selects fewer than 5 exams, show a warning at the selection step: "Umechagua mitihani chini ya 5, hakuna mwanafunzi atakayepangwa", and let the minimum become min(5, number of selected exams) only if I confirm it. Default is to show the warning and not rank.
+import { useState } from "react";
+
+const WANAFUNZI = [
+  { id: 1, jina: "Juma Hamisi" },
+  { id: 2, jina: "Amina Salum" },
+  { id: 3, jina: "Neema Joseph" },
+];
+
+export default function Page() {
+  const [data, setData] = useState(
+    WANAFUNZI.map((w) => ({ id: w.id, alama: "", t: false }))
+  );
+  const [ujumbe, setUjumbe] = useState("");
+
+  const sasisha = (id, mabadiliko) => {
+    setUjumbe("");
+    setData((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, ...mabadiliko } : d))
+    );
+  };
+
+  const hifadhi = () => {
+    for (const d of data) {
+      if (d.t) continue;
+      const n = Number(d.alama);
+      if (d.alama === "" || Number.isNaN(n) || n < 0 || n > 100) {
+        const jina = WANAFUNZI.find((w) => w.id === d.id).jina;
+        setUjumbe("Weka alama sahihi (0-100) kwa " + jina);
+        return;
+      }
+    }
+    setUjumbe("Alama zimehifadhiwa");
+    console.log(data);
+  };
+
+  return (
+    <main className="wrap">
+      <h1>Ingiza Alama</h1>
+
+      <div className="orodha">
+        {WANAFUNZI.map((w, i) => {
+          const d = data.find((x) => x.id === w.id);
+          return (
+            <div className="mstari" key={w.id}>
+              <span className="namba">{i + 1}.</span>
+              <span className="jina">{w.jina}</span>
+              <input
+                className="alama"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="100"
+                placeholder={d.t ? "T" : "0-100"}
+                value={d.t ? "" : d.alama}
+                disabled={d.t}
+                onChange={(e) => sasisha(w.id, { alama: e.target.value })}
+              />
+              <label className="tbox">
+                <input
+                  type="checkbox"
+                  checked={d.t}
+                  onChange={(e) =>
+                    sasisha(w.id, { t: e.target.checked, alama: "" })
+                  }
+                />
+                <span>T</span>
+              </label>
+            </div>
+          );
+        })}
+      </div>
+
+      <button className="btn" onClick={hifadhi}>
+        Hifadhi
+      </button>
+      {ujumbe && <p className="ujumbe">{ujumbe}</p>}
+
+      <style>{`
+        * { box-sizing: border-box; }
+        html, body { margin: 0; overflow-x: hidden; background: #f3f4f6; }
+        .wrap { max-width: 480px; margin: 0 auto; padding: 16px; font-family: system-ui, sans-serif; }
+        h1 { font-size: 20px; margin: 0 0 16px; }
+        .orodha { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 16px; }
+        .mstari { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #e5e7eb; }
+        .mstari:last-child { border-bottom: 0; }
+        .namba { width: 20px; flex-shrink: 0; color: #6b7280; font-size: 14px; }
+        .jina { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; word-break: break-word; }
+        .alama { width: 76px; flex-shrink: 0; height: 44px; font-size: 16px; text-align: center; padding: 0 6px; border: 1px solid #d1d5db; border-radius: 8px; }
+        .alama:disabled { background: #e5e7eb; }
+        .tbox { display: flex; align-items: center; gap: 4px; height: 44px; font-size: 16px; font-weight: 700; flex-shrink: 0; }
+        .tbox input { width: 22px; height: 22px; }
+        .btn { width: 100%; height: 48px; font-size: 16px; font-weight: 600; color: #fff; background: #2563eb; border: 0; border-radius: 10px; }
+        .ujumbe { text-align: center; font-size: 15px; margin-top: 12px; }
+      `}</style>
+    </main>
+  );
+}

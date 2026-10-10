@@ -627,6 +627,8 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
         : activeClassRow.subjects)
     : [];
 
+  const displaySubjects = gridSubjects.filter((s) => selectedSubjectIds.includes(s.id));
+
   // Subjects actually assigned to students in the selected stream (or any stream
   // when "All Streams" is chosen). Filters out subjects students don't take.
   const streamAssignedSubjectIds = (() => {
@@ -722,8 +724,58 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
               </div>
             </div>
           ) : (
-            <div className="sm-table-wrap">
-              <table className="sm-table ex-list-table">
+            <>
+              {/* Mobile: simple exam cards */}
+              <div className="me-mobile-exams">
+                {visibleExams.length === 0 && (
+                  <div className="sm-empty">{isTeacher ? "No exams available." : "No exams registered yet."}</div>
+                )}
+                {visibleExams.map((row) => (
+                  <div className="me-ecard" key={row.id}>
+                    <div className="me-ecard-head">
+                      <div className="me-ecard-title">
+                        <div className="ex-name">{row.name}</div>
+                        <div className="ex-dates">{formatDate(row.start_date)} → {formatDate(row.end_date)}</div>
+                      </div>
+                      <span className={`ex-status ex-status--${row.status}`}>{statusLabels[row.status]}</span>
+                    </div>
+                    <div className="me-ecard-chips">
+                      {row.has_practical
+                        ? <span className="sm-badge sm-badge--practical">Practical</span>
+                        : <span className="sm-badge sm-badge--theory">Theory only</span>}
+                      <span className="ex-chip">{row.class_count} class{row.class_count === 1 ? "" : "es"}</span>
+                      <span className="ex-chip">{row.subject_count} subject{row.subject_count === 1 ? "" : "s"}</span>
+                    </div>
+                    <div className="me-ecard-actions">
+                      {!isTeacher && row.status === "draft" && (
+                        <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={saving} onClick={() => transitionStatus(row, "active", `Exam "${row.name}" activated.`)}>Activate</button>
+                      )}
+                      {!isTeacher && row.status === "active" && (
+                        <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={saving} onClick={() => transitionStatus(row, "processing", `Exam "${row.name}" moved to processing.`)}>Process</button>
+                      )}
+                      {!isTeacher && row.status === "processing" && (
+                        <button className="cm-btn cm-btn--primary cm-btn--sm" disabled={saving} onClick={() => transitionStatus(row, "published", `Exam "${row.name}" published.`)}>Publish</button>
+                      )}
+                      <button className="cm-btn cm-btn--ghost cm-btn--sm" onClick={() => enterMarks(row)}>
+                        {isTeacher ? "Enter Marks" : "View Marks"}
+                      </button>
+                      {!isTeacher && (
+                        <>
+                          <button className="cm-icon-btn cm-icon-btn--sm" title="Edit exam" onClick={() => openEdit(row)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                          </button>
+                          <button className="cm-icon-btn cm-icon-btn--sm cm-icon-btn--danger" title="Delete exam" onClick={() => setDeleteConfirm(row.id)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="sm-table-wrap ex-desktop-table">
+                <table className="sm-table ex-list-table">
                 <thead>
                   <tr>
                     <th>Exam</th>
@@ -783,6 +835,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                 </tbody>
               </table>
             </div>
+            </>
           )}
 
           {!loading && !dbError && total > 0 && (
@@ -963,7 +1016,67 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                     </div>
                   )}
 
-                  <div className="ex-marks-table-wrap">
+                  {/* Mobile: simple per-student cards */}
+                  <div className="me-mobile-marks">
+                    {pagedStudents.length === 0 && <p className="sm-empty">No students found.</p>}
+                    {pagedStudents.map((st, idx) => {
+                      const isAbs = absent[selectedClassId!]?.[st.student_id] ?? false;
+                      return (
+                        <div key={st.student_id} className={`me-mcard${isAbs ? " me-mcard--absent" : ""}`}>
+                          <div className="me-mcard-head">
+                            <span className="me-mcard-no">{(safeMarksPage - 1) * MARKS_PAGE_SIZE + idx + 1}</span>
+                            <span className="me-mcard-name">
+                              {st.first_name} {st.middle_name ? `${st.middle_name} ` : ""}{st.last_name}
+                              {selectedStreamId === null && st.stream_id && <small className="me-mcard-stream">{st.stream_name}</small>}
+                            </span>
+                            <label className="me-mcard-absent" title="Absent">
+                              <input type="checkbox" checked={isAbs} onChange={() => toggleAbsentMark(st.student_id)} />
+                              <span>A</span>
+                            </label>
+                          </div>
+                          <div className="me-mcard-marks">
+                            {displaySubjects.map((subj) => {
+                              const many = displaySubjects.length > 1;
+                              return st.subjects.includes(subj.id) ? (
+                                <input
+                                  key={subj.id}
+                                  className={`ex-score-input${isAbs ? " ex-score-input--disabled" : ""}${scores[selectedClassId!]?.[st.student_id]?.[subj.id]?.theory?.trim() ? " ex-score-input--filled" : ""}`}
+                                  type="number" min={0} max={splitSubject(subj) ? 50 : 100} step="any" inputMode="numeric"
+                                  title={subj.name} aria-label={subj.name}
+                                  placeholder={many ? (splitSubject(subj) ? `${subj.code} T` : subj.code) : (splitSubject(subj) ? "0-50" : "0-100")}
+                                  value={scores[selectedClassId!]?.[st.student_id]?.[subj.id]?.theory ?? ""}
+                                  disabled={isAbs}
+                                  onChange={(e) => setScoreCell(st.student_id, subj.id, "theory", e.target.value)}
+                                />
+                              ) : (
+                                <span className="ex-na" key={subj.id}>—</span>
+                              );
+                            })}
+                            {displaySubjects.filter((s) => splitSubject(s)).map((subj) => {
+                              const many = displaySubjects.length > 1;
+                              return st.subjects.includes(subj.id) ? (
+                                <input
+                                  key={`${subj.id}-p`}
+                                  className={`ex-score-input ex-score-input--prac${isAbs ? " ex-score-input--disabled" : ""}${scores[selectedClassId!]?.[st.student_id]?.[subj.id]?.practical?.trim() ? " ex-score-input--filled" : ""}`}
+                                  type="number" min={0} max={50} step="any" inputMode="numeric"
+                                  title={`${subj.name} — Practical`} aria-label={`${subj.name} practical`}
+                                  placeholder={many ? `${subj.code} P` : "0-50"}
+                                  value={scores[selectedClassId!]?.[st.student_id]?.[subj.id]?.practical ?? ""}
+                                  disabled={isAbs}
+                                  onChange={(e) => setScoreCell(st.student_id, subj.id, "practical", e.target.value)}
+                                />
+                              ) : (
+                                <span className="ex-na" key={`${subj.id}-p`}>—</span>
+                              );
+                            })}
+                            <span className="me-mcard-total">{isAbs ? "ABS" : `=${studentTotal(st.student_id, displaySubjects)}`}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="ex-marks-table-wrap ex-desktop-table">
                     <table className="sm-table ex-marks-table">
                       <thead>
                         <tr>
@@ -989,7 +1102,6 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                         )}
                         {pagedStudents.map((st, idx) => {
                           const isAbs = absent[selectedClassId!]?.[st.student_id] ?? false;
-                          const displaySubjects = gridSubjects.filter((s) => selectedSubjectIds.includes(s.id));
                           return (
                             <tr key={st.student_id} className={isAbs ? "ex-row-absent" : ""}>
                               <td className="ex-col-num">{(safeMarksPage - 1) * MARKS_PAGE_SIZE + idx + 1}</td>

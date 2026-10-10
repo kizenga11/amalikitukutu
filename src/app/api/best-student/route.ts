@@ -79,14 +79,14 @@ async function authorize(request: NextRequest): Promise<AuthorizeResult> {
   }
 
   const metaRole = user.user_metadata?.role as string | undefined;
-  let allowed = metaRole === "Headmaster" || metaRole === "Academic";
+  let allowed = metaRole === "Headmaster" || metaRole === "Academic" || metaRole === "Teacher";
   if (!allowed) {
     const { data: staff } = await admin
       .from("staff")
       .select("role")
       .eq("auth_user_id", user.id)
       .maybeSingle();
-    allowed = staff?.role === "Headmaster" || staff?.role === "Academic";
+    allowed = staff?.role === "Headmaster" || staff?.role === "Academic" || staff?.role === "Teacher";
   }
   if (!allowed) {
     return { error: NextResponse.json({ error: "You do not have access to yearly results." }, { status: 403 }) };
