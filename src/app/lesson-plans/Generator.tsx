@@ -10,6 +10,7 @@ export default function Generator({ syllabi, onGenerated, accessToken }: { sylla
   const [sy, setSy] = useState("");
   const [tp, setTp] = useState("");
   const [sub, setSub] = useState("");
+  const [comp, setComp] = useState("");
   const [state, action, pending] = useActionState<Msg, FormData>(generatePlans, null);
 
   useEffect(() => {
@@ -26,9 +27,23 @@ export default function Generator({ syllabi, onGenerated, accessToken }: { sylla
     [tp, topics]
   );
 
+  // Distinct specific competencies covered by the subtopics of the selected topic.
+  const competencies = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const s of subs) {
+      if (s.specific_competence && !seen.has(s.specific_competence)) {
+        seen.add(s.specific_competence);
+        out.push(s.specific_competence);
+      }
+    }
+    return out;
+  }, [subs]);
+
   // Default the subtopic to the first subtopic of the selected topic.
   useEffect(() => {
     setSub(subs.length ? String(subs[0].id) : "");
+    setComp("");
   }, [subs]);
 
   return (
@@ -60,8 +75,24 @@ export default function Generator({ syllabi, onGenerated, accessToken }: { sylla
       </label>
 
       <label className="sm-field">
+        <span className="sm-field-label">Specific Competency</span>
+        <select
+          name="specific_competence"
+          className="st-filter lp-full"
+          value={comp}
+          onChange={(e) => setComp(e.target.value)}
+          disabled={!tp}
+        >
+          <option value="">-- choose by subtopic --</option>
+          {competencies.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      </label>
+
+      <label className="sm-field">
         <span className="sm-field-label">Subtopic</span>
-        <select name="subtopic_id" className="st-filter lp-full" value={sub} onChange={(e) => setSub(e.target.value)} disabled={!tp} required>
+        <select name="subtopic_id" className="st-filter lp-full" value={sub} onChange={(e) => setSub(e.target.value)} disabled={!tp || !!comp} required>
           <option value="all">All subtopics of this topic</option>
           {subs.map((s: any) => (
             <option key={s.id} value={s.id}>{s.seq}. {s.name} (periods {s.periods})</option>
@@ -75,10 +106,14 @@ export default function Generator({ syllabi, onGenerated, accessToken }: { sylla
       </label>
 
       <div className="lp-form-actions">
-        <button type="submit" className="cm-btn cm-btn--primary" disabled={pending || !tp || !sub}>
+        <button type="submit" className="cm-btn cm-btn--primary" disabled={pending || !tp || (!comp && !sub)}>
           {pending ? "Generating..." : "Generate Lesson Plans"}
         </button>
-        <span className="lp-hint">Periods, stages and working-day dates are set automatically.</span>
+        <span className="lp-hint">
+          {comp
+            ? "Generates plans for every subtopic under the selected Specific Competency."
+            : "Pick a Specific Competency to cover all its subtopics, or a single Subtopic. Periods, stages and dates are set automatically."}
+        </span>
       </div>
 
       {state && <p className={`lp-msg lp-msg--${state.ok ? "ok" : "err"}`}>{state.text}</p>}

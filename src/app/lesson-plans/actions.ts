@@ -110,6 +110,7 @@ export async function generatePlans(_prev: unknown, fd: FormData): Promise<Msg> 
 
   const topicId = Number(fd.get("topic_id"));
   const subId = String(fd.get("subtopic_id") ?? "all");
+  const comp = String(fd.get("specific_competence") ?? "").trim();
   const cls = String(fd.get("class_label") ?? "").trim();
   if (!topicId || !cls) return { ok: false, text: "Select a topic and enter a class." };
 
@@ -127,8 +128,10 @@ export async function generatePlans(_prev: unknown, fd: FormData): Promise<Msg> 
     return { ok: false, text: "This subject is not assigned to you." };
   }
 
+  // Generate by Specific Competency (all its subtopics) when chosen, else by subtopic.
   let q = db.from("lp_subtopics").select("*").eq("topic_id", topicId).order("seq");
-  if (subId !== "all") q = q.eq("id", Number(subId));
+  if (comp) q = q.eq("specific_competence", comp);
+  else if (subId !== "all") q = q.eq("id", Number(subId));
   const { data: subs } = await q;
 
   let created = 0;
