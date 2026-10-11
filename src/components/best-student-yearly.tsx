@@ -535,9 +535,37 @@ export default function BestStudentYearly() {
                     No student qualified: each needs at least {report.minExamsPerSubject} exams in {report.minSubjectsForRanking} subjects.
                   </p>
                 ) : (
-                  <div className="bs-table-wrap">
-                    <table className="bs-table bs-rank-table">
-                      <thead>
+                  <>
+                    <div className="bs-student-cards">
+                      {rankedRows.map((row) => (
+                        <div key={row.student_id} className="bs-student-card">
+                          <div className="bs-sc-head">
+                            <span className="bs-sc-rank">{row.pos_form ?? "—"}</span>
+                            <span className="bs-sc-name">{row.name}</span>
+                            <span className="bs-sc-div">{row.incomplete ? "Incomplete" : divisionCode(row.division)}</span>
+                          </div>
+                          <div className="bs-sc-grid">
+                            <div><span>Pos (Class)</span><strong>{row.pos_class ?? "—"}</strong></div>
+                            <div><span>Exams</span><strong>{row.exams_sat}</strong></div>
+                            <div><span>Avg</span><strong>{displayNumber(row.average)}</strong></div>
+                            <div><span>Stream</span><strong>{row.stream_name || "—"}</strong></div>
+                          </div>
+                          {subjectColumns.length > 0 ? (
+                            <div className="bs-sc-subjects">
+                              {subjectColumns.map((subject) => (
+                                <span key={subject.subject_id} className="bs-sc-chip">
+                                  <em>{subject.code}</em>
+                                  <strong>{displayNumber(scoreFor(row, subject.subject_id))}</strong>
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="bs-table-wrap bs-rank-wrap">
+                      <table className="bs-table bs-rank-table">
+                        <thead>
                         <tr>
                           <th className="bs-col-pos">Pos</th>
                           <th className="bs-col-name">
@@ -567,8 +595,9 @@ export default function BestStudentYearly() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
-                  </div>
+                      </table>
+                    </div>
+                  </>
                 )}
               </section>
 
@@ -619,7 +648,24 @@ export default function BestStudentYearly() {
               {/* D — Subject performance */}
               <section className="result-section">
                 <h3>Subject Performance</h3>
-                <div className="bs-table-wrap">
+                <div className="bs-subj-cards">
+                  {[...report.subjects].sort((a, b) => (b.average ?? -1) - (a.average ?? -1)).map((subject) => (
+                    <div key={subject.subject_id} className="bs-subj-card">
+                      <div className="bs-subj-head">
+                        <span className="bs-subj-code">{subject.code}</span>
+                        <span className="bs-subj-name">{subject.name}</span>
+                        <span className={`res-grd grd-${subject.grade}`}>{subject.grade}</span>
+                      </div>
+                      <div className="bs-subj-grid">
+                        <div><span>Sat</span><strong>{subject.sat}</strong></div>
+                        <div><span>Average</span><strong>{displayNumber(subject.average)}</strong></div>
+                        <div><span>Pass Rate</span><strong>{subject.passRate !== null ? `${displayNumber(subject.passRate)}%` : "—"}</strong></div>
+                      </div>
+                      <div className="bs-subj-comp">{subject.competency}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="bs-table-wrap bs-subj-wrap">
                   <table className="bs-table">
                     <thead>
                       <tr>

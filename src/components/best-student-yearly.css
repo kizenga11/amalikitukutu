@@ -8,9 +8,10 @@
 .bs-page .result-paper {
   width: min(100%, 297mm);
   margin: 0 auto;
-  padding: 12mm;
+  padding: 8mm;
   box-shadow: 0 6px 24px rgba(24, 24, 27, 0.08);
 }
+.bs-page .result-section { margin-top: 1rem; }
 
 /* ---------- Controls ---------- */
 .bs-controls {
@@ -129,7 +130,7 @@
 .bs-podium-score { font-size: .78rem; font-weight: 600; }
 
 /* ---------- Summary cards ---------- */
-.bs-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .7rem; margin-top: 1.4rem; }
+.bs-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .6rem; margin-top: 1rem; }
 .bs-card { display: grid; gap: .25rem; padding: .8rem; border: 1px solid var(--line); background: var(--page); }
 .bs-card-label { color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; }
 .bs-card-value { font-size: 1.05rem; font-weight: 700; }
@@ -204,26 +205,92 @@
 .bs-detail-item .bs-table-wrap { border: 0; border-top: 1px solid var(--line); }
 .bs-detail-table th:first-child, .bs-detail-table td:first-child { white-space: nowrap; }
 
+/* ---------- Mobile card layouts (hidden until small screens) ---------- */
+.bs-student-cards,
+.bs-subj-cards { display: none; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
   .bs-filter-row { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 640px) {
-  .bs-page .result-paper { padding: 1rem; }
+  .bs-page { margin-left: -.4rem; margin-right: -.4rem; }
+  .bs-page .result-paper { padding: .55rem; }
+  .bs-page .result-section { margin-top: .85rem; }
   .bs-filter-row { grid-template-columns: 1fr; }
   .bs-run-btn { justify-self: stretch; }
-  .bs-controls { padding: .8rem; }
+  .bs-controls { padding: .7rem; gap: .7rem; margin-bottom: .85rem; }
   .bs-hero-name { font-size: 1.2rem; }
   .bs-header-top { flex-direction: column; gap: .5rem; }
   .bs-section-head { flex-direction: column; align-items: stretch; }
   .bs-search input { width: 100%; }
-  .bs-summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .bs-summary-grid { grid-template-columns: repeat(2, 1fr); margin-top: .8rem; gap: .5rem; }
+
+  /* Ranking + subject tables become readable cards on phones */
+  .bs-rank-wrap,
+  .bs-subj-wrap { display: none; }
+  .bs-student-cards,
+  .bs-subj-cards { display: grid; gap: .55rem; }
+  .bs-student-card,
+  .bs-subj-card {
+    background: #fff; border: 1px solid var(--line); border-radius: .65rem;
+    padding: .55rem .6rem; box-shadow: 0 1px 3px rgba(24, 24, 27, .06);
+  }
+  .bs-sc-head,
+  .bs-subj-head { display: flex; align-items: center; gap: .5rem; }
+  .bs-sc-rank {
+    flex: 0 0 auto; min-width: 1.6rem; height: 1.6rem; padding: 0 .3rem; border-radius: 999px;
+    background: var(--page); color: var(--muted); font-size: .72rem; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .bs-sc-name { flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: .88rem; word-break: break-word; }
+  .bs-sc-div {
+    flex: 0 0 auto; padding: .15rem .45rem; border-radius: 999px; background: var(--primary);
+    color: #fff; font-size: .7rem; font-weight: 800; white-space: nowrap;
+  }
+  .bs-sc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .3rem; margin-top: .55rem; }
+  .bs-sc-grid > div,
+  .bs-subj-grid > div {
+    background: var(--page); border: 1px solid var(--line); border-radius: .5rem;
+    padding: .35rem .2rem; text-align: center; min-width: 0;
+  }
+  .bs-sc-grid span,
+  .bs-subj-grid span {
+    display: block; font-size: .58rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .02em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bs-sc-grid strong,
+  .bs-subj-grid strong { display: block; margin-top: .1rem; font-size: .85rem; font-variant-numeric: tabular-nums; }
+  .bs-sc-subjects {
+    display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .5rem; padding-top: .45rem;
+    border-top: 1px dashed var(--line);
+  }
+  .bs-sc-chip {
+    display: inline-flex; align-items: baseline; gap: .3rem; padding: .2rem .45rem;
+    border: 1px solid var(--line); border-radius: .45rem; background: var(--white); font-size: .72rem;
+  }
+  .bs-sc-chip em { font-style: normal; font-weight: 700; color: var(--primary); }
+  .bs-sc-chip strong { font-variant-numeric: tabular-nums; }
+
+  .bs-subj-code { flex: 0 0 auto; font-weight: 800; font-size: .82rem; color: var(--primary); }
+  .bs-subj-name { flex: 1 1 auto; min-width: 0; font-size: .82rem; word-break: break-word; }
+  .bs-subj-head .res-grd { flex: 0 0 auto; }
+  .bs-subj-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .3rem; margin-top: .55rem; }
+  .bs-subj-comp {
+    margin-top: .45rem; padding: .3rem .5rem; border-radius: .5rem; background: var(--page);
+    font-size: .72rem; font-weight: 700; color: var(--muted); text-align: center;
+  }
 }
 
 /* ---------- Print ---------- */
 @media print {
+  .bs-page { margin: 0; }
   .bs-page .result-paper { width: 100%; max-width: none; padding: 0; box-shadow: none; }
   .bs-page .result-section { break-inside: auto; }
+  .bs-student-cards,
+  .bs-subj-cards { display: none !important; }
+  .bs-rank-wrap,
+  .bs-subj-wrap { display: block !important; }
   .bs-hero, .bs-podium-card, .bs-best-card { break-inside: avoid; }
   .bs-rank-table { min-width: 100%; }
   .bs-rank-table th, .bs-rank-table td { font-size: 7pt; padding: .12rem .18rem; }

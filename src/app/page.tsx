@@ -189,6 +189,7 @@ export default function Home() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
+    window.location.assign("/login");
   }
 
   const announcement = latestExamAnnouncement(exams);
