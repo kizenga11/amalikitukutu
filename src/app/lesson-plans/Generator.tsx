@@ -9,6 +9,7 @@ type Msg = { ok: boolean; text: string } | null;
 export default function Generator({ syllabi, onGenerated, accessToken }: { syllabi: any[]; onGenerated?: () => void; accessToken?: string }) {
   const [sy, setSy] = useState("");
   const [tp, setTp] = useState("");
+  const [sub, setSub] = useState("");
   const [state, action, pending] = useActionState<Msg, FormData>(generatePlans, null);
 
   useEffect(() => {
@@ -24,6 +25,11 @@ export default function Generator({ syllabi, onGenerated, accessToken }: { sylla
     () => [...(topics.find((t: any) => String(t.id) === tp)?.lp_subtopics ?? [])].sort((a: any, b: any) => a.seq - b.seq),
     [tp, topics]
   );
+
+  // Default the subtopic to the first subtopic of the selected topic.
+  useEffect(() => {
+    setSub(subs.length ? String(subs[0].id) : "");
+  }, [subs]);
 
   return (
     <form action={action} className="lp-form">
@@ -55,7 +61,7 @@ export default function Generator({ syllabi, onGenerated, accessToken }: { sylla
 
       <label className="sm-field">
         <span className="sm-field-label">Subtopic</span>
-        <select name="subtopic_id" className="st-filter lp-full" key={tp} defaultValue="all" disabled={!tp}>
+        <select name="subtopic_id" className="st-filter lp-full" value={sub} onChange={(e) => setSub(e.target.value)} disabled={!tp} required>
           <option value="all">All subtopics of this topic</option>
           {subs.map((s: any) => (
             <option key={s.id} value={s.id}>{s.seq}. {s.name} (periods {s.periods})</option>
@@ -69,7 +75,7 @@ export default function Generator({ syllabi, onGenerated, accessToken }: { sylla
       </label>
 
       <div className="lp-form-actions">
-        <button type="submit" className="cm-btn cm-btn--primary" disabled={pending || !tp}>
+        <button type="submit" className="cm-btn cm-btn--primary" disabled={pending || !tp || !sub}>
           {pending ? "Generating..." : "Generate Lesson Plans"}
         </button>
         <span className="lp-hint">Periods, stages and working-day dates are set automatically.</span>
