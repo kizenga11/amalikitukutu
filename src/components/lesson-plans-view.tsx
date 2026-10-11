@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { getLpOverview, getPlanDetail } from "@/app/lesson-plans/actions";
+import { getLpOverview, getPlanDetail, deleteAllPlans } from "@/app/lesson-plans/actions";
 import Generator from "@/app/lesson-plans/Generator";
 import SeedForm from "@/app/lesson-plans/admin/SeedForm";
 import PlanEditor from "@/app/lesson-plans/[id]/PlanEditor";
@@ -25,6 +25,8 @@ export default function LessonPlansView() {
   const [subject, setSubject] = useState("");
   const [selected, setSelected] = useState<Det | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
@@ -89,6 +91,25 @@ export default function LessonPlansView() {
     [ov]
   );
 
+  async function deleteAll() {
+    if (!token || !ov) return;
+    const msg = isMgmt
+      ? "Delete ALL lesson plans for every teacher? This cannot be undone."
+      : "Delete ALL of your lesson plans? This cannot be undone.";
+    if (!window.confirm(msg)) return;
+    setDeletingAll(true);
+    setNotice("");
+    const r = await deleteAllPlans(token);
+    setDeletingAll(false);
+    if (r.ok) {
+      setNotice(`${r.deleted} plan(s) deleted. You can generate them again.`);
+      setErr("");
+      refresh();
+    } else {
+      setErr(r.text);
+    }
+  }
+
   if (selected) {
     return (
       <PlanEditor
@@ -130,6 +151,7 @@ export default function LessonPlansView() {
       </div>
 
       {err && <p className="lp-msg lp-msg--err">{err}</p>}
+      {notice && <p className="lp-msg lp-msg--ok">{notice}</p>}
 
       {!ov && !err && <div className="lp-empty">Loading...</div>}
 
@@ -189,7 +211,14 @@ export default function LessonPlansView() {
 
           <section className="panel">
             <div className="panel-head">
-              <h2 className="panel-title">{isMgmt ? "All plans" : "My plans"} ({plans.length})</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <h2 className="panel-title">{isMgmt ? "All plans" : "My plans"} ({plans.length})</h2>
+                {ov.plans.length > 0 && (
+                  <button className="cm-btn cm-btn--danger" onClick={deleteAll} disabled={deletingAll}>
+                    {deletingAll ? "Deleting..." : isMgmt ? "Delete all plans" : "Delete all my plans"}
+                  </button>
+                )}
+              </div>
               {planSubjects.length > 0 && (
                 <div className="lp-filters">
                   <button className={`lp-chip${!subject ? " lp-chip--active" : ""}`} onClick={() => setSubject("")}>All</button>

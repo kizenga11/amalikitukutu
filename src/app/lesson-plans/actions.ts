@@ -238,6 +238,25 @@ export async function deletePlan(id: number, accessToken?: string): Promise<Msg>
   return { ok: true, text: "Plan deleted." };
 }
 
+/* ---------- MWALIMU / MKUU: FUTA MIPANGO YOTE ---------- */
+type DeleteAllResult = { ok: true; deleted: number } | { ok: false; text: string };
+
+export async function deleteAllPlans(accessToken: string): Promise<DeleteAllResult> {
+  const u = await getLpUser(accessToken);
+  if (!u) return { ok: false, text: "You are not signed in." };
+  const db = lpDb();
+
+  // Management deletes all plans; a teacher deletes only their own.
+  let query = db.from("lp_plans").delete({ count: "exact" });
+  query = u.role === "management" ? query.gte("id", 0) : query.eq("teacher_id", u.id);
+
+  const { error, count } = await query;
+  if (error) return { ok: false, text: error.message };
+
+  revalidatePath("/lesson-plans");
+  return { ok: true, deleted: count ?? 0 };
+}
+
 /* ---------- DWASHIBODI: TAZAMA MUHTASARI ---------- */
 type Overview =
   | {
