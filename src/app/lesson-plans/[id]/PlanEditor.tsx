@@ -12,10 +12,11 @@ type Stage = {
 };
 
 export default function PlanEditor({
-  plan, stages, meta, canEdit, canDelete,
+  plan, stages, meta, canEdit, canDelete, onBack, accessToken,
 }: {
   plan: any; stages: Stage[]; canEdit: boolean; canDelete: boolean;
   meta: { school: string; teacher: string; form: number; subject: string; topic: string; subtopic: string; lessonNo: number; periods: number };
+  onBack?: () => void; accessToken?: string;
 }) {
   const [p, setP] = useState<any>(plan);
   const [st, setSt] = useState<Stage[]>(stages);
@@ -30,12 +31,16 @@ export default function PlanEditor({
     setSt(st.map((s, j) => (j === i ? { ...s, [k]: v } : s)));
 
   async function onDelete() {
-    if (!window.confirm("Futa mpango huu? Haiwezi kurudishwa.")) return;
+    if (!window.confirm("Delete this plan? It cannot be undone.")) return;
     setDeleting(true);
-    const r = await deletePlan(p.id);
+    const r = await deletePlan(p.id, accessToken);
     if (r.ok) {
-      router.push("/lesson-plans");
-      router.refresh();
+      if (onBack) {
+        onBack();
+      } else {
+        router.push("/lesson-plans");
+        router.refresh();
+      }
     } else {
       setMsg(r.text);
       setDeleting(false);
@@ -59,24 +64,28 @@ export default function PlanEditor({
       <style>{`@media print{.no-print{display:none!important}}`}</style>
 
       <div className="no-print lp-toolbar">
-        <Link className="cm-btn cm-btn--ghost" href="/lesson-plans">&larr; Rudi</Link>
+        {onBack ? (
+          <button className="cm-btn cm-btn--ghost" onClick={onBack}>&larr; Back</button>
+        ) : (
+          <Link className="cm-btn cm-btn--ghost" href="/lesson-plans">&larr; Back</Link>
+        )}
         {canEdit && (
           <button
             className="cm-btn cm-btn--primary"
             disabled={pending}
-            onClick={() => start(async () => { const r = await savePlan(p.id, { plan: p, stages: st }); setMsg(r.text); })}
+            onClick={() => start(async () => { const r = await savePlan(p.id, { plan: p, stages: st }, accessToken); setMsg(r.text); })}
           >
-            {pending ? "Inahifadhi..." : "Hifadhi"}
+            {pending ? "Saving..." : "Save"}
           </button>
         )}
-        <button className="cm-btn cm-btn--ghost" onClick={() => window.print()}>Chapisha / PDF</button>
+        <button className="cm-btn cm-btn--ghost" onClick={() => window.print()}>Print / PDF</button>
         {canDelete && (
           <button className="cm-btn cm-btn--danger" disabled={deleting} onClick={onDelete}>
-            {deleting ? "Inafuta..." : "Futa"}
+            {deleting ? "Deleting..." : "Delete"}
           </button>
         )}
         {msg && <span className="lp-toolbar-msg">{msg}</span>}
-        <span className="lp-crumb">{meta.topic} › {meta.subtopic} (kipindi {meta.lessonNo}/{meta.periods})</span>
+        <span className="lp-crumb">{meta.topic} › {meta.subtopic} (lesson {meta.lessonNo}/{meta.periods})</span>
       </div>
 
       <h2 style={{ textAlign: "center" }}>LESSON PLAN</h2>

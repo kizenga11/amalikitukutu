@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { lpDb } from "@/lib/lp/db";
-import { getLpUser } from "@/lib/lp/auth";
-import { buildStages, DEFAULT_LESSON_TIME, makeDateSequencer } from "@/lib/lp/generate";
+import { getLpUser, SCHOOL_NAME } from "@/lib/lp/auth";
+import { buildStages, DEFAULT_LESSON_TIME, makeDateSequencer, STAGES } from "@/lib/lp/generate";
 
 type Msg = { ok: boolean; text: string };
 
@@ -21,14 +21,14 @@ const STAGE_FIELDS = [
 // Somo|Form|Source|Topic#|Topic|Subtopic#|Subtopic|Periods|MainCompetence|SpecificCompetence|MainActivity|SpecificActivity|Resources|References
 // Nguzo 9-14 ni hiari. MainCompetence ya topic huchukuliwa kutoka mstari wa kwanza wa topic hiyo.
 export async function seedSyllabus(_prev: unknown, fd: FormData): Promise<Msg> {
-  const u = await getLpUser();
-  if (!u || u.role !== "management") return { ok: false, text: "Huna ruhusa." };
+  const u = await getLpUser(String(fd.get("access_token") ?? "") || undefined);
+  if (!u || u.role !== "management") return { ok: false, text: "You do not have permission." };
 
   const lines = String(fd.get("data") ?? "")
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter((l) => l && !l.toLowerCase().startsWith("somo|"));
-  if (!lines.length) return { ok: false, text: "Hakuna data." };
+  if (!lines.length) return { ok: false, text: "No data." };
 
   const db = lpDb();
   const syl = new Map<string, number>();
@@ -43,7 +43,7 @@ export async function seedSyllabus(_prev: unknown, fd: FormData): Promise<Msg> {
     const [subject, form, source, tSeq, tName, sSeq, sName, periods] = c;
     const f = Number(form), ts = Number(tSeq), ss = Number(sSeq), p = Number(periods);
     if (!subject || !tName || !sName || ![f, ts, ss, p].every(Number.isFinite) || f < 1 || f > 4 || p < 1) {
-      errors.push(`Mstari ${i + 1} una kosa`);
+      errors.push(`Line ${i + 1} has an error`);
       continue;
     }
     const src = (source || "TIE").toUpperCase();
@@ -55,7 +55,7 @@ export async function seedSyllabus(_prev: unknown, fd: FormData): Promise<Msg> {
         .upsert({ subject_name: subject, form_level: f, source: src }, { onConflict: "subject_name,form_level,source" })
         .select("id")
         .single();
-      if (error || !data) { errors.push(`Mstari ${i + 1}: ${error?.message}`); continue; }
+      if (error || !data) { errors.push(`Line ${i + 1}: ${error?.message}`); continue; }
       syl.set(sk, data.id);
       sylTouched++;
     }
@@ -68,7 +68,7 @@ export async function seedSyllabus(_prev: unknown, fd: FormData): Promise<Msg> {
         .upsert({ syllabus_id: sid, seq: ts, name: tName, main_competence: c[8] || null }, { onConflict: "syllabus_id,seq" })
         .select("id")
         .single();
-      if (error || !data) { errors.push(`Mstari ${i + 1}: ${error?.message}`); continue; }
+      if (error || !data) { errors.push(`Line ${i + 1}: ${error?.message}`); continue; }
       top.set(tk, data.id);
       topTouched++;
     }
@@ -86,7 +86,7 @@ export async function seedSyllabus(_prev: unknown, fd: FormData): Promise<Msg> {
 
   if (subRows.length) {
     const { error } = await db.from("lp_subtopics").upsert(subRows, { onConflict: "topic_id,seq" });
-    if (error) return { ok: false, text: `Imeshindwa kuhifadhi subtopics: ${error.message}` };
+    if (error) return { ok: false, text: `Failed to save subtopics: ${error.message}` };
   }
 
   for (const tid of new Set(top.values())) {
@@ -99,19 +99,19 @@ export async function seedSyllabus(_prev: unknown, fd: FormData): Promise<Msg> {
   revalidatePath("/lesson-plans/admin");
   return {
     ok: errors.length === 0,
-    text: `Somo ${sylTouched} • Topic ${topTouched} • Subtopic ${subRows.length} zimehifadhiwa.${errors.length ? " Makosa: " + errors.slice(0, 5).join("; ") : ""}`,
+    text: `${sylTouched} subject(s) • ${topTouched} topic(s) • ${subRows.length} subtopic(s) saved.${errors.length ? " Errors: " + errors.slice(0, 5).join("; ") : ""}`,
   };
 }
 
 /* ---------- MWALIMU: GENERATE ---------- */
 export async function generatePlans(_prev: unknown, fd: FormData): Promise<Msg> {
-  const u = await getLpUser();
-  if (!u) return { ok: false, text: "Hujaingia." };
+  const u = await getLpUser(String(fd.get("access_token") ?? "") || undefined);
+  if (!u) return { ok: false, text: "You are not signed in." };
 
   const topicId = Number(fd.get("topic_id"));
   const subId = String(fd.get("subtopic_id") ?? "all");
   const cls = String(fd.get("class_label") ?? "").trim();
-  if (!topicId || !cls) return { ok: false, text: "Chagua topic na andika darasa." };
+  if (!topicId || !cls) return { ok: false, text: "Select a topic and enter a class." };
 
   const db = lpDb();
   const { data: topic } = await db
@@ -119,12 +119,12 @@ export async function generatePlans(_prev: unknown, fd: FormData): Promise<Msg> 
     .select("id, main_competence, lp_syllabi(subject_name, minutes_per_period)")
     .eq("id", topicId)
     .single();
-  if (!topic) return { ok: false, text: "Topic haipo." };
+  if (!topic) return { ok: false, text: "Topic not found." };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const syl: any = Array.isArray(topic.lp_syllabi) ? topic.lp_syllabi[0] : topic.lp_syllabi;
   if (u.subjects && !u.subjects.includes(syl.subject_name)) {
-    return { ok: false, text: "Somo hili hujapangiwa." };
+    return { ok: false, text: "This subject is not assigned to you." };
   }
 
   let q = db.from("lp_subtopics").select("*").eq("topic_id", topicId).order("seq");
@@ -168,7 +168,7 @@ export async function generatePlans(_prev: unknown, fd: FormData): Promise<Msg> 
   revalidatePath("/lesson-plans");
   return {
     ok: true,
-    text: created ? `Mipango ${created} imetengenezwa.` : "Mipango yote ya chaguo hili ipo tayari.",
+    text: created ? `${created} plan(s) created.` : "All plans for this selection already exist.",
   };
 }
 
@@ -185,14 +185,15 @@ export async function savePlan(
   data: {
     plan: Record<string, unknown>;
     stages: { id: number; minutes: number; teaching_activities: string | null; learning_activities: string | null; assessment_criteria: string | null }[];
-  }
+  },
+  accessToken?: string
 ): Promise<Msg> {
-  const u = await getLpUser();
-  if (!u) return { ok: false, text: "Hujaingia." };
+  const u = await getLpUser(accessToken);
+  if (!u) return { ok: false, text: "You are not signed in." };
   const db = lpDb();
 
   const { data: row } = await db.from("lp_plans").select("teacher_id").eq("id", id).single();
-  if (!row || row.teacher_id !== u.id) return { ok: false, text: "Huna ruhusa ya mpango huu." };
+  if (!row || row.teacher_id !== u.id) return { ok: false, text: "You do not have permission for this plan." };
 
   const patch: Record<string, unknown> = {};
   for (const k of PLAN_FIELDS) {
@@ -217,22 +218,118 @@ export async function savePlan(
       .eq("plan_id", id);
   }
   revalidatePath("/lesson-plans");
-  return { ok: true, text: "Imehifadhiwa." };
+  return { ok: true, text: "Saved." };
 }
 
 /* ---------- MWALIMU / MKUU: FUTA MPANGO ---------- */
-export async function deletePlan(id: number): Promise<Msg> {
-  const u = await getLpUser();
-  if (!u) return { ok: false, text: "Hujaingia." };
+export async function deletePlan(id: number, accessToken?: string): Promise<Msg> {
+  const u = await getLpUser(accessToken);
+  if (!u) return { ok: false, text: "You are not signed in." };
   const db = lpDb();
 
   const { data: row } = await db.from("lp_plans").select("teacher_id").eq("id", id).single();
-  if (!row) return { ok: false, text: "Mpango haupo." };
-  if (row.teacher_id !== u.id && u.role !== "management") return { ok: false, text: "Huna ruhusa." };
+  if (!row) return { ok: false, text: "Plan not found." };
+  if (row.teacher_id !== u.id && u.role !== "management") return { ok: false, text: "You do not have permission." };
 
   const { error } = await db.from("lp_plans").delete().eq("id", id);
   if (error) return { ok: false, text: error.message };
 
   revalidatePath("/lesson-plans");
-  return { ok: true, text: "Mpango umefutwa." };
+  return { ok: true, text: "Plan deleted." };
+}
+
+/* ---------- DWASHIBODI: TAZAMA MUHTASARI ---------- */
+type Overview =
+  | {
+      ok: true;
+      syllabi: any[];
+      plans: any[];
+      subjects: string[] | null;
+      role: "management" | "teacher";
+      userName: string;
+    }
+  | { ok: false; text: string };
+
+export async function getLpOverview(accessToken: string): Promise<Overview> {
+  const u = await getLpUser(accessToken);
+  if (!u) return { ok: false, text: "You are not signed in." };
+
+  const db = lpDb();
+  const { data: sy } = await db
+    .from("lp_syllabi")
+    .select("id, subject_name, form_level, source, lp_topics(id, seq, name, total_periods, lp_subtopics(id, seq, name, periods))")
+    .order("subject_name")
+    .order("form_level");
+  const allSyllabi = (sy ?? []) as any[];
+  const syllabi = allSyllabi.filter((s) => !u.subjects || u.subjects.includes(s.subject_name as string));
+
+  let planQuery = db
+    .from("lp_plans")
+    .select("id, lesson_no, class_label, lesson_date, teacher_name, lp_subtopics(name, periods, lp_topics(name, lp_syllabi(subject_name, form_level)))");
+  if (u.role !== "management") planQuery = planQuery.eq("teacher_id", u.id);
+  const { data: pl } = await planQuery.order("id", { ascending: false }).limit(500);
+
+  return {
+    ok: true,
+    syllabi,
+    plans: (pl ?? []) as any[],
+    subjects: u.subjects,
+    role: u.role,
+    userName: u.name,
+  };
+}
+
+/* ---------- DWASHIBODI: FUNGUA MPANGO ---------- */
+type PlanDetail =
+  | {
+      ok: true;
+      plan: any;
+      stages: any[];
+      canEdit: boolean;
+      canDelete: boolean;
+      meta: { school: string; teacher: string; form: number; subject: string; topic: string; subtopic: string; lessonNo: number; periods: number };
+    }
+  | { ok: false; text: string };
+
+export async function getPlanDetail(accessToken: string, id: number): Promise<PlanDetail> {
+  const u = await getLpUser(accessToken);
+  if (!u) return { ok: false, text: "You are not signed in." };
+
+  const db = lpDb();
+  const { data: row } = await db
+    .from("lp_plans")
+    .select("*, lp_subtopics(name, periods, lp_topics(name, lp_syllabi(subject_name, form_level)))")
+    .eq("id", id)
+    .single();
+  if (!row) return { ok: false, text: "Plan not found." };
+
+  const isOwner = row.teacher_id === u.id;
+  if (!isOwner && u.role !== "management") return { ok: false, text: "You do not have permission to view this plan." };
+
+  const { data: stages } = await db.from("lp_plan_stages").select("*").eq("plan_id", row.id);
+  const sorted = [...(stages ?? [])].sort((a: any, b: any) => STAGES.indexOf(a.stage) - STAGES.indexOf(b.stage));
+
+  const one = (x: any) => (Array.isArray(x) ? x[0] : x);
+  const { lp_subtopics, ...plan } = row as any;
+  const sub = one(lp_subtopics);
+  const topic = one(sub?.lp_topics);
+  const syl = one(topic?.lp_syllabi);
+
+  return {
+    ok: true,
+    plan,
+    stages: sorted as any[],
+    canEdit: isOwner,
+    canDelete: isOwner || u.role === "management",
+    meta: {
+      school: SCHOOL_NAME,
+      teacher: plan.teacher_name,
+      form: syl?.form_level,
+      subject: syl?.subject_name,
+      topic: topic?.name,
+      subtopic: sub?.name,
+      lessonNo: plan.lesson_no,
+      periods: sub?.periods,
+    },
+  };
 }

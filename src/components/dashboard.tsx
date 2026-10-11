@@ -13,6 +13,7 @@ import {
 } from "@/lib/calendar";
 import TeacherDashboard from "@/components/teacher-dashboard";
 import ProfilePanel from "@/components/profile-panel";
+import LessonPlansView from "@/components/lesson-plans-view";
 import { StatCardSkeleton, PanelSkeleton, Spinner } from "@/components/loading";
 
 function PageLoading() {
@@ -184,7 +185,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
   const visibleNavGroups = navGroups
     .map((group) => ({ ...group, items: group.items.filter((n) => allowedKeys.includes(n.key)) }))
     .filter((group) => group.items.length > 0);
-  const effectiveActive: NavKey = allowedKeys.includes(active) && active !== "lessonplans" ? active : "dashboard";
+  const effectiveActive: NavKey = allowedKeys.includes(active) ? active : "dashboard";
   const displayName =
     profileDraft?.name?.trim() ||
     ((user.user_metadata?.name as string) ?? "").trim() ||
@@ -200,11 +201,6 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
 
   function pickNav(key: NavKey) {
     if (!allowedKeys.includes(key)) return;
-    if (key === "lessonplans") {
-      setSidebarOpen(false);
-      window.location.assign("/lesson-plans");
-      return;
-    }
     setActive(key);
     const group = navGroups.find((g) => g.items.some((n) => n.key === key));
     if (group) setOpenGroups((current) => ({ ...current, [group.key]: true }));
@@ -353,6 +349,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "reportcard" && <StudentReportCard />}
           {effectiveActive === "compare" && <CompareResults role={role} teacherId={role === "Teacher" ? user.id : undefined} />}
           {effectiveActive === "beststudent" && <BestStudentYearly />}
+          {effectiveActive === "lessonplans" && <LessonPlansView />}
         </main>
       </div>
       {accountOpen && (

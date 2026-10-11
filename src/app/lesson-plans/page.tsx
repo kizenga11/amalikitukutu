@@ -16,7 +16,7 @@ export default async function LessonPlansPage({
   if (!u) {
     return (
       <div className="lp-wrap">
-        <div className="lp-empty">Tafadhali ingia kwanza ili kuona mipango ya masomo.</div>
+        <div className="lp-empty">Please sign in to view lesson plans.</div>
       </div>
     );
   }
@@ -52,43 +52,43 @@ export default async function LessonPlansPage({
         <div>
           <h1 className="page-title">Lesson Plans</h1>
           <p className="lp-sub">
-            Tengeneza na chapisha mipango ya somo kwa muundo wa TIE. {isMgmt ? "Unaona mipango ya walimu wote." : "Unaona mipango yako tu."}
+            Create and print TIE-format lesson plans. {isMgmt ? "You can see all teachers' plans." : "You can see your own plans only."}
           </p>
         </div>
         {isMgmt && (
-          <Link className="cm-btn cm-btn--ghost" href="/lesson-plans/admin">Usimamizi wa silabasi</Link>
+          <Link className="cm-btn cm-btn--ghost" href="/lesson-plans/admin">Syllabus admin</Link>
         )}
       </header>
 
       <div className="lp-stats">
-        <div className="lp-stat"><span className="lp-stat-value">{syllabi.length}</span><span className="lp-stat-label">Silabasi</span></div>
+        <div className="lp-stat"><span className="lp-stat-value">{syllabi.length}</span><span className="lp-stat-label">Syllabi</span></div>
         <div className="lp-stat"><span className="lp-stat-value">{topicCount}</span><span className="lp-stat-label">Topics</span></div>
-        <div className="lp-stat"><span className="lp-stat-value">{base.length}</span><span className="lp-stat-label">{isMgmt ? "Mipango yote" : "Mipango yangu"}</span></div>
+        <div className="lp-stat"><span className="lp-stat-value">{base.length}</span><span className="lp-stat-label">{isMgmt ? "All plans" : "My plans"}</span></div>
       </div>
 
       <section className="panel">
         <div className="panel-head">
           <div>
-            <h2 className="panel-title">Tengeneza mipango</h2>
-            <p className="panel-sub">Chagua Somo → Topic → Subtopic, andika darasa; mfumo hutengeneza mipango, hatua na muda kiotomatiki.</p>
+            <h2 className="panel-title">Generate plans</h2>
+            <p className="panel-sub">Choose Subject → Topic → Subtopic, enter a class; the system creates plans, stages and time automatically.</p>
           </div>
         </div>
         {syllabi.length ? (
           <Generator syllabi={syllabi} />
         ) : (
           <div className="lp-empty">
-            Hakuna silabasi iliyoseedwa kwa masomo yako bado.
-            {isMgmt && <> Nenda <Link href="/lesson-plans/admin">Usimamizi wa silabasi</Link> kuweka data.</>}
+            No syllabus has been seeded for your subjects yet.
+            {isMgmt && <> Go to <Link href="/lesson-plans/admin">Syllabus admin</Link> to add data.</>}
           </div>
         )}
       </section>
 
       <section className="panel">
         <div className="panel-head">
-          <h2 className="panel-title">{isMgmt ? "Mipango yote" : "Mipango yangu"} ({plans.length})</h2>
+          <h2 className="panel-title">{isMgmt ? "All plans" : "My plans"} ({plans.length})</h2>
           {planSubjects.length > 0 && (
             <div className="lp-filters">
-              <Link className={`lp-chip${!subject ? " lp-chip--active" : ""}`} href="/lesson-plans">Zote</Link>
+              <Link className={`lp-chip${!subject ? " lp-chip--active" : ""}`} href="/lesson-plans">All</Link>
               {planSubjects.map((s) => (
                 <Link
                   key={s}
@@ -107,9 +107,9 @@ export default async function LessonPlansPage({
             <table className="lp-table">
               <thead>
                 <tr>
-                  <th>Somo</th><th>Form</th><th>Subtopic</th><th>Kipindi</th><th>Darasa</th>
-                  {isMgmt && <th>Mwalimu</th>}
-                  <th>Tarehe</th><th></th>
+                  <th>Subject</th><th>Form</th><th>Subtopic</th><th>Lesson</th><th>Class</th>
+                  {isMgmt && <th>Teacher</th>}
+                  <th>Date</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -125,7 +125,7 @@ export default async function LessonPlansPage({
                       <td>{p.class_label}</td>
                       {isMgmt && <td>{p.teacher_name}</td>}
                       <td>{p.lesson_date ?? "—"}</td>
-                      <td className="lp-table-action"><Link href={`/lesson-plans/${p.id}`}>Fungua</Link></td>
+                      <td className="lp-table-action"><Link href={`/lesson-plans/${p.id}`}>Open</Link></td>
                     </tr>
                   );
                 })}
@@ -134,7 +134,7 @@ export default async function LessonPlansPage({
           </div>
         ) : (
           <div className="lp-empty">
-            {subject ? "Hakuna mipango ya somo hili bado." : "Hakuna mipango bado. Tengeneza mipango hapo juu."}
+            {subject ? "No plans for this subject yet." : "No plans yet. Generate plans above."}
           </div>
         )}
       </section>

@@ -11,7 +11,7 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const u = await getLpUser();
   if (!u) {
-    return <div className="lp-wrap"><div className="lp-empty">Tafadhali ingia kwanza.</div></div>;
+    return <div className="lp-wrap"><div className="lp-empty">Please sign in first.</div></div>;
   }
 
   const db = lpDb();
@@ -24,7 +24,7 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
 
   const isOwner = row.teacher_id === u.id;
   if (!isOwner && u.role !== "management") {
-    return <div className="lp-wrap"><div className="lp-empty">Huna ruhusa kuona mpango huu.</div></div>;
+    return <div className="lp-wrap"><div className="lp-empty">You do not have permission to view this plan.</div></div>;
   }
 
   const { data: stages } = await db.from("lp_plan_stages").select("*").eq("plan_id", row.id);

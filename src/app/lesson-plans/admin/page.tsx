@@ -11,7 +11,7 @@ export default async function AdminPage() {
   if (!u || u.role !== "management") {
     return (
       <div className="lp-wrap">
-        <div className="lp-empty">Ukurasa huu ni wa uongozi wa shule tu.</div>
+        <div className="lp-empty">This page is for school management only.</div>
       </div>
     );
   }
@@ -33,32 +33,32 @@ export default async function AdminPage() {
     <div className="lp-wrap">
       <header className="lp-head">
         <div>
-          <h1 className="page-title">Usimamizi wa Silabasi</h1>
-          <p className="lp-sub">Seede silabasi (TIE) ili walimu waweze kutengeneza mipango ya somo kiotomatiki.</p>
+          <h1 className="page-title">Syllabus Management</h1>
+          <p className="lp-sub">Seed the (TIE) syllabus so teachers can generate lesson plans automatically.</p>
         </div>
-        <Link className="cm-btn cm-btn--ghost" href="/lesson-plans">Nenda kwa walimu</Link>
+        <Link className="cm-btn cm-btn--ghost" href="/lesson-plans">Go to teachers</Link>
       </header>
 
       <div className="lp-stats">
-        <div className="lp-stat"><span className="lp-stat-value">{rows.length}</span><span className="lp-stat-label">Silabasi</span></div>
+        <div className="lp-stat"><span className="lp-stat-value">{rows.length}</span><span className="lp-stat-label">Syllabi</span></div>
         <div className="lp-stat"><span className="lp-stat-value">{topicCount}</span><span className="lp-stat-label">Topics</span></div>
-        <div className="lp-stat"><span className="lp-stat-value">{periodCount}</span><span className="lp-stat-label">Vipindi</span></div>
+        <div className="lp-stat"><span className="lp-stat-value">{periodCount}</span><span className="lp-stat-label">Periods</span></div>
       </div>
 
       <section className="panel">
         <div className="panel-head">
           <div>
-            <h2 className="panel-title">Seed silabasi</h2>
+            <h2 className="panel-title">Seed syllabus</h2>
             <p className="panel-sub">
-              Kila mstari ni rekodi moja. Ukiseed tena, data husasishwa (haiwekwi mara mbili).
+              Each line is one record. Seeding again updates existing records (no duplicates).
             </p>
           </div>
         </div>
         <div className="lp-format">
-          <code>Somo|Form|Source|Topic#|Topic|Subtopic#|Subtopic|Periods</code>
-          <span>Nguzo za hiari baada ya Periods:</span>
+          <code>Subject|Form|Source|Topic#|Topic|Subtopic#|Subtopic|Periods</code>
+          <span>Optional columns after Periods:</span>
           <code>MainCompetence|SpecificCompetence|MainActivity|SpecificActivity|Resources|References</code>
-          <span>na zaidi (kiolezo cha hatua):</span>
+          <span>and more (stage template):</span>
           <code>intro_teaching|intro_learning|intro_assessment|develop_*|design_*|realise_*</code>
         </div>
         <SeedForm />
@@ -66,13 +66,13 @@ export default async function AdminPage() {
 
       <section className="panel">
         <div className="panel-head">
-          <h2 className="panel-title">Silabasi zilizopo ({rows.length})</h2>
+          <h2 className="panel-title">Existing syllabi ({rows.length})</h2>
         </div>
         {rows.length ? (
           <div className="lp-table-wrap">
             <table className="lp-table">
               <thead>
-                <tr><th>Somo</th><th>Form</th><th>Source</th><th>Topics</th><th>Vipindi</th></tr>
+                <tr><th>Subject</th><th>Form</th><th>Source</th><th>Topics</th><th>Periods</th></tr>
               </thead>
               <tbody>
                 {rows.map((s) => (
@@ -88,7 +88,7 @@ export default async function AdminPage() {
             </table>
           </div>
         ) : (
-          <div className="lp-empty">Hakuna silabasi bado. Bandika data hapo juu kuanza.</div>
+          <div className="lp-empty">No syllabus yet. Paste data above to get started.</div>
         )}
       </section>
     </div>
