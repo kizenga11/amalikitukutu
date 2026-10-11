@@ -1021,7 +1021,7 @@ button:disabled, select:disabled { cursor: not-allowed; }
 	width: 2.4rem; height: 2.4rem; flex: 0 0 auto; object-fit: contain;
 	background: var(--white); border: 1px solid rgba(27, 67, 50, .15); border-radius: .5rem; padding: .12rem;
 }
-.sidebar-brand-name { font-weight: 700; font-size: .875rem; letter-spacing: .06em; line-height: 1.1; }
+.sidebar-brand-name { font-weight: 700; font-size: .82rem; letter-spacing: .01em; line-height: 1.25; }
 .sidebar-brand-sub { margin-top: .15rem; font-size: .68rem; color: var(--muted); }
 .sidebar-close {
 	display: none; margin-left: auto;
@@ -1033,6 +1033,8 @@ button:disabled, select:disabled { cursor: not-allowed; }
 .side-nav { padding: .5rem .85rem; display: grid; gap: .2rem; }
 .nav-group { display: grid; gap: .2rem; margin-top: .5rem; }
 .nav-group:first-child { margin-top: 0; }
+.nav-flat { display: grid; gap: .2rem; margin-top: .5rem; }
+.nav-flat:first-child { margin-top: 0; }
 .nav-group-label {
 	display: flex; align-items: center; justify-content: space-between; width: 100%;
 	margin: 0; padding: .45rem .8rem; border: 0; border-radius: .45rem;
@@ -1929,9 +1931,40 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 .td-gender-bar-female { background: #9bc2ac; height: 100%; }
 .td-gender-trend { display: flex; gap: .4rem; flex-wrap: wrap; }
 
+/* Compact teacher dashboard + quick links */
+.td-dash .section-grid { gap: 1rem; margin-top: 1rem; }
+.td-dash .panel { padding: 1rem 1.1rem .9rem; }
+.td-dash .td-perf-panel { margin-top: 1rem; }
+.td-dash .panel-head { margin-bottom: .5rem; }
+.td-dash .subject-table th { padding: .4rem .4rem; }
+.td-dash .subject-table td { padding: .45rem .4rem; }
+.td-dash .td-gender { gap: .55rem; }
+.td-dash .stat-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.td-dash .stat-top { justify-content: center; width: 100%; }
+.td-dash .stat-value { margin-top: .55rem; }
+.td-quick { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .55rem; margin-top: 1rem; }
+.td-quick-btn {
+	display: flex; align-items: center; justify-content: center; gap: .4rem; width: 100%;
+	padding: .5rem .6rem; border: 1px solid var(--line); border-radius: .55rem;
+	background: var(--white); color: var(--primary); font-size: .76rem; font-weight: 600;
+	cursor: pointer; transition: all .15s ease; white-space: nowrap;
+}
+.td-quick-btn:hover {
+	background: var(--primary); border-color: var(--primary); color: #fff;
+	box-shadow: 0 3px 10px rgba(27, 67, 50, .25);
+}
+.td-quick-btn .icon { width: .95rem; height: .95rem; flex: 0 0 auto; }
+
+@media (max-width: 1024px) {
+	.td-quick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
 @media (max-width: 640px) {
 	.td-assign-grid { grid-template-columns: 1fr; }
 	.td-subject-card { min-width: 0; }
+	.td-quick { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem; margin-top: .85rem; }
+	.td-quick-btn { padding: .48rem .5rem; font-size: .72rem; }
+	.app-main .td-dash .section-grid, .app-main .td-dash .section-grid--alt { display: grid; grid-template-columns: 1fr; gap: .8rem; }
 }
 
 /* ---------- Exam Management ---------- */

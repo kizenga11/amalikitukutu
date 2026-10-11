@@ -84,12 +84,11 @@ function isNavKey(value: unknown): value is NavKey {
 }
 
 type NavItemDef = { key: NavKey; label: string; icon: React.ReactNode };
-type NavGroup = { key: string; label: string; items: NavItemDef[] };
+type NavGroup = { key: string; label?: string; items: NavItemDef[] };
 
 const navGroups: NavGroup[] = [
   {
     key: "overview",
-    label: "Overview",
     items: [{ key: "dashboard", label: "Dashboard", icon: icons.dashboard }],
   },
   {
@@ -103,7 +102,6 @@ const navGroups: NavGroup[] = [
   },
   {
     key: "academics",
-    label: "Academics",
     items: [
       { key: "academic", label: "Subjects", icon: icons.academic },
       { key: "exams", label: "Exams", icon: icons.exams },
@@ -112,7 +110,7 @@ const navGroups: NavGroup[] = [
   },
   {
     key: "reports",
-    label: "Reporting",
+    label: "Report",
     items: [
       { key: "reports", label: "Result", icon: icons.reports },
       { key: "analysis", label: "Subject Analysis", icon: icons.analysis },
@@ -208,16 +206,31 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
 
       <aside className={`sidebar${sidebarOpen ? " sidebar--open" : ""}`}>
         <div className="sidebar-brand">
-          <img className="brand-logo-img" src="/assets/logo.png" alt="Amali Kitukutu logo" />
+          <img className="brand-logo-img" src="/assets/logo.png" alt="Kitukutu Secondary Technical School logo" />
           <div>
-            <div className="sidebar-brand-name">AMALI SCHOOL</div>
-            <div className="sidebar-brand-sub">Management Portal</div>
+            <div className="sidebar-brand-name">Kitukutu Secondary Technical School</div>
           </div>
           <button className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close menu">{icons.close}</button>
         </div>
 
         <nav className="side-nav">
           {visibleNavGroups.map((group) => {
+            if (!group.label) {
+              return (
+                <div className="nav-flat" key={group.key}>
+                  {group.items.map((item) => (
+                    <button
+                      key={item.key}
+                      className={`nav-item${effectiveActive === item.key ? " nav-item--active" : ""}`}
+                      onClick={() => pickNav(item.key)}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              );
+            }
             const open = openGroups[group.key] === true;
             return (
               <div className={`nav-group${open ? " nav-group--open" : " nav-group--closed"}`} key={group.key}>
@@ -290,7 +303,11 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
 
         <main className="content">
           {effectiveActive === "dashboard" && (role === "Teacher" ? (
-            <TeacherDashboard authUserId={user.id} />
+            <TeacherDashboard
+              authUserId={user.id}
+              onNavigate={pickNav}
+              quickLinks={visibleNavGroups.flatMap((group) => group.items).filter((item) => item.key !== "dashboard")}
+            />
           ) : (
             <DashboardView
               period={viewPeriod}

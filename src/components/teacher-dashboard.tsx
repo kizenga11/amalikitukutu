@@ -11,7 +11,6 @@ import { readStoredPeriod, writeStoredPeriod, type StoredPeriod } from "@/lib/pr
 import {
   fetchTeacherByAuth,
   fetchTeacherDashboard,
-  type TeacherAssignmentGroup,
   type TeacherDashboardData,
 } from "@/lib/school-api";
 import { ListRowSkeleton } from "@/components/loading";
@@ -26,11 +25,15 @@ function persistPeriod(period: Period) {
   writeStoredPeriod(period);
 }
 
-function initialsOf(student: { first_name: string; last_name: string }): string {
-  return (student.first_name[0] ?? "") + (student.last_name[0] ?? "");
-}
-
-export default function TeacherDashboard({ authUserId }: { authUserId: string }) {
+export default function TeacherDashboard({
+  authUserId,
+  onNavigate,
+  quickLinks,
+}: {
+  authUserId: string;
+  onNavigate: (key: string) => void;
+  quickLinks: { key: string; label: string; icon: React.ReactNode }[];
+}) {
   const [period, setPeriod] = useState<Period>(loadPeriod);
   const [data, setData] = useState<TeacherDashboardData | null>(null);
   const [dbError, setDbError] = useState(false);
@@ -76,16 +79,6 @@ export default function TeacherDashboard({ authUserId }: { authUserId: string })
 
   const terms = useMemo<TermNumber[]>(() => academicYears.find((y) => y.id === period.yearId)?.terms ?? [1, 2], [period.yearId]);
 
-  const studentsByGroup = useMemo(() => {
-    if (!data) return [];
-    return data.assignments;
-  }, [data]);
-
-  const genderSplit = data?.genderDistribution ?? [
-    { label: "Boys", value: 0 },
-    { label: "Girls", value: 0 },
-  ];
-
   let content: React.ReactNode;
   if (loading) {
     content = (
@@ -107,23 +100,8 @@ export default function TeacherDashboard({ authUserId }: { authUserId: string })
     content = (
       <div className="db-empty">
         <h3>No teaching profile linked</h3>
-        <p>Your account is not linked to a staff record, so no assignments can be shown. Ask the headmaster to register you as a teacher.</p>
+        <p>Your account is not linked to a staff record. Ask the headmaster to register you as a teacher.</p>
       </div>
-    );
-  } else if (data && data.assignments.length === 0) {
-    content = (
-      <>
-        <div className="stats-grid">
-          <div className="stat-card"><div className="stat-top"><span className="stat-icon stat-icon--muted">0</span></div><div className="stat-value">0</div><div className="stat-label">Subjects</div></div>
-          <div className="stat-card"><div className="stat-top"><span className="stat-icon stat-icon--muted">0</span></div><div className="stat-value">0</div><div className="stat-label">Students</div></div>
-          <div className="stat-card"><div className="stat-top"><span className="stat-icon stat-icon--muted">0</span></div><div className="stat-value">0</div><div className="stat-label">Classes</div></div>
-          <div className="stat-card"><div className="stat-top"><span className="stat-icon stat-icon--muted">0</span></div><div className="stat-value">—</div><div className="stat-label">Avg Performance</div></div>
-        </div>
-        <div className="db-empty">
-          <h3>No teaching assignments yet</h3>
-          <p>You have not been assigned any subjects yet. Ask the headmaster or academic officer to assign your teaching subjects.</p>
-        </div>
-      </>
     );
   } else if (data) {
     content = (
@@ -151,79 +129,49 @@ export default function TeacherDashboard({ authUserId }: { authUserId: string })
           </div>
         </div>
 
-        <div className="td-assign-section">
-          <div className="panel-head td-assign-head">
-            <div>
-              <h3 className="panel-title">My Teaching Assignments</h3>
-              <p className="panel-sub">{termLabel(period.term)} of {yearLabel(period.yearId)} · {data.enrollmentCount.toLocaleString()} subject enrollments across {data.classCount} class(es)</p>
-            </div>
-            <span className="panel-badge">{data.assignments.length} assignment{data.assignments.length === 1 ? "" : "s"}</span>
-          </div>
-          <div className="td-assign-grid">
-            {studentsByGroup.map((group) => (
-              <TeacherSubjectCard key={group.assignment_id} group={group} />
+        {quickLinks.length > 0 && (
+          <div className="td-quick">
+            {quickLinks.map((link) => (
+              <button key={link.key} type="button" className="td-quick-btn" onClick={() => onNavigate(link.key)}>
+                <span className="td-quick-icon">{link.icon}</span>
+                <span>{link.label}</span>
+              </button>
             ))}
           </div>
-        </div>
+        )}
 
-        <div className="section-grid section-grid--alt">
-          <div className="panel">
-            <div className="panel-head">
-              <div>
-                <h3 className="panel-title">My Subject Performance</h3>
-                <p className="panel-sub">End of term mean scores for your subjects</p>
-              </div>
+        <div className="panel td-perf-panel">
+          <div className="panel-head">
+            <div>
+              <h3 className="panel-title">My Subject Performance</h3>
+              <p className="panel-sub">End of term mean scores for your subjects</p>
             </div>
-            {data.subjectPerformance.length === 0 ? (
-              <p className="td-none">No performance recorded for your subjects this term.</p>
-            ) : (
-              <table className="subject-table">
-                <thead>
-                  <tr><th>Subject</th><th>Class</th><th>Score</th></tr>
-                </thead>
-                <tbody>
-                  {data.subjectPerformance.map((row) => (
-                    <tr key={`${row.subject}-${row.class}`}>
-                      <td><div className="subject-name">{row.subject}</div><div className="subject-class">{row.class}</div></td>
-                      <td>
-                        <div className="score-bar">
-                          <div className={`score-bar-fill${row.score >= 80 ? " score-bar-fill--good" : row.score >= 75 ? " score-bar-fill--mid" : " score-bar-fill--low"}`} style={{ width: `${row.score}%` }} />
-                        </div>
-                        <div className="score-value">
-                          <strong>{row.score}%</strong>
-                          <span className={row.up ? "trend trend--up" : "trend trend--down"}>{row.up ? "▲" : "▼"}</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
           </div>
-
-          <div className="panel">
-            <div className="panel-head">
-              <div>
-                <h3 className="panel-title">My Students by Gender</h3>
-                <p className="panel-sub">Across all assigned subjects</p>
-              </div>
-            </div>
-            <div className="td-gender">
-              <div className="td-gender-bar">
-                <div className="td-gender-bar-male" style={{ flex: genderSplit[0]?.value ?? 0 }} />
-                <div className="td-gender-bar-female" style={{ flex: genderSplit[1]?.value ?? 0 }} />
-              </div>
-              <div className="legend">
-                <div className="legend-item"><span className="legend-dot legend-dot--0" /><span>Boys</span><strong>{genderSplit[0]?.value ?? 0}%</strong></div>
-                <div className="legend-item"><span className="legend-dot legend-dot--1" /><span>Girls</span><strong>{genderSplit[1]?.value ?? 0}%</strong></div>
-              </div>
-              <div className="td-gender-trend">
-                {data.performanceTrend.map((p) => (
-                  <span key={p.label} className="panel-badge">{p.label}: {p.value}%</span>
+          {data.subjectPerformance.length === 0 ? (
+            <p className="td-none">No performance recorded for your subjects this term.</p>
+          ) : (
+            <table className="subject-table">
+              <thead>
+                <tr><th>Subject</th><th>Class</th><th>Score</th></tr>
+              </thead>
+              <tbody>
+                {data.subjectPerformance.map((row) => (
+                  <tr key={`${row.subject}-${row.class}`}>
+                    <td><div className="subject-name">{row.subject}</div><div className="subject-class">{row.class}</div></td>
+                    <td>
+                      <div className="score-bar">
+                        <div className={`score-bar-fill${row.score >= 80 ? " score-bar-fill--good" : row.score >= 75 ? " score-bar-fill--mid" : " score-bar-fill--low"}`} style={{ width: `${row.score}%` }} />
+                      </div>
+                      <div className="score-value">
+                        <strong>{row.score}%</strong>
+                        <span className={row.up ? "trend trend--up" : "trend trend--down"}>{row.up ? "▲" : "▼"}</span>
+                      </div>
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            </div>
-          </div>
+              </tbody>
+            </table>
+          )}
         </div>
       </>
     );
@@ -233,8 +181,8 @@ export default function TeacherDashboard({ authUserId }: { authUserId: string })
     <>
       <div className="page-head">
         <div>
-          <h2 className="page-title">My Teaching</h2>
-          <p className="page-sub">Your assigned subjects and students for {termLabel(period.term)} of {yearLabel(period.yearId)}.</p>
+          <h2 className="page-title">Dashboard</h2>
+          <p className="page-sub">Overview for {termLabel(period.term)} of {yearLabel(period.yearId)}.</p>
         </div>
         <div className="page-head-right">
           <div className="period-picker">
@@ -254,52 +202,9 @@ export default function TeacherDashboard({ authUserId }: { authUserId: string })
         </div>
       </div>
 
-      {content}
-    </>
-  );
-}
-
-function TeacherSubjectCard({ group }: { group: TeacherAssignmentGroup }) {
-  return (
-    <div className="td-subject-card">
-      <div className="td-subject-head">
-        <span className="sm-code">{group.subject_code}</span>
-        <div className="td-subject-title-wrap">
-          <div className="td-subject-title">{group.subject_name}</div>
-          <div className="td-subject-meta">{group.class_name} · {group.stream_name} Stream</div>
-        </div>
-        <span className="td-subject-count">{group.students.length}</span>
+      <div className="td-dash">
+        {content}
       </div>
-
-      {group.students.length === 0 ? (
-        <p className="td-none">No students are enrolled in this subject yet.</p>
-      ) : (
-        <table className="td-student-table">
-          <thead>
-            <tr><th>#</th><th>Student</th><th>Sex</th><th>Phone</th></tr>
-          </thead>
-          <tbody>
-            {group.students.slice(0, 8).map((s, i) => (
-              <tr key={s.id}>
-                <td className="td-num">{i + 1}</td>
-                <td>
-                  <div className="st-student">
-                    <span className={`st-avatar${s.gender === "Female" ? " st-avatar--female" : ""}`}>
-                      {initialsOf(s)}
-                    </span>
-                    <span>{s.last_name} {s.first_name}{s.middle_name ? ` ${s.middle_name}` : ""}</span>
-                  </div>
-                </td>
-                <td><span className={`st-badge st-badge--${s.gender === "Male" ? "male" : "female"}`}>{s.gender}</span></td>
-                <td><span className="st-phone">{s.phone ?? "—"}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {group.students.length > 8 && (
-        <p className="td-more">+{group.students.length - 8} more student{group.students.length - 8 === 1 ? "" : "s"}</p>
-      )}
-    </div>
+    </>
   );
 }
