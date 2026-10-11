@@ -12,6 +12,7 @@ import {
   yearLabel,
 } from "@/lib/calendar";
 import TeacherDashboard from "@/components/teacher-dashboard";
+import ProfilePanel from "@/components/profile-panel";
 import { StatCardSkeleton, PanelSkeleton, Spinner } from "@/components/loading";
 
 function PageLoading() {
@@ -64,6 +65,7 @@ const icons = {
   analysis: <Icon paths={<><path d="M3 3v18h18" /><rect x="7" y="10" width="3" height="8" /><rect x="12" y="6" width="3" height="12" /><rect x="17" y="13" width="3" height="5" /></>} />,
   exams: <Icon paths={<><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="1" /><path d="m9 14 2 2 4-4" /></>} />,
   attendance: <Icon paths={<><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M8 2v4" /><path d="M16 2v4" /><path d="M3 10h18" /><path d="m9 15 1.6 1.6L14 13" /></>} />,
+  lessonplans: <Icon paths={<><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" /><path d="M9 7h6" /><path d="M9 11h4" /></>} />,
   settings: <Icon paths={<><circle cx="12" cy="12" r="3" /><path d="M12 2h1v3" /><path d="M12 19v3" /><path d="M2 12h3" /><path d="M19 12h3" /></>} />,
   bell: <Icon paths={<><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></>} />,
   logout: <Icon paths={<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><line x1="21" y1="12" x2="9" y2="12" /></>} />,
@@ -75,11 +77,11 @@ const icons = {
   check: <Icon paths={<><path d="M20 6 9 17l-5-5" /></>} />,
 };
 
-type NavKey = "dashboard" | "students" | "staff" | "classes" | "academic" | "reports" | "enrollment" | "reportcard" | "compare" | "beststudent" | "analysis" | "exams" | "attendance" | "settings";
+type NavKey = "dashboard" | "students" | "staff" | "classes" | "academic" | "reports" | "enrollment" | "reportcard" | "compare" | "beststudent" | "analysis" | "exams" | "attendance" | "lessonplans" | "settings";
 
 function isNavKey(value: unknown): value is NavKey {
   return typeof value === "string" && [
-    "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "analysis", "exams", "attendance", "settings",
+    "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "analysis", "exams", "attendance", "lessonplans", "settings",
   ].includes(value);
 }
 
@@ -106,6 +108,7 @@ const navGroups: NavGroup[] = [
       { key: "academic", label: "Subjects", icon: icons.academic },
       { key: "exams", label: "Exams", icon: icons.exams },
       { key: "attendance", label: "Attendance", icon: icons.attendance },
+      { key: "lessonplans", label: "Lesson Plans", icon: icons.lessonplans },
     ],
   },
   {
@@ -128,9 +131,9 @@ const navGroups: NavGroup[] = [
 ];
 
 const roleAccess: Record<Role, NavKey[]> = {
-  Headmaster: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "exams", "attendance", "settings"],
-  Academic: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "exams", "attendance", "settings"],
-  Teacher: ["dashboard", "exams", "attendance", "reports", "analysis", "compare", "beststudent"],
+  Headmaster: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "exams", "attendance", "lessonplans", "settings"],
+  Academic: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "exams", "attendance", "lessonplans", "settings"],
+  Teacher: ["dashboard", "exams", "attendance", "lessonplans", "reports", "analysis", "compare", "beststudent"],
 };
 
 type Period = StoredPeriod;
@@ -151,6 +154,9 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [accountTab, setAccountTab] = useState<"profile" | "password">("profile");
+  const [profileDraft, setProfileDraft] = useState<{ name: string; phone: string } | null>(null);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const current = readStoredJson<NavKey>(navigationKey, "dashboard", isNavKey);
     const group = navGroups.find((g) => g.items.some((n) => n.key === current)) ?? navGroups.find((g) => g.items.some((n) => n.key === "dashboard"));
@@ -178,12 +184,27 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
   const visibleNavGroups = navGroups
     .map((group) => ({ ...group, items: group.items.filter((n) => allowedKeys.includes(n.key)) }))
     .filter((group) => group.items.length > 0);
-  const effectiveActive: NavKey = allowedKeys.includes(active) ? active : "dashboard";
-  const initials = (user.email ?? "U").split("@")[0].slice(0, 2).toUpperCase();
+  const effectiveActive: NavKey = allowedKeys.includes(active) && active !== "lessonplans" ? active : "dashboard";
+  const displayName =
+    profileDraft?.name?.trim() ||
+    ((user.user_metadata?.name as string) ?? "").trim() ||
+    (user.email ? user.email.split("@")[0] : "User");
+  const initials = displayName.slice(0, 2).toUpperCase();
+
+  function openAccount(tab: "profile" | "password") {
+    setProfileOpen(false);
+    setAccountTab(tab);
+    setAccountOpen(true);
+  }
   const title = navGroups.flatMap((group) => group.items).find((n) => n.key === effectiveActive)?.label ?? "Dashboard";
 
   function pickNav(key: NavKey) {
     if (!allowedKeys.includes(key)) return;
+    if (key === "lessonplans") {
+      setSidebarOpen(false);
+      window.location.assign("/lesson-plans");
+      return;
+    }
     setActive(key);
     const group = navGroups.find((g) => g.items.some((n) => n.key === key));
     if (group) setOpenGroups((current) => ({ ...current, [group.key]: true }));
@@ -273,7 +294,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
               <button className="profile-btn" onClick={() => setProfileOpen((v) => !v)} aria-haspopup="menu" aria-expanded={profileOpen}>
                 <div className="avatar">{initials}</div>
                 <div className="profile-meta">
-                  <div className="profile-name">{user.email ?? "User"}</div>
+                  <div className="profile-name">{displayName}</div>
                   <div className="profile-role">{roleLabels[role]}</div>
                 </div>
                 {icons.chevron}
@@ -285,11 +306,13 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
                     <div className="dropdown-head">
                       <div className="avatar">{initials}</div>
                       <div>
-                        <div className="dropdown-name">{user.email ?? "User"}</div>
-                        <div className="dropdown-email">{roleLabels[role]}</div>
+                        <div className="dropdown-name">{displayName}</div>
+                        <div className="dropdown-email">{user.email ?? roleLabels[role]}</div>
                       </div>
                     </div>
                     <div className="dropdown-divider" />
+                    <button className="dropdown-item" onClick={() => openAccount("profile")}>Profile</button>
+                    <button className="dropdown-item" onClick={() => openAccount("password")}>Change password</button>
                     {allowedKeys.includes("settings") && (
                       <button className="dropdown-item" onClick={() => pickNav("settings")}>Settings</button>
                     )}
@@ -305,7 +328,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "dashboard" && (role === "Teacher" ? (
             <TeacherDashboard
               authUserId={user.id}
-              onNavigate={pickNav}
+              onNavigate={(key) => { if (isNavKey(key)) pickNav(key); }}
               quickLinks={visibleNavGroups.flatMap((group) => group.items).filter((item) => item.key !== "dashboard")}
             />
           ) : (
@@ -332,6 +355,15 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "beststudent" && <BestStudentYearly />}
         </main>
       </div>
+      {accountOpen && (
+        <ProfilePanel
+          user={user}
+          roleLabel={roleLabels[role]}
+          initialTab={accountTab}
+          onClose={() => setAccountOpen(false)}
+          onSaved={(data) => setProfileDraft(data)}
+        />
+      )}
     </div>
   );
 }
