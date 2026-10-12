@@ -1,0 +1,243 @@
+/* ────────────────────────────────────────────────────────────
+   Combined Results — scoped styles.
+   Lets staff pick one or more students + one or more exams and
+   view their aggregated results. Reuses the existing result-* /
+   cm-btn building blocks and only adds the layout this page needs.
+   ──────────────────────────────────────────────────────────── */
+
+.cr-page .result-paper {
+  width: min(100%, 297mm);
+  margin: 1.25rem auto 0;
+  padding: 8mm;
+  box-shadow: 0 6px 24px rgba(24, 24, 27, 0.08);
+}
+
+.cr-title { margin: 0; font-size: 1.15rem; }
+
+/* ---------- Controls ---------- */
+.cr-controls {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  background: var(--white);
+}
+.cr-controls-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .75rem;
+}
+.cr-field { display: grid; gap: .3rem; }
+.cr-field > span { font-size: .72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.cr-field select {
+  height: 2.4rem;
+  padding: 0 .6rem;
+  border: 1px solid var(--line);
+  background: var(--white);
+  font-size: .85rem;
+  min-width: 0;
+}
+.cr-picker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .85rem;
+}
+.cr-picker {
+  display: grid;
+  gap: .5rem;
+  align-content: start;
+  padding: .7rem;
+  border: 1px solid var(--line);
+  background: var(--page);
+}
+.cr-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+}
+.cr-picker-head h3 { margin: 0; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; }
+.cr-count { color: var(--faint); font-size: .72rem; font-weight: 600; }
+.cr-check {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .38rem .5rem;
+  border: 1px solid var(--line);
+  background: var(--white);
+  font-size: .8rem;
+  cursor: pointer;
+}
+.cr-check--all { border: 0; background: none; padding: 0; color: var(--muted); font-size: .75rem; }
+.cr-check-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cr-check em { margin-left: auto; color: var(--faint); font-style: normal; font-size: .7rem; white-space: nowrap; }
+.cr-list {
+  display: grid;
+  gap: .35rem;
+  max-height: 15rem;
+  overflow-y: auto;
+}
+.cr-search {
+  height: 2.3rem;
+  padding: 0 .7rem;
+  border: 1px solid var(--line);
+  background: var(--white);
+  font-size: .8rem;
+}
+.cr-hint { margin: 0; color: var(--muted); font-size: .8rem; }
+.cr-run-btn { justify-self: start; min-height: 2.6rem; padding: 0 1.5rem; }
+.cr-message {
+  margin: 1rem 0 0;
+  padding: .6rem .8rem;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: .82rem;
+}
+
+/* ---------- Report header ---------- */
+.cr-report-header { text-align: center; }
+.cr-header-top { display: flex; align-items: center; justify-content: center; gap: 1rem; }
+.cr-header-logo { width: 4rem; height: 4rem; flex-shrink: 0; object-fit: contain; }
+.cr-report-header h1 { margin: 0; font-size: 1.35rem; letter-spacing: .03em; }
+.cr-header-address { font-size: .78rem; color: var(--muted); }
+.cr-report-header h2 { margin: .6rem 0 .1rem; font-size: 1rem; font-weight: 800; letter-spacing: .06em; }
+.cr-header-period { font-size: .82rem; color: var(--muted); }
+.cr-header-exams { margin-top: .5rem; padding-top: .5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .75rem; }
+
+/* ---------- Summary ---------- */
+.cr-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: .55rem;
+  margin-top: 1rem;
+}
+.cr-summary-card { display: grid; gap: .2rem; padding: .7rem; border: 1px solid var(--line); background: var(--page); }
+.cr-summary-card span { color: var(--muted); font-size: .66rem; text-transform: uppercase; letter-spacing: .04em; }
+.cr-summary-card strong { font-size: 1.05rem; font-weight: 700; }
+
+/* ---------- Per-student summary ---------- */
+.cr-ssum-list { display: grid; gap: .5rem; margin-top: .6rem; }
+.cr-ssum { padding: .5rem .6rem; border: 1px solid var(--line); background: var(--page); }
+.cr-ssum-name { margin-bottom: .4rem; font-size: .8rem; font-weight: 700; }
+.cr-ssum-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(4.2rem, 1fr)); gap: .3rem; }
+.cr-ssum-grid > div {
+  display: grid; gap: .1rem; padding: .3rem .35rem;
+  border: 1px solid var(--line); background: var(--white); min-width: 0;
+}
+.cr-ssum-grid span {
+  font-size: .55rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cr-ssum-grid strong {
+  font-size: .74rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---------- Toolbar ---------- */
+.cr-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+
+/* ---------- Section / table ---------- */
+.cr-section { margin-top: 1rem; }
+.cr-section h3 { margin: 0 0 .6rem; font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; }
+
+.cr-exam-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+  margin: 1.4rem 0 .7rem;
+  padding-bottom: .45rem;
+  border-bottom: 2px solid var(--primary);
+}
+.cr-exam-head:first-of-type { margin-top: .5rem; }
+.cr-exam-head h3 { margin: 0; font-size: 1rem; font-weight: 700; text-transform: none; letter-spacing: 0; }
+.cr-exam-head span { color: var(--muted); font-size: .75rem; white-space: nowrap; }
+.cr-table-wrap { overflow-x: auto; border: 1px solid var(--table-border); }
+.cr-table { width: 100%; border-collapse: collapse; }
+.cr-table th, .cr-table td { padding: .32rem .4rem; border: 1px solid var(--table-border); font-size: .72rem; text-align: left; }
+.cr-table th { background: var(--page); color: var(--muted); font-size: .62rem; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
+.cr-table td.cr-col-num, .cr-table th.cr-col-num { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cr-col-pos { text-align: center; white-space: nowrap; font-weight: 600; }
+.cr-col-name { white-space: nowrap; font-weight: 600; }
+
+/* ---------- Mobile cards ---------- */
+.cr-cards { display: none; }
+
+.cr-footer {
+  margin-top: 1rem;
+  padding-top: .6rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: .72rem;
+  text-align: center;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .cr-controls-row { grid-template-columns: 1fr 1fr; }
+  .cr-picker-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .cr-page .result-paper { padding: .6rem; }
+  .cr-controls { padding: .75rem; gap: .75rem; }
+  .cr-controls-row { grid-template-columns: 1fr; }
+  .cr-run-btn { justify-self: stretch; }
+  .cr-header-top { flex-direction: column; gap: .5rem; }
+  .cr-summary { grid-template-columns: repeat(2, 1fr); gap: .5rem; }
+  .cr-toolbar { justify-content: stretch; }
+  .cr-toolbar .cm-btn { flex: 1 1 auto; }
+
+  .cr-table-wrap { display: none; }
+  .cr-cards { display: grid; gap: .55rem; }
+  .cr-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: .65rem;
+    padding: .55rem .6rem;
+    box-shadow: 0 1px 3px rgba(24, 24, 27, .06);
+  }
+  .cr-card-head { display: flex; align-items: center; gap: .5rem; }
+  .cr-card-pos {
+    flex: 0 0 auto; min-width: 1.6rem; height: 1.6rem; padding: 0 .3rem; border-radius: 999px;
+    background: var(--page); color: var(--muted); font-size: .72rem; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .cr-card-name { flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: .88rem; word-break: break-word; }
+  .cr-card-div {
+    flex: 0 0 auto; padding: .15rem .45rem; border-radius: 999px; background: var(--primary);
+    color: #fff; font-size: .7rem; font-weight: 800; white-space: nowrap;
+  }
+  .cr-card-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .3rem; margin-top: .55rem; }
+  .cr-card-grid > div {
+    background: var(--page); border: 1px solid var(--line); border-radius: .5rem;
+    padding: .35rem .2rem; text-align: center; min-width: 0;
+  }
+  .cr-card-grid span {
+    display: block; font-size: .58rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .02em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cr-card-grid strong { display: block; margin-top: .1rem; font-size: .85rem; font-variant-numeric: tabular-nums; }
+  .cr-card-subjects {
+    display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .5rem; padding-top: .45rem;
+    border-top: 1px dashed var(--line);
+  }
+  .cr-chip {
+    display: inline-flex; align-items: baseline; gap: .3rem; padding: .2rem .45rem;
+    border: 1px solid var(--line); border-radius: .45rem; background: var(--white); font-size: .72rem;
+  }
+  .cr-chip em { font-style: normal; font-weight: 700; color: var(--primary); }
+  .cr-chip strong { font-variant-numeric: tabular-nums; }
+}
+
+/* ---------- Print ---------- */
+@media print {
+  .cr-page .result-paper { width: 100%; max-width: none; padding: 0; box-shadow: none; margin: 0; }
+  .cr-cards { display: none !important; }
+  .cr-table-wrap { display: block !important; }
+  .cr-toolbar { display: none !important; }
+  .cr-table th, .cr-table td { font-size: 7pt; padding: .12rem .18rem; border-color: #000; }
+  .cr-table thead { display: table-header-group; }
+  .cr-table tr { break-inside: avoid; }
+}

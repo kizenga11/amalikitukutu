@@ -86,8 +86,6 @@ export default function BestStudentYearly() {
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("pos");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [openDetail, setOpenDetail] = useState<string | null>(null);
-  const [showDetail, setShowDetail] = useState(false);
 
   const apiGet = useCallback(
     async (params: Record<string, string>): Promise<Response> => {
@@ -185,8 +183,6 @@ export default function BestStudentYearly() {
     setPayload(null);
     setMessage("");
     setConfirmLowExams(false);
-    setShowDetail(false);
-    setOpenDetail(null);
   }
 
   function toggleExam(id: string) {
@@ -609,9 +605,8 @@ export default function BestStudentYearly() {
                       Not ranked / Left subjects ({payload.report.excluded.length})
                     </summary>
                     <p className="bs-hint">
-                      These students are not counted in the ranking or subject statistics. Their scores remain in the
-                      personal detail below. Tick <strong>Include students who left their subjects</strong> above to
-                      count their scores in the subject statistics only.
+                      These students are not counted in the ranking or subject statistics. Tick <strong>Include students
+                      who left their subjects</strong> above to count their scores in the subject statistics only.
                     </p>
                     {leftExcluded.length > 0 ? (
                       <div className="bs-excluded-group">
@@ -719,56 +714,6 @@ export default function BestStudentYearly() {
                     </div>
                   ))}
                 </div>
-              </section>
-
-              {/* F — Per-student detail */}
-              <section className="result-section">
-                <div className="bs-section-head">
-                  <h3>Student Detail</h3>
-                  <button className="cm-btn cm-btn--ghost cm-btn--sm no-print" type="button" onClick={() => setShowDetail((v) => !v)}>
-                    {showDetail ? "Hide" : "Show"} per-student scores
-                  </button>
-                </div>
-                {showDetail ? (
-                  <div className="bs-detail">
-                    {[...payload.report.ranking, ...payload.report.notRanked].map((row) => (
-                      <div key={row.student_id} className="bs-detail-item">
-                        <button type="button" className="bs-detail-toggle" onClick={() => setOpenDetail((id) => (id === row.student_id ? null : row.student_id))}>
-                          <span>{row.name}</span>
-                          <span>{row.stream_name} · Avg {displayNumber(row.average)}</span>
-                        </button>
-                        {openDetail === row.student_id ? (
-                          <div className="bs-table-wrap">
-                            <table className="bs-table bs-detail-table">
-                              <thead>
-                                <tr>
-                                  <th>Exam</th>
-                                  {subjectColumns.map((subject) => <th key={subject.subject_id}>{subject.code}</th>)}
-                                  <th className="bs-num">Total</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {row.byExam.map((examScore) => {
-                                  const exam = payload.report.exams.find((e) => e.id === examScore.exam_id);
-                                  const scores = subjectColumns.map((subject) => examScore.scores[subject.subject_id] ?? null);
-                                  const present = scores.filter((s) => s !== null) as number[];
-                                  const total = present.length > 0 ? Math.round((present.reduce((a, b) => a + b, 0) / present.length) * 10) / 10 : null;
-                                  return (
-                                    <tr key={examScore.exam_id}>
-                                      <td>{exam?.name ?? "—"}</td>
-                                      {scores.map((score, index) => <td key={subjectColumns[index].subject_id} className="bs-num">{displayNumber(score)}</td>)}
-                                      <td className="bs-num"><strong>{displayNumber(total)}</strong></td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
               </section>
 
               <footer className="result-footer">

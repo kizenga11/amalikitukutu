@@ -188,8 +188,13 @@ export default function Home() {
   }, []);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
-    window.location.assign("/login");
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      /* ignore — redirect to login regardless */
+    } finally {
+      window.location.replace("/login");
+    }
   }
 
   const announcement = latestExamAnnouncement(exams);

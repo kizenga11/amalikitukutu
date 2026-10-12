@@ -12,6 +12,7 @@ import {
   fetchTeacherByAuth,
   insertExam,
   saveExamMarks,
+  setExamMarksOpen,
   updateExam,
   updateExamStatus,
   type DbClassRow,
@@ -82,7 +83,7 @@ const stepLabels: Record<MarksStep, string> = {
   grid: "4. Enter Marks",
 };
 
-export default function ExamManagement({ teacherId }: { teacherId?: string }) {
+export default function ExamManagement({ teacherId, role }: { teacherId?: string; role?: string }) {
   const [exams, setExams] = useState<DbExamRow[]>([]);
   const [classes, setClasses] = useState<DbClassRow[]>([]);
   const [subjects, setSubjects] = useState<DbSubjectRow[]>([]);
@@ -121,6 +122,11 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
   const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const isTeacher = !!teacherId;
+  // Academic (and Headmaster) may re-open marks entry for a published exam.
+  const canReopenMarks = role === "Academic" || role === "Headmaster";
+
+  // Marks entry is frozen once an exam is published, until it is re-opened.
+  const marksLocked = viewExam?.status === "published" && !viewExam?.marks_open;
 
   // ── Load reference data ─────────────────────────────────
   useEffect(() => {
@@ -263,6 +269,25 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
     try { await updateExamStatus(row.id, next); showToast("success", successMsg); await loadPage(); }
     catch { showToast("warning", "Database unavailable. Status not changed."); }
     finally { setSaving(false); }
+  }
+
+  // ── Re-open / close marks entry for a published exam ─────
+  async function toggleMarksEntry(row: { id: string; name: string }, open: boolean) {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await setExamMarksOpen(row.id, open);
+      showToast(
+        "success",
+        open ? `Marks entry re-opened for "${row.name}".` : `Marks entry closed for "${row.name}".`,
+      );
+      setViewExam((current) => (current && current.id === row.id ? { ...current, marks_open: open } : current));
+      await loadPage();
+    } catch {
+      showToast("warning", "Database unavailable. Marks entry not changed.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   // ── Delete ──────────────────────────────────────────────
@@ -455,6 +480,10 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
   // ── Save marks ──────────────────────────────────────────
   async function handleSaveMarks() {
     if (marksSaving || !viewExam || !marksData || !selectedClassId) return;
+    if (marksLocked) {
+      showToast("warning", "Marks entry is locked because this exam is published. Ask the Academic office to re-open marks entry.");
+      return;
+    }
     const classRow = marksData.classes.find((c) => c.class_id === selectedClassId);
     if (!classRow) return;
     if (classRow.students.length === 0) { showToast("warning", "No students in this class."); return; }
@@ -745,6 +774,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                         : <span className="sm-badge sm-badge--theory">Theory only</span>}
                       <span className="ex-chip">{row.class_count} class{row.class_count === 1 ? "" : "es"}</span>
                       <span className="ex-chip">{row.subject_count} subject{row.subject_count === 1 ? "" : "s"}</span>
+                      {row.status === "published" && !row.marks_open && <span className="ex-chip ex-chip--locked">Marks locked</span>}
                     </div>
                     <div className="me-ecard-actions">
                       {!isTeacher && row.status === "draft" && (
@@ -755,6 +785,12 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                       )}
                       {!isTeacher && row.status === "processing" && (
                         <button className="cm-btn cm-btn--primary cm-btn--sm" disabled={saving} onClick={() => transitionStatus(row, "published", `Exam "${row.name}" published.`)}>Publish</button>
+                      )}
+                      {canReopenMarks && row.status === "published" && !row.marks_open && (
+                        <button className="cm-btn cm-btn--primary cm-btn--sm" disabled={saving} onClick={() => toggleMarksEntry(row, true)}>Re-open Marks</button>
+                      )}
+                      {canReopenMarks && row.status === "published" && row.marks_open && (
+                        <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={saving} onClick={() => toggleMarksEntry(row, false)}>Close Marks</button>
                       )}
                       <button className="cm-btn cm-btn--ghost cm-btn--sm" onClick={() => enterMarks(row)}>
                         {isTeacher ? "Enter Marks" : "View Marks"}
@@ -803,7 +839,10 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                       </td>
                       <td><span className="ex-chip">{row.class_count} class{row.class_count === 1 ? "" : "es"}</span></td>
                       <td><span className="ex-chip">{row.subject_count} subject{row.subject_count === 1 ? "" : "s"}</span></td>
-                      <td><span className={`ex-status ex-status--${row.status}`}>{statusLabels[row.status]}</span></td>
+                      <td>
+                        <span className={`ex-status ex-status--${row.status}`}>{statusLabels[row.status]}</span>
+                        {row.status === "published" && !row.marks_open && <span className="ex-chip ex-chip--locked">Marks locked</span>}
+                      </td>
                       <td>
                         <div className="ex-actions">
                           {!isTeacher && row.status === "draft" && (
@@ -814,6 +853,12 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                           )}
                           {!isTeacher && row.status === "processing" && (
                             <button className="cm-btn cm-btn--primary cm-btn--sm" disabled={saving} onClick={() => transitionStatus(row, "published", `Exam "${row.name}" published.`)}>Publish</button>
+                          )}
+                          {canReopenMarks && row.status === "published" && !row.marks_open && (
+                            <button className="cm-btn cm-btn--primary cm-btn--sm" disabled={saving} onClick={() => toggleMarksEntry(row, true)}>Re-open Marks</button>
+                          )}
+                          {canReopenMarks && row.status === "published" && row.marks_open && (
+                            <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={saving} onClick={() => toggleMarksEntry(row, false)}>Close Marks</button>
                           )}
                           <button className="cm-btn cm-btn--ghost cm-btn--sm" onClick={() => enterMarks(row)}>
                             {isTeacher ? "Enter Marks" : "View Marks"}
@@ -870,6 +915,30 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
               <div className="me-view-stat"><span>{selectedSubjectIds.length || gridSubjects.length}</span><label>Subjects</label></div>
             </div>
           </div>
+
+          {viewExam.status === "published" && (
+            <div className={`ex-lock-banner${viewExam.marks_open ? " ex-lock-banner--open" : ""}`}>
+              <span className="ex-lock-icon">{viewExam.marks_open ? "\uD83D\uDD13" : "\uD83D\uDD12"}</span>
+              <span className="ex-lock-text">
+                {viewExam.marks_open
+                  ? "This exam is published, but marks entry is currently open."
+                  : "This exam is published, so marks entry is locked."}
+                {" "}
+                {canReopenMarks
+                  ? (viewExam.marks_open ? "Close marks to lock editing again." : "Re-open marks to allow editing again.")
+                  : "Ask the Academic office to re-open marks entry."}
+              </span>
+              {canReopenMarks && (
+                <button
+                  className={`cm-btn cm-btn--sm ${viewExam.marks_open ? "cm-btn--ghost" : "cm-btn--primary"}`}
+                  disabled={saving}
+                  onClick={() => toggleMarksEntry(viewExam, !viewExam.marks_open)}
+                >
+                  {viewExam.marks_open ? "Close Marks" : "Re-open Marks"}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* ── Step indicator ── */}
           <ol className="me-steps">
@@ -1030,7 +1099,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                               {selectedStreamId === null && st.stream_id && <small className="me-mcard-stream">{st.stream_name}</small>}
                             </span>
                             <label className="me-mcard-absent" title="Absent">
-                              <input type="checkbox" checked={isAbs} onChange={() => toggleAbsentMark(st.student_id)} />
+                              <input type="checkbox" checked={isAbs} disabled={marksLocked} onChange={() => toggleAbsentMark(st.student_id)} />
                               <span>A</span>
                             </label>
                           </div>
@@ -1045,7 +1114,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                                   title={subj.name} aria-label={subj.name}
                                   placeholder={many ? (splitSubject(subj) ? `${subj.code} T` : subj.code) : (splitSubject(subj) ? "0-50" : "0-100")}
                                   value={scores[selectedClassId!]?.[st.student_id]?.[subj.id]?.theory ?? ""}
-                                  disabled={isAbs}
+                                  disabled={isAbs || marksLocked}
                                   onChange={(e) => setScoreCell(st.student_id, subj.id, "theory", e.target.value)}
                                 />
                               ) : (
@@ -1062,7 +1131,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                                   title={`${subj.name} — Practical`} aria-label={`${subj.name} practical`}
                                   placeholder={many ? `${subj.code} P` : "0-50"}
                                   value={scores[selectedClassId!]?.[st.student_id]?.[subj.id]?.practical ?? ""}
-                                  disabled={isAbs}
+                                  disabled={isAbs || marksLocked}
                                   onChange={(e) => setScoreCell(st.student_id, subj.id, "practical", e.target.value)}
                                 />
                               ) : (
@@ -1111,7 +1180,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                               </td>
                               <td className="ex-col-absent">
                                 <label className="ex-absent-check">
-                                  <input type="checkbox" checked={isAbs} onChange={() => toggleAbsentMark(st.student_id)} />
+                                  <input type="checkbox" checked={isAbs} disabled={marksLocked} onChange={() => toggleAbsentMark(st.student_id)} />
                                   <span className="ex-absent-label">ABS</span>
                                 </label>
                               </td>
@@ -1123,7 +1192,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                                       type="number" min={0} max={splitSubject(subj) ? 50 : 100} step="any"
                                       placeholder={splitSubject(subj) ? "0-50" : "0-100"}
                                       value={scores[selectedClassId!]?.[st.student_id]?.[subj.id]?.theory ?? ""}
-                                      disabled={isAbs}
+                                      disabled={isAbs || marksLocked}
                                       onChange={(e) => setScoreCell(st.student_id, subj.id, "theory", e.target.value)}
                                     />
                                   </td>
@@ -1138,7 +1207,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                                       className={`ex-score-input ex-score-input--prac${isAbs ? " ex-score-input--disabled" : ""}${scores[selectedClassId!]?.[st.student_id]?.[subj.id]?.practical?.trim() ? " ex-score-input--filled" : ""}`}
                                       type="number" min={0} max={50} step="any" placeholder="0-50"
                                       value={scores[selectedClassId!]?.[st.student_id]?.[subj.id]?.practical ?? ""}
-                                      disabled={isAbs}
+                                      disabled={isAbs || marksLocked}
                                       onChange={(e) => setScoreCell(st.student_id, subj.id, "practical", e.target.value)}
                                     />
                                   </td>
@@ -1167,6 +1236,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                   )}
 
                   {/* Quick-fill */}
+                  {!marksLocked && (
                   <div className="ex-quickfill-row">
                     <span className="ex-quickfill-label">Quick-fill column:</span>
                     {gridSubjects.filter((s) => selectedSubjectIds.includes(s.id)).map((subj) => (
@@ -1206,6 +1276,7 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                       )
                     ))}
                   </div>
+                  )}
 
                   {/* Footer */}
                   <div className="ex-marks-footer">
@@ -1230,9 +1301,10 @@ export default function ExamManagement({ teacherId }: { teacherId?: string }) {
                       ) : null}
                       <button
                         className={`cm-btn cm-btn--primary${marksSaving ? " btn-loading" : ""}`}
-                        disabled={marksSaving}
+                        disabled={marksSaving || marksLocked}
+                        title={marksLocked ? "Marks entry is locked for this published exam." : undefined}
                         onClick={handleSaveMarks}
-                      >{marksSaving ? <><Spinner size={14} /> Saving{'\u2026'}</> : "Save Marks"}</button>
+                      >{marksSaving ? <><Spinner size={14} /> Saving{'\u2026'}</> : marksLocked ? <><span className="ex-lock-icon">{'\uD83D\uDD12'}</span> Marks Locked</> : "Save Marks"}</button>
                     </div>
                   </div>
                 </>

@@ -676,7 +676,7 @@ export default function StudentsManagement() {
           </div>
         </div>
       ) : (
-        <div className="sm-table-wrap">
+        <div className="sm-table-wrap stm-desktop">
           <table className="sm-table">
             <thead>
               <tr>
@@ -750,6 +750,58 @@ export default function StudentsManagement() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!dbError && !loading && (
+        <div className="stm-cards">
+          {students.length === 0 ? (
+            <div className="stm-card-empty">
+              {hasFilters ? "No students match the current filters." : "No students registered yet."}
+            </div>
+          ) : (
+            students.map((row) => (
+              <div className="stm-card" key={row.id}>
+                <div className="stm-card-head">
+                  <label className="stm-card-check">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(row.id)}
+                      onChange={() => toggleSelect(row.id)}
+                      aria-label={`Select ${fullName(row)}`}
+                    />
+                  </label>
+                  <span className={`st-avatar${row.gender === "Female" ? " st-avatar--female" : ""}`}>
+                    {initialsOf(row)}
+                  </span>
+                  <div className="stm-card-title">
+                    <div className="st-student-name">{fullName(row)}</div>
+                    <div className="st-student-sub">{row.gender} · ID {row.id.slice(0, 8)}</div>
+                  </div>
+                  <span className={`st-badge st-badge--${row.gender === "Male" ? "male" : "female"}`}>
+                    {row.gender}
+                  </span>
+                </div>
+                <div className="stm-card-grid">
+                  <div><span>Reg No</span><strong>{row.registration_no ?? "—"}</strong></div>
+                  <div><span>Class</span><strong>{row.school_classes?.name ?? "—"}</strong></div>
+                  <div><span>Stream</span><strong>{row.streams?.name ?? "—"}</strong></div>
+                  <div><span>Phone</span><strong>{row.phone ?? "—"}</strong></div>
+                </div>
+                <div className="stm-card-actions">
+                  <button className="cm-icon-btn cm-icon-btn--sm" title="Assign subjects" onClick={() => openAssign(row)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                  </button>
+                  <button className="cm-icon-btn cm-icon-btn--sm" title="Edit student" onClick={() => openEdit(row)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                  </button>
+                  <button className="cm-icon-btn cm-icon-btn--sm cm-icon-btn--danger" title="Delete student" onClick={() => setDeleteConfirm(row.id)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 

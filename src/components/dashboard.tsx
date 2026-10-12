@@ -31,6 +31,7 @@ const ResultPage = dynamic(() => import("@/components/result-page"), { ssr: fals
 const StudentReportCard = dynamic(() => import("@/components/student-report-card"), { ssr: false, loading: PageLoading });
 const CompareResults = dynamic(() => import("@/components/compare-results"), { ssr: false, loading: PageLoading });
 const BestStudentYearly = dynamic(() => import("@/components/best-student-yearly"), { ssr: false, loading: PageLoading });
+const CombinedResults = dynamic(() => import("@/components/combined-results"), { ssr: false, loading: PageLoading });
 const StudentEnrollmentStatistics = dynamic(() => import("@/components/student-enrollment-statistics"), { ssr: false, loading: PageLoading });
 import { fetchAcademicSettings, fetchDashboardData, fetchSchoolInfo, saveAcademicSettings, saveSchoolInfo, type DashboardData, type SchoolInfo } from "@/lib/school-api";
 import { DEFAULT_SCHOOL_INFO } from "@/lib/school-api";
@@ -63,6 +64,7 @@ const icons = {
   reports: <Icon paths={<><line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line x1="6" y1="20" x2="6" y2="16" /></>} />,
   reportcard: <Icon paths={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" /><path d="M9 13h6" /><path d="M9 17h6" /></>} />,
   compare: <Icon paths={<><path d="M8 3v9" /><path d="M4 12h8v9H4z" /><path d="M16 3h4v9h-4z" /><path d="M16 16h4v5h-4z" /></>} />,
+  combined: <Icon paths={<><path d="M12 2 2 7l10 5 10-5-10-5Z" /><path d="m2 12 10 5 10-5" /><path d="m2 17 10 5 10-5" /></>} />,
   analysis: <Icon paths={<><path d="M3 3v18h18" /><rect x="7" y="10" width="3" height="8" /><rect x="12" y="6" width="3" height="12" /><rect x="17" y="13" width="3" height="5" /></>} />,
   exams: <Icon paths={<><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="1" /><path d="m9 14 2 2 4-4" /></>} />,
   attendance: <Icon paths={<><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M8 2v4" /><path d="M16 2v4" /><path d="M3 10h18" /><path d="m9 15 1.6 1.6L14 13" /></>} />,
@@ -78,11 +80,11 @@ const icons = {
   check: <Icon paths={<><path d="M20 6 9 17l-5-5" /></>} />,
 };
 
-type NavKey = "dashboard" | "students" | "staff" | "classes" | "academic" | "reports" | "enrollment" | "reportcard" | "compare" | "beststudent" | "analysis" | "exams" | "attendance" | "lessonplans" | "settings";
+type NavKey = "dashboard" | "students" | "staff" | "classes" | "academic" | "reports" | "enrollment" | "reportcard" | "compare" | "combined" | "beststudent" | "analysis" | "exams" | "attendance" | "lessonplans" | "settings";
 
 function isNavKey(value: unknown): value is NavKey {
   return typeof value === "string" && [
-    "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "analysis", "exams", "attendance", "lessonplans", "settings",
+    "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "combined", "beststudent", "analysis", "exams", "attendance", "lessonplans", "settings",
   ].includes(value);
 }
 
@@ -121,6 +123,7 @@ const navGroups: NavGroup[] = [
       { key: "enrollment", label: "Enrollment Report", icon: icons.reports },
       { key: "reportcard", label: "Report Card", icon: icons.reportcard },
       { key: "compare", label: "Compare", icon: icons.compare },
+      { key: "combined", label: "Combined Results", icon: icons.combined },
       { key: "beststudent", label: "Best Student", icon: icons.trendUp },
     ],
   },
@@ -132,9 +135,9 @@ const navGroups: NavGroup[] = [
 ];
 
 const roleAccess: Record<Role, NavKey[]> = {
-  Headmaster: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "exams", "attendance", "lessonplans", "settings"],
-  Academic: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "beststudent", "exams", "attendance", "lessonplans", "settings"],
-  Teacher: ["dashboard", "exams", "attendance", "lessonplans", "reports", "analysis", "compare", "beststudent"],
+  Headmaster: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "combined", "beststudent", "exams", "attendance", "lessonplans", "settings"],
+  Academic: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "combined", "beststudent", "exams", "attendance", "lessonplans", "settings"],
+  Teacher: ["dashboard", "exams", "attendance", "lessonplans", "reports", "analysis", "compare", "combined", "beststudent"],
 };
 
 type Period = StoredPeriod;
@@ -341,13 +344,14 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "academic" && <SubjectManagement />}
           {effectiveActive === "students" && <StudentsManagement />}
           {effectiveActive === "staff" && <TeachersManagement />}
-          {effectiveActive === "exams" && <ExamManagement teacherId={role === "Teacher" ? user.id : undefined} />}
+          {effectiveActive === "exams" && <ExamManagement teacherId={role === "Teacher" ? user.id : undefined} role={role} />}
           {effectiveActive === "attendance" && <ExamAttendance teacherId={role === "Teacher" ? user.id : undefined} />}
           {effectiveActive === "reports" && <ResultPage role={role} />}
           {effectiveActive === "analysis" && <SubjectAnalysis authUserId={user.id} />}
           {effectiveActive === "enrollment" && <StudentEnrollmentStatistics />}
           {effectiveActive === "reportcard" && <StudentReportCard />}
           {effectiveActive === "compare" && <CompareResults role={role} teacherId={role === "Teacher" ? user.id : undefined} />}
+          {effectiveActive === "combined" && <CombinedResults />}
           {effectiveActive === "beststudent" && <BestStudentYearly />}
           {effectiveActive === "lessonplans" && <LessonPlansView />}
         </main>
@@ -555,7 +559,8 @@ function DashboardView({
               <p className="panel-sub">Mean score per subject · {termLabel(term)} {yearLabel(yearId)}</p>
             </div>
           </div>
-          <table className="subject-table">
+          <div className="subject-table-wrap">
+            <table className="subject-table">
             <thead>
               <tr>
                 <th>Subject</th>
@@ -585,6 +590,7 @@ function DashboardView({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </>

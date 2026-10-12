@@ -275,7 +275,7 @@ export default function SubjectManagement() {
           </div>
         </div>
       ) : (
-      <div className="sm-table-wrap">
+      <div className="sm-table-wrap sbm-desktop">
         <table className="sm-table">
           <thead>
             <tr>
@@ -324,6 +324,42 @@ export default function SubjectManagement() {
             ))}
           </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="sbm-cards">
+          {filtered.length === 0 ? (
+            <div className="sbm-card-empty">No subjects found.</div>
+          ) : (
+            filtered.map((subject) => (
+              <div className="sbm-card" key={subject.id}>
+                <div className="sbm-card-head">
+                  <span className="sbm-card-code">{subject.code}</span>
+                  <span className="sbm-card-name">{subject.name}</span>
+                </div>
+                <div className="sbm-card-badges">
+                  <span className={`sm-badge sm-badge--${subject.type === "Compulsory" ? "compulsory" : "optional"}`}>
+                    {subject.type}
+                  </span>
+                  <span className={`sm-badge sm-badge--${subject.hasPractical ? "practical" : "theory"}`}>
+                    {subject.hasPractical ? "Theory+Practical (50/50)" : "Theory only"}
+                  </span>
+                  <span className={`sm-badge sm-badge--${subject.stream.toLowerCase()}`}>
+                    {subject.stream}
+                  </span>
+                </div>
+                <div className="sbm-card-actions">
+                  <button className="cm-icon-btn cm-icon-btn--sm" title="Edit" onClick={() => handleEdit(subject)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                  </button>
+                  <button className="cm-icon-btn cm-icon-btn--sm cm-icon-btn--danger" title="Delete" onClick={() => setDeleteConfirm(subject.id)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 

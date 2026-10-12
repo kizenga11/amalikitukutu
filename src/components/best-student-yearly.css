@@ -137,7 +137,7 @@
 
 /* ---------- Tables ---------- */
 .bs-section-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .6rem; }
-.bs-section-head h3 { margin: 0; }
+.bs-section-head h3 { margin: 0; font-weight: 500; }
 .bs-search input {
   height: 2.3rem;
   padding: 0 .7rem;
@@ -183,27 +183,6 @@
 .bs-best-name { flex: 1; font-weight: 600; }
 .bs-best-stream { color: var(--faint); font-size: .68rem; }
 .bs-best-score { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-
-/* ---------- Student detail ---------- */
-.bs-detail { display: grid; gap: .35rem; }
-.bs-detail-item { border: 1px solid var(--line); }
-.bs-detail-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: .75rem;
-  width: 100%;
-  padding: .55rem .8rem;
-  border: 0;
-  background: var(--white);
-  color: var(--ink);
-  font-size: .8rem;
-  text-align: left;
-  cursor: pointer;
-}
-.bs-detail-toggle span:last-child { color: var(--muted); font-size: .72rem; }
-.bs-detail-item .bs-table-wrap { border: 0; border-top: 1px solid var(--line); }
-.bs-detail-table th:first-child, .bs-detail-table td:first-child { white-space: nowrap; }
 
 /* ---------- Mobile card layouts (hidden until small screens) ---------- */
 .bs-student-cards,

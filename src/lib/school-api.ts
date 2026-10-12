@@ -1108,6 +1108,7 @@ export interface DbExamRow {
   end_date: string;
   has_practical: boolean;
   status: ExamStatus;
+  marks_open: boolean;
   created_at: string;
   class_count: number;
   subject_count: number;
@@ -1126,6 +1127,7 @@ export interface DbExamDetail {
   end_date: string;
   has_practical: boolean;
   status: ExamStatus;
+  marks_open: boolean;
   created_at: string;
   classes: DbExamClass[];
 }
@@ -1191,6 +1193,7 @@ export async function fetchExams(params: ExamListParams): Promise<{ rows: DbExam
     end_date: r.end_date,
     has_practical: r.has_practical,
     status: r.status as ExamStatus,
+    marks_open: Boolean(r.marks_open),
     created_at: r.created_at,
     class_count: classCounts.get(r.id) ?? 0,
     subject_count: subjectCounts.get(r.id) ?? 0,
@@ -1251,7 +1254,18 @@ export async function updateExam(id: string, input: ExamInput): Promise<void> {
 }
 
 export async function updateExamStatus(id: string, status: ExamStatus): Promise<void> {
-  const { error } = await supabase.from("exams").update({ status }).eq("id", id);
+  const patch: { status: ExamStatus; marks_open?: boolean } = { status };
+  // Publishing an exam always locks marks entry so it can only be edited
+  // again after the Academic office explicitly re-opens it.
+  if (status === "published") patch.marks_open = false;
+  const { error } = await supabase.from("exams").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+// Re-open / close marks entry for a published exam. When an exam is not
+// published marks are always editable, so this only matters once published.
+export async function setExamMarksOpen(id: string, open: boolean): Promise<void> {
+  const { error } = await supabase.from("exams").update({ marks_open: open }).eq("id", id);
   if (error) throw error;
 }
 
@@ -1468,6 +1482,19 @@ export async function saveExamMarks(
   clearKeys: { student_id: string; subject_id: string }[],
   onProgress?: (done: number, total: number) => void,
 ): Promise<void> {
+  // Refuse to touch marks for a published exam unless the Academic office has
+  // re-opened marks entry. The database enforces this too, but checking here
+  // lets us surface a clear message.
+  const { data: examRow, error: examErr } = await supabase
+    .from("exams")
+    .select("status, marks_open")
+    .eq("id", examId)
+    .single();
+  if (examErr) throw examErr;
+  if (examRow?.status === "published" && examRow?.marks_open !== true) {
+    throw new Error("Marks entry is locked because this exam is published. Ask the Academic office to re-open marks entry.");
+  }
+
   // Delete rows the user explicitly cleared (blanked a score that was previously
   // saved). Scoped per (student, subject) so marks saved earlier for other
   // students/subjects are never touched.
