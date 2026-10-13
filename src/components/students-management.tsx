@@ -16,6 +16,7 @@ import {
   type DbSubjectRow,
   type Gender,
 } from "@/lib/school-api";
+import { errorMessage } from "@/lib/errors";
 import { ListRowSkeleton, Spinner } from "@/components/loading";
 
 type ToastType = "success" | "warning";
@@ -299,7 +300,7 @@ export default function StudentsManagement() {
       setPage(1);
       await loadPage();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "The CSV could not be imported.";
+      const message = errorMessage(error, "The CSV could not be imported.");
       showToast("warning", `Import failed: ${message}`);
     } finally {
       setImporting(false);
@@ -441,7 +442,7 @@ export default function StudentsManagement() {
         setPage(1);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to save the student record.";
+      const message = errorMessage(error, "Unable to save the student record.");
       showToast("warning", `Student not saved: ${message}`);
     } finally {
       setSaving(null);

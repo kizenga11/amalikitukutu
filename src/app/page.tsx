@@ -160,7 +160,13 @@ export default function Home() {
       setUser(data.session?.user ?? null);
       setLoading(false);
     });
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        window.location.replace("/login");
+        return;
+      }
+      setUser(session?.user ?? null);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 

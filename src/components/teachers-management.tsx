@@ -16,6 +16,7 @@ import {
   type DbSubjectRow,
   type DbTeacherRow,
   type Gender,
+  type StaffRole,
   type TeachingScope,
 } from "@/lib/school-api";
 import { ListRowSkeleton, Spinner } from "@/components/loading";
@@ -42,6 +43,7 @@ interface TeacherForm {
   phone: string;
   email: string;
   password: string;
+  role: StaffRole;
 }
 
 interface AssignmentDraft {
@@ -56,7 +58,7 @@ let toastId = 0;
 const PAGE_SIZE = 12;
 
 function emptyForm(): TeacherForm {
-  return { first: "", middle: "", last: "", gender: "Male", phone: "", email: "", password: "" };
+  return { first: "", middle: "", last: "", gender: "Male", phone: "", email: "", password: "", role: "Teacher" };
 }
 
 function emptyDraft(): AssignmentDraft {
@@ -76,7 +78,13 @@ function initialsOf(row: DbTeacherRow): string {
   return (first + last).toUpperCase();
 }
 
-export default function TeachersManagement() {
+function roleBadgeClass(role: string | null | undefined): string {
+  if (role === "Headmaster") return "st-badge--headmaster";
+  if (role === "Academic") return "st-badge--academic";
+  return "st-badge--teacher";
+}
+
+export default function TeachersManagement({ currentUserId }: { currentUserId?: string }) {
   const [teachers, setTeachers] = useState<DbTeacherRow[]>([]);
   const [assignmentCounts, setAssignmentCounts] = useState<Record<string, number>>({});
   const [classes, setClasses] = useState<ClassOption[]>([]);
@@ -204,6 +212,7 @@ export default function TeachersManagement() {
       phone: row.phone ?? "",
       email: row.email ?? "",
       password: row.password ?? "",
+      role: row.role === "Headmaster" || row.role === "Academic" ? row.role : "Teacher",
     });
     setShowForm(true);
   }
@@ -220,6 +229,15 @@ export default function TeachersManagement() {
       showToast("warning", "Please enter a valid email address.");
       return;
     }
+    if (
+      editingId &&
+      currentUserId &&
+      form.role === "Teacher" &&
+      teachers.find((t) => t.id === editingId)?.auth_user_id === currentUserId
+    ) {
+      showToast("warning", "You cannot change your own role to Teacher because it would lock you out of this page.");
+      return;
+    }
 
     setSaving("save");
     const payload = {
@@ -230,16 +248,17 @@ export default function TeachersManagement() {
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
       password: form.password.trim() || null,
+      role: form.role,
     };
 
     try {
       let saved: DbTeacherRow;
       if (editingId) {
         saved = await updateTeacher(editingId, payload);
-        showToast("success", `Teacher "${first} ${last}" updated.`);
+        showToast("success", `Staff "${first} ${last}" updated.`);
       } else {
         saved = await insertTeacher(payload);
-        showToast("success", `Teacher "${first} ${last}" registered.`);
+        showToast("success", `Staff "${first} ${last}" registered.`);
       }
 
       if (payload.email && payload.password) {
@@ -247,11 +266,11 @@ export default function TeachersManagement() {
           const res = await fetch("/api/teacher-account", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ staffId: saved.id, email: payload.email, password: payload.password, displayName: `${first} ${last}` }),
+            body: JSON.stringify({ staffId: saved.id, email: payload.email, password: payload.password, displayName: `${first} ${last}`, role: payload.role }),
           });
-          if (!res.ok) showToast("warning", "Teacher saved but login account could not be created.");
+          if (!res.ok) showToast("warning", "Staff saved but login account could not be created.");
         } catch {
-          showToast("warning", "Teacher saved but login account could not be created.");
+          showToast("warning", "Staff saved but login account could not be created.");
         }
       }
 
@@ -261,7 +280,7 @@ export default function TeachersManagement() {
       if (editingId) await loadPage();
       else setPage(1);
     } catch {
-      showToast("warning", "Database unavailable. Teacher not saved.");
+      showToast("warning", "Database unavailable. Staff member not saved.");
     } finally {
       setSaving(null);
     }
@@ -278,7 +297,19 @@ export default function TeachersManagement() {
 
   async function handleBulkDelete() {
     if (!selectedIds.length || saving) return;
-    const ids = [...selectedIds];
+    const blocked = currentUserId
+      ? teachers.filter((t) => selectedIds.includes(t.id) && t.auth_user_id === currentUserId).map((t) => t.id)
+      : [];
+    const ids = blocked.length ? selectedIds.filter((id) => !blocked.includes(id)) : [...selectedIds];
+    if (!ids.length) {
+      showToast("warning", "You cannot delete your own account.");
+      setSelectedIds([]);
+      setBulkDeleteConfirm(false);
+      return;
+    }
+    if (blocked.length) {
+      showToast("warning", "Your own account cannot be deleted and was skipped.");
+    }
     setSaving("delete");
     try {
       for (const id of ids) {
@@ -291,13 +322,13 @@ export default function TeachersManagement() {
         } catch {}
       }
       await deleteTeachers(ids);
-      showToast("success", `${ids.length} teacher(s) deleted.`);
+      showToast("success", `${ids.length} staff member(s) deleted.`);
       setSelectedIds([]);
       setBulkDeleteConfirm(false);
       if (teachers.length === ids.length && page > 1) setPage(page - 1);
       else await loadPage();
     } catch {
-      showToast("warning", "Database unavailable. Selected teachers not deleted.");
+      showToast("warning", "Database unavailable. Selected staff not deleted.");
     } finally {
       setSaving(null);
     }
@@ -307,6 +338,11 @@ export default function TeachersManagement() {
   async function handleDelete(id: string) {
     if (saving) return;
     const deleted = teachers.find((t) => t.id === id);
+    if (currentUserId && deleted?.auth_user_id === currentUserId) {
+      showToast("warning", "You cannot delete your own account.");
+      setDeleteConfirm(null);
+      return;
+    }
     setSaving("delete");
     try {
       try {
@@ -317,11 +353,11 @@ export default function TeachersManagement() {
         });
       } catch {}
       await deleteTeacher(id);
-      showToast("warning", `Teacher "${deleted ? teacherName(deleted) : "record"}" deleted.`);
+      showToast("warning", `Staff "${deleted ? teacherName(deleted) : "record"}" deleted.`);
       if (teachers.length === 1 && page > 1) setPage(page - 1);
       else await loadPage();
     } catch {
-      showToast("warning", "Database unavailable. Teacher not deleted.");
+      showToast("warning", "Database unavailable. Staff member not deleted.");
     } finally {
       setSaving(null);
       setDeleteConfirm(null);
@@ -483,17 +519,17 @@ export default function TeachersManagement() {
       {/* Header */}
       <div className="page-head">
         <div>
-          <h2 className="page-title">Teachers</h2>
-          <p className="page-sub">Register teachers and assign their teaching subjects and classes.</p>
+          <h2 className="page-title">Staff</h2>
+          <p className="page-sub">Register staff and manage each person&apos;s portal role, subjects and classes.</p>
         </div>
         <div className="page-head-right">
-          {total > 0 && <span className="active-chip">{total.toLocaleString()} Teachers</span>}
+          {total > 0 && <span className="active-chip">{total.toLocaleString()} People</span>}
           {selectedIds.length > 0 && (
             <button className="cm-btn cm-btn--danger cm-btn--sm" onClick={() => setBulkDeleteConfirm(true)} disabled={saving !== null}>
               Delete selected ({selectedIds.length})
             </button>
           )}
-          <button className="sm-add-btn" onClick={openNew}>+ Register Teacher</button>
+          <button className="sm-add-btn" onClick={openNew}>+ Register Staff</button>
         </div>
       </div>
 
@@ -531,10 +567,11 @@ export default function TeachersManagement() {
                     type="checkbox"
                     checked={teachers.length > 0 && selectedIds.length === teachers.length}
                     onChange={toggleSelectAll}
-                    aria-label="Select all teachers"
+                    aria-label="Select all staff"
                   />
                 </th>
-                <th>Teacher</th>
+                <th>Staff</th>
+                <th>Role</th>
                 <th>Sex</th>
                 <th>Phone</th>
                 <th>Email</th>
@@ -544,7 +581,7 @@ export default function TeachersManagement() {
             </thead>
             <tbody>
               {teachers.length === 0 && (
-                <tr><td colSpan={7} className="sm-empty">No teachers registered yet.</td></tr>
+                <tr><td colSpan={8} className="sm-empty">No staff registered yet.</td></tr>
               )}
               {teachers.map((row) => (
                 <tr key={row.id}>
@@ -566,6 +603,11 @@ export default function TeachersManagement() {
                         <div className="st-student-sub">ID {row.id.slice(0, 8)}</div>
                       </div>
                     </div>
+                  </td>
+                  <td>
+                    <span className={`st-badge ${roleBadgeClass(row.role)}`}>
+                      {row.role === "Headmaster" ? "Headmaster" : row.role === "Academic" ? "Academic" : "Teacher"}
+                    </span>
                   </td>
                   <td>
                     <span className={`st-badge st-badge--${row.gender === "Male" ? "male" : row.gender === "Female" ? "female" : "form"}`}>
@@ -604,7 +646,7 @@ export default function TeachersManagement() {
       {!dbError && !loading && (
         <div className="tcm-cards">
           {teachers.length === 0 ? (
-            <div className="tcm-card-empty">No teachers registered yet.</div>
+            <div className="tcm-card-empty">No staff registered yet.</div>
           ) : (
             teachers.map((row) => (
               <div className="tcm-card" key={row.id}>
@@ -624,6 +666,9 @@ export default function TeachersManagement() {
                     <div className="st-student-name">{teacherName(row)}</div>
                     <div className="st-student-sub">ID {row.id.slice(0, 8)}</div>
                   </div>
+                  <span className={`st-badge ${roleBadgeClass(row.role)}`}>
+                    {row.role === "Headmaster" ? "Headmaster" : row.role === "Academic" ? "Academic" : "Teacher"}
+                  </span>
                   <span className={`st-badge st-badge--${row.gender === "Male" ? "male" : row.gender === "Female" ? "female" : "form"}`}>
                     {row.gender ?? "—"}
                   </span>
@@ -653,7 +698,7 @@ export default function TeachersManagement() {
       {/* Pagination */}
       {!loading && !dbError && total > 0 && (
         <div className="st-pagination">
-          <span className="st-pagination-info">Showing {from}–{to} of {total.toLocaleString()} teachers</span>
+          <span className="st-pagination-info">Showing {from}–{to} of {total.toLocaleString()} staff</span>
           <div className="st-pagination-controls">
             <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>{'\u2190'} Prev</button>
             <span className="st-pagination-info" style={{ display: "inline-flex", alignItems: "center", padding: "0 .4rem" }}>Page {page} of {pageCount}</span>
@@ -671,8 +716,8 @@ export default function TeachersManagement() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg>
               </span>
               <div>
-                <h3 className="st-modal-title">{editingId ? "Edit Teacher" : "Register Teacher"}</h3>
-                <p className="st-modal-sub">{editingId ? "Update this teacher's profile." : "Fill in the teacher's personal details below."}</p>
+                <h3 className="st-modal-title">{editingId ? "Edit Staff Member" : "Register Staff Member"}</h3>
+                <p className="st-modal-sub">{editingId ? "Update this person's profile and portal role." : "Choose the portal role and fill in the person's details below."}</p>
               </div>
               <button className="st-modal-close" onClick={() => { setShowForm(false); setEditingId(null); }} aria-label="Close">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -739,6 +784,41 @@ export default function TeachersManagement() {
               </div>
 
               <div className="st-section">
+                <div className="st-section-label">Portal Role</div>
+                <div className="st-grid st-grid--1">
+                  <div className="st-seg st-seg--role" role="radiogroup" aria-label="Portal role">
+                    <button
+                      type="button"
+                      className={form.role === "Teacher" ? "st-seg--active" : ""}
+                      onClick={() => setForm({ ...form, role: "Teacher" })}
+                      title="Can only access teaching pages and results"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                      Teacher
+                    </button>
+                    <button
+                      type="button"
+                      className={form.role === "Academic" ? "st-seg--active" : ""}
+                      onClick={() => setForm({ ...form, role: "Academic" })}
+                      title="Academic officer with admin access and teaching pages"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+                      Academic
+                    </button>
+                    <button
+                      type="button"
+                      className={form.role === "Headmaster" ? "st-seg--active" : ""}
+                      onClick={() => setForm({ ...form, role: "Headmaster" })}
+                      title="Full admin access including staff management"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+                      Headmaster
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="st-section">
                 <div className="st-section-label">Account</div>
                 <div className="st-grid st-grid--1">
                   <label className="st-field">
@@ -754,7 +834,7 @@ export default function TeachersManagement() {
             <div className="st-modal-actions">
               <button className="cm-btn cm-btn--ghost" disabled={saving !== null} onClick={() => { setShowForm(false); setEditingId(null); }}>Cancel</button>
               <button className={`cm-btn cm-btn--primary${saving === "save" ? " btn-loading" : ""}`} disabled={saving !== null} onClick={handleSave}>
-                {saving === "save" ? <><Spinner size={14} /> {editingId ? "Updating" : "Registering"}{'\u2026'}</> : editingId ? "Update Teacher" : "Register Teacher"}
+                {saving === "save" ? <><Spinner size={14} /> {editingId ? "Updating" : "Registering"}{'\u2026'}</> : editingId ? "Update Staff" : "Register Staff"}
               </button>
             </div>
           </div>
@@ -766,7 +846,7 @@ export default function TeachersManagement() {
         <div className="cm-modal-backdrop" onClick={() => setDeleteConfirm(null)}>
           <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="cm-modal-title">Confirm Delete</h3>
-            <p className="cm-modal-text">Are you sure you want to delete this teacher record? This action cannot be undone.</p>
+            <p className="cm-modal-text">Are you sure you want to delete this staff member&apos;s record? This action cannot be undone.</p>
             <div className="cm-modal-actions">
               <button className="cm-btn cm-btn--ghost" disabled={saving !== null} onClick={() => setDeleteConfirm(null)}>Cancel</button>
               <button className={`cm-btn cm-btn--danger${saving === "delete" ? " btn-loading" : ""}`} disabled={saving !== null} onClick={() => handleDelete(deleteConfirm)}>
@@ -780,8 +860,8 @@ export default function TeachersManagement() {
       {bulkDeleteConfirm && selectedIds.length > 0 && (
         <div className="cm-modal-backdrop" onClick={() => setBulkDeleteConfirm(false)}>
           <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="cm-modal-title">Delete selected teachers</h3>
-            <p className="cm-modal-text">Are you sure you want to delete {selectedIds.length} selected teacher record(s)? This action cannot be undone.</p>
+            <h3 className="cm-modal-title">Delete selected staff</h3>
+            <p className="cm-modal-text">Are you sure you want to delete {selectedIds.length} selected staff member(s)? This action cannot be undone. Your own account cannot be deleted.</p>
             <div className="cm-modal-actions">
               <button className="cm-btn cm-btn--ghost" disabled={saving !== null} onClick={() => setBulkDeleteConfirm(false)}>Cancel</button>
               <button className={`cm-btn cm-btn--danger${saving === "delete" ? " btn-loading" : ""}`} disabled={saving !== null} onClick={handleBulkDelete}>

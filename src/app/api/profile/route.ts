@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { errorMessage } from "@/lib/errors";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -74,7 +75,7 @@ async function requireUser(): Promise<User> {
 }
 
 function errorResponse(error: unknown, fallback: string): NextResponse {
-  const message = error instanceof Error ? error.message : fallback;
+  const message = errorMessage(error, fallback);
   const status = message === "Unauthorized" ? 401 : 500;
   return NextResponse.json({ error: message }, { status });
 }

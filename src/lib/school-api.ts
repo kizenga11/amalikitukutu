@@ -681,6 +681,9 @@ export async function saveStudentSubjects(studentId: string, subjectIds: string[
 // ---------------------------------------------------------------
 // Teachers (Staff CRUD)
 // ---------------------------------------------------------------
+export type StaffRole = "Headmaster" | "Academic" | "Teacher";
+export const STAFF_ROLES: StaffRole[] = ["Headmaster", "Academic", "Teacher"];
+
 export interface DbTeacherRow {
   id: string;
   name: string;
@@ -705,6 +708,7 @@ export interface TeacherInput {
   phone: string | null;
   email: string | null;
   password: string | null;
+  role: StaffRole;
 }
 
 export interface TeacherListParams {
@@ -717,7 +721,6 @@ export async function fetchTeachers(params: TeacherListParams): Promise<{ rows: 
   let query = supabase
     .from("staff")
     .select("*", { count: "exact" })
-    .eq("role", "Teacher")
     .order("last_name", { ascending: true })
     .order("first_name", { ascending: true });
 
@@ -741,7 +744,7 @@ export async function insertTeacher(input: TeacherInput): Promise<DbTeacherRow> 
     .from("staff")
     .insert({
       name: fullName,
-      role: "Teacher",
+      role: input.role,
       first_name: input.first_name,
       middle_name: input.middle_name,
       last_name: input.last_name,
@@ -762,6 +765,7 @@ export async function updateTeacher(id: string, input: TeacherInput): Promise<Db
     .from("staff")
     .update({
       name: fullName,
+      role: input.role,
       first_name: input.first_name,
       middle_name: input.middle_name,
       last_name: input.last_name,

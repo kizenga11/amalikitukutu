@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { errorMessage } from "@/lib/errors";
 import {
   computeGradeAndPoints,
   computeSubjectScore,
@@ -398,7 +399,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (action === "compare") return await compareResponse(ctx, url);
     return NextResponse.json({ error: "Invalid action." }, { status: 400 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error.";
+    const message = errorMessage(error, "Unknown error.");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

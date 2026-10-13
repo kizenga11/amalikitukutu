@@ -24,6 +24,7 @@ import {
   type ExamStatus,
   type TeachingAssignment,
 } from "@/lib/school-api";
+import { errorMessage } from "@/lib/errors";
 import { ListRowSkeleton, Spinner } from "@/components/loading";
 
 type ToastType = "success" | "warning";
@@ -557,7 +558,7 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
       });
       showToast("success", `Marks saved for ${classRow.class_name}.`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
+      const msg = errorMessage(err, "Unknown error");
       showToast("warning", `Could not save marks: ${msg}`);
     }
     finally {

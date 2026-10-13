@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { academicYears } from "@/lib/calendar";
+import { errorMessage } from "@/lib/errors";
 import {
   DEFAULT_COMPETENCY_THRESHOLDS,
   DEFAULT_DIVISION_RANGES,
@@ -370,7 +371,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (action === "report") return await reportResponse(url);
     return NextResponse.json({ error: "Invalid action." }, { status: 400 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error.";
+    const message = errorMessage(error, "Unknown error.");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

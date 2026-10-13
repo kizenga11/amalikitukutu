@@ -1,0 +1,92 @@
+============================================================
+JINSI BEST STUDENT WA MWAKA ANAVYOPATIKANA
+============================================================
+
+Katika mfumo huu (Best Student of the Year), best student
+anapatikana kwa kuchagua mwanafunzi aliyepata nafasi ya KWANZA
+(nafasi ya 1) katika cheo/ranking ya darasa kwa mwaka mzima.
+Hapa chini ni hatua na sheria zote zinazotumika:
+
+------------------------------------------------------------
+1. UTEUZI WA TAARIFA (MAINGIZO)
+------------------------------------------------------------
+- Mwaka wa masomo (academic year)
+- Darasa/Form
+- Mitihani itakayochanganywa (kupitia chaguo la "exams")
+- Bora zaidi: angalau mitihani 5 kwa kila somo
+
+------------------------------------------------------------
+2. ALAMA YA SOMO (SUBJECT AVERAGE)
+------------------------------------------------------------
+- Kwa kila mwanafunzi na kila somo, wastani huhesabiwa kwa
+  kuongeza alama zote alizofanya katika mitihani iliyochaguliwa
+  na kugawanya kwa idadi ya mitihani aliyoikalia.
+  Formula:  Jumla ya alama / Idadi ya mitihani aliyoikalia
+- MAHUDHURIO YASIYO (ABSENT) HAYAINGII; hayatazamwi kama sufuri.
+- Somo huhesabiwa tu kama mwanafunzi AMESAJILIWA kwenye somo
+  hilo (student_subjects) NA ameikalia angalau mitihani 5 kati
+  ya ile iliyochaguliwa.
+
+------------------------------------------------------------
+3. WASTANI WA MWAKA (YEARLY AVERAGE)
+------------------------------------------------------------
+- Wastani wa mwaka = wastani wa masomo yote YANAYOHITAJIKA
+  (qualifying subjects) kwa mwanafunzi huyo.
+  Formula: Wastani wa masomo yote yanayostahiki / Idadi ya masomo
+
+------------------------------------------------------------
+4. MAHITAJI YA KUSHIRIKI KATIKA CHEO (RANKING)
+------------------------------------------------------------
+- Mwanafunzi anapangwa cheo (ranked) TU kama ana angalau
+  MASOMO 7 (MIN_SUBJECTS_FOR_YEARLY_RANKING = 7) yanayostahiki.
+- Mwanafunzi ambaye:
+   * Aliondoka kwenye somo (aliyekuwa na alama lakini asajiliwi
+     tena kwenye somo) - "left_subject"
+   * Ameikalia mitihani michache sana - "too_few_exams"
+  …HApangiwi cheo na anaorodheshwa kwenye "Not ranked" na
+  kutoa sababu.
+
+------------------------------------------------------------
+5. UPANGWAJI WA NAFASI (POSITIONS)
+------------------------------------------------------------
+- Wanafunzi wanaostahiki hupangwa kwa wastani wa mwaka
+  kuanzia juu (descending): aliye na wastani mkubwa zaidi
+  anakuwa nafasi ya 1 (BEST STUDENT).
+- Wanafunzi wenye wastani sawa hushiriki nafasi moja
+  (competition ranking): mfano wakiwa wawili wa kwanza
+  wote wanapata nafasi ya 1, mwingine anakuwa nafasi ya 3.
+- Vile vile nafasi ya darasa (class ranking) inahesabiwa
+  kwa kila stream/mkondo.
+
+------------------------------------------------------------
+6. KUTAMBUA BEST STUDENT
+------------------------------------------------------------
+- BEST STUDENT = mwanafunzi aliyepata pos_form = 1
+  (nafasi ya kwanza kwa wastani wa mwaka).
+- Wale wa nafasi 1 hadi 3 huonekana kwenye "podium"
+  (nabaha/best 3 of the year).
+
+------------------------------------------------------------
+7. DEGRESSION / DIVISION NA POINTS
+------------------------------------------------------------
+- Division, grade na points za mwanafunzi huhesabiwa kwa
+  kutumia vigezo vya NECTA (sawa na matokeo ya shule):
+  kwanza masomo 7 bora huchukuliwa kwa hijab ya points.
+- GPA ya darasa = jumla ya points zote / (idadi ya wanao
+  stahiki * 7).
+- Wastani wa juu zaidi = "highest", na wa chini = "lowest".
+
+============================================================
+MUHTASARI MFUPI
+============================================================
+1. Chagua mwaka, darasa na mitihani (angalau 5 kwa somo).
+2. Piga wastani wa kila somo (absent hazijumuishwi).
+3. Somo linastahiki tu kama mwanafunzi amesajiliwa na
+   ameikalia mitihani >= 5.
+4. Wastani wa mwaka = wastani wa masomo yanayostahiki.
+5. Mwanafunzi yupo kwenye cheo tu kama ana masomo >= 7
+   yanayostahiki.
+6. Panga kwa wastani kuanzia juu; wenye wastani sawa
+   washiriki nafasi.
+7. BEST STUDENT = nafasi ya 1 (pos_form = 1).
+============================================================

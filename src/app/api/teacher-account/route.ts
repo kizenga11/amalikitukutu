@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { errorMessage } from "@/lib/errors";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -20,6 +21,14 @@ interface UpsertPayload {
   email: string;
   password: string;
   displayName: string;
+  role?: string;
+}
+
+const STAFF_ROLES = ["Headmaster", "Academic", "Teacher"] as const;
+type StaffRole = (typeof STAFF_ROLES)[number];
+
+function isStaffRole(value: unknown): value is StaffRole {
+  return typeof value === "string" && (STAFF_ROLES as readonly string[]).includes(value);
 }
 
 function isValidEmail(value: string): boolean {
@@ -89,7 +98,8 @@ async function upsertAuthUser(payload: UpsertPayload): Promise<void> {
     .eq("id", payload.staffId)
     .single();
 
-  const meta = { role: "Teacher", staff_id: payload.staffId, name: payload.displayName };
+  const role = isStaffRole(payload.role) ? payload.role : "Teacher";
+  const meta = { role, staff_id: payload.staffId, name: payload.displayName };
 
   if (staff?.auth_user_id) {
     const { error } = await admin.auth.admin.updateUserById(staff.auth_user_id, {
@@ -157,7 +167,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to save teacher account";
+    const message = errorMessage(error, "Failed to save teacher account");
     const status = message === "Unauthorized" ? 401 : message === "Forbidden" ? 403 : 500;
     return NextResponse.json({ error: message }, { status });
   }
@@ -176,14 +186,17 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    await requireAuthorizedStaff();
+    const adminUser = await requireAuthorizedStaff();
     const { data: staff } = await admin.from("staff").select("auth_user_id").eq("id", staffId).single();
+    if (staff?.auth_user_id && adminUser.id === staff.auth_user_id) {
+      return NextResponse.json({ error: "You cannot delete your own account." }, { status: 400 });
+    }
     if (staff?.auth_user_id) {
       await admin.auth.admin.deleteUser(staff.auth_user_id);
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to delete teacher account";
+    const message = errorMessage(error, "Failed to delete teacher account");
     const status = message === "Unauthorized" ? 401 : message === "Forbidden" ? 403 : 500;
     return NextResponse.json({ error: message }, { status });
   }

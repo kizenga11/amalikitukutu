@@ -1,0 +1,197 @@
+/* ============================================================
+   Sidebar navigation + breadcrumbs
+   ------------------------------------------------------------
+   Uses `.app-shell .sidebar` scoping so these rules win over the
+   legacy `.sidebar` rules in globals.css (higher specificity),
+   without having to rewrite the global stylesheet.
+   ============================================================ */
+
+/* ---------- Shell / collapse ---------- */
+.app-shell .sidebar {
+	width: 16.5rem;
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	background: var(--white);
+	border-right: 1px solid var(--line);
+	position: sticky;
+	top: 0;
+	height: 100svh;
+	transform: none;
+	transition: width .2s ease;
+}
+.app-shell .sidebar--collapsed { width: 4.75rem; }
+
+.app-shell .sn-brand-text { min-width: 0; }
+.app-shell .sidebar--collapsed .sn-brand-text { display: none; }
+.app-shell .sidebar--collapsed .sidebar-brand { justify-content: center; padding-inline: .6rem; }
+
+.app-shell .side-nav {
+	padding: .5rem .6rem 1rem;
+	display: flex;
+	flex-direction: column;
+	gap: .15rem;
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+.app-shell .sidebar--collapsed .side-nav { overflow: visible; }
+
+/* ---------- Items ---------- */
+.sn-item,
+.sn-group-btn {
+	display: flex;
+	align-items: center;
+	gap: .75rem;
+	width: 100%;
+	padding: .6rem .7rem;
+	border: 0;
+	border-radius: .5rem;
+	background: transparent;
+	color: #52525b;
+	font-size: .875rem;
+	font-weight: 500;
+	text-align: left;
+	cursor: pointer;
+	transition: background .15s, color .15s;
+}
+.sn-item:hover,
+.sn-group-btn:hover { background: var(--page); }
+.sn-icon { display: grid; place-items: center; width: 1.15rem; height: 1.15rem; flex: 0 0 auto; }
+.sn-icon .icon { width: 1.15rem; height: 1.15rem; }
+.sn-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sn-item--active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+
+/* ---------- Groups / accordion ---------- */
+.sn-group { position: relative; display: flex; flex-direction: column; gap: .15rem; margin-top: .15rem; }
+.sn-group-btn--active { color: var(--primary); font-weight: 600; }
+.sn-chev { display: grid; place-items: center; width: 1rem; height: 1rem; color: var(--muted); transition: transform .2s ease; }
+.sn-chev .icon { width: 1rem; height: 1rem; }
+.sn-group--open > .sn-group-btn .sn-chev { transform: rotate(180deg); }
+
+.sn-sub {
+	display: flex;
+	flex-direction: column;
+	gap: .1rem;
+	padding-left: .6rem;
+	margin-left: .35rem;
+	border-left: 1px solid var(--line);
+}
+.sn-item--sub { padding-left: .7rem; font-size: .845rem; }
+
+/* ---------- Collapse toggle ---------- */
+.sn-foot { padding: .5rem .6rem .9rem; border-top: 1px solid var(--line); }
+.sn-collapse {
+	display: flex;
+	align-items: center;
+	gap: .75rem;
+	width: 100%;
+	padding: .55rem .7rem;
+	border: 0;
+	border-radius: .5rem;
+	background: transparent;
+	color: var(--muted);
+	font-size: .8rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background .15s, color .15s;
+}
+.sn-collapse:hover { background: var(--page); color: #3f3f46; }
+
+/* ---------- Collapsed layout (icons only) ---------- */
+.app-shell .sidebar--collapsed .sn-label,
+.app-shell .sidebar--collapsed .sn-chev { display: none; }
+.app-shell .sidebar--collapsed .sn-item,
+.app-shell .sidebar--collapsed .sn-group-btn,
+.app-shell .sidebar--collapsed .sn-collapse { justify-content: center; padding-inline: 0; }
+
+/* ---------- Flyout (only when collapsed) ---------- */
+.sn-flyout {
+	position: absolute;
+	left: calc(100% + .5rem);
+	top: 0;
+	min-width: 13rem;
+	z-index: 90;
+	background: var(--white);
+	border: 1px solid var(--line);
+	border-radius: .6rem;
+	box-shadow: 0 18px 40px rgba(24, 24, 27, .16);
+	padding: .35rem;
+	display: flex;
+	flex-direction: column;
+	gap: .1rem;
+}
+.sn-flyout-title {
+	padding: .4rem .7rem .3rem;
+	font-size: .72rem;
+	font-weight: 700;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+.sn-flyout .sn-item { justify-content: flex-start; padding-inline: .7rem; }
+.app-shell .sidebar--collapsed .sn-flyout .sn-label { display: inline; }
+
+/* ---------- Breadcrumbs ---------- */
+.crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: .1rem; font-size: .82rem; color: var(--muted); min-width: 0; }
+.crumbs-seg { display: inline-flex; align-items: center; gap: .1rem; }
+.crumbs-sep { display: grid; place-items: center; width: 1rem; height: 1rem; color: #a1a1aa; }
+.crumbs-sep .icon { width: .9rem; height: .9rem; }
+.crumbs-link {
+	border: 0;
+	background: transparent;
+	color: var(--muted);
+	font: inherit;
+	cursor: pointer;
+	padding: .1rem .2rem;
+	border-radius: .3rem;
+	transition: color .15s, background .15s;
+}
+.crumbs-link:hover { color: var(--primary); background: var(--primary-soft); }
+.crumbs-text { padding: .1rem .2rem; }
+.crumbs-text--current { color: #18181b; font-weight: 700; }
+
+/* ---------- Responsive ---------- */
+/* Desktop: keep the sidebar inline (override the legacy 1024px drawer). */
+@media (min-width: 769px) {
+	.app-shell .sidebar-close { display: none; }
+	.app-shell .menu-toggle { display: none; }
+}
+
+/* Mobile / tablet (below 768px): left drawer. */
+@media (max-width: 768px) {
+	.app-shell .sidebar {
+		position: fixed;
+		left: 0;
+		top: 0;
+		bottom: 0;
+		height: 100svh;
+		z-index: 80;
+		width: 17rem;
+		transform: translateX(-100%);
+		transition: transform .25s ease;
+	}
+	.app-shell .sidebar--open { transform: none; box-shadow: 0 24px 60px rgba(24, 24, 27, .25); }
+	.app-shell .sidebar--collapsed { width: 17rem; }
+	.app-shell .sidebar .sn-label { display: inline; }
+	.app-shell .sidebar--collapsed .sn-item,
+	.app-shell .sidebar--collapsed .sn-group-btn { justify-content: flex-start; padding-inline: .7rem; }
+	.app-shell .sidebar--collapsed .sn-chev { display: grid; }
+	.app-shell .sidebar .sn-foot { display: none; }
+	.app-shell .sidebar-close { display: grid; }
+	.app-shell .menu-toggle { display: grid; }
+	.app-shell .backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 70;
+		background: rgba(24, 24, 27, .45);
+		cursor: pointer;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.app-shell .sidebar,
+	.sn-chev { transition: none; }
+}

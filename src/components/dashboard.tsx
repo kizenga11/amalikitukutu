@@ -36,14 +36,18 @@ const StudentEnrollmentStatistics = dynamic(() => import("@/components/student-e
 import { fetchAcademicSettings, fetchDashboardData, fetchSchoolInfo, saveAcademicSettings, saveSchoolInfo, type DashboardData, type SchoolInfo } from "@/lib/school-api";
 import { DEFAULT_SCHOOL_INFO } from "@/lib/school-api";
 import { readStoredJson, readStoredPeriod, writeStoredJson, writeStoredPeriod, type StoredPeriod } from "@/lib/preferences";
-
-type Role = "Headmaster" | "Academic" | "Teacher";
-
-const roleLabels: Record<Role, string> = {
-  Headmaster: "Headmaster",
-  Academic: "Academic Officer",
-  Teacher: "Teacher",
-};
+import { errorMessage } from "@/lib/errors";
+import Sidebar from "@/components/navigation/sidebar";
+import Breadcrumbs from "@/components/navigation/breadcrumbs";
+import {
+  allowedKeysFor,
+  breadcrumbsFor,
+  isNavKey,
+  resolveRole,
+  roleLabels,
+  visibleMenuFor,
+  type NavKey,
+} from "@/components/navigation/nav-config";
 
 type IconProps = { paths: React.ReactNode };
 
@@ -80,66 +84,6 @@ const icons = {
   check: <Icon paths={<><path d="M20 6 9 17l-5-5" /></>} />,
 };
 
-type NavKey = "dashboard" | "students" | "staff" | "classes" | "academic" | "reports" | "enrollment" | "reportcard" | "compare" | "combined" | "beststudent" | "analysis" | "exams" | "attendance" | "lessonplans" | "settings";
-
-function isNavKey(value: unknown): value is NavKey {
-  return typeof value === "string" && [
-    "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "combined", "beststudent", "analysis", "exams", "attendance", "lessonplans", "settings",
-  ].includes(value);
-}
-
-type NavItemDef = { key: NavKey; label: string; icon: React.ReactNode };
-type NavGroup = { key: string; label?: string; items: NavItemDef[] };
-
-const navGroups: NavGroup[] = [
-  {
-    key: "overview",
-    items: [{ key: "dashboard", label: "Dashboard", icon: icons.dashboard }],
-  },
-  {
-    key: "records",
-    label: "Records",
-    items: [
-      { key: "students", label: "Students", icon: icons.students },
-      { key: "staff", label: "Staff", icon: icons.staff },
-      { key: "classes", label: "Classes", icon: icons.classes },
-    ],
-  },
-  {
-    key: "academics",
-    items: [
-      { key: "academic", label: "Subjects", icon: icons.academic },
-      { key: "exams", label: "Exams", icon: icons.exams },
-      { key: "attendance", label: "Attendance", icon: icons.attendance },
-      { key: "lessonplans", label: "Lesson Plans", icon: icons.lessonplans },
-    ],
-  },
-  {
-    key: "reports",
-    label: "Report",
-    items: [
-      { key: "reports", label: "Result", icon: icons.reports },
-      { key: "analysis", label: "Subject Analysis", icon: icons.analysis },
-      { key: "enrollment", label: "Enrollment Report", icon: icons.reports },
-      { key: "reportcard", label: "Report Card", icon: icons.reportcard },
-      { key: "compare", label: "Compare", icon: icons.compare },
-      { key: "combined", label: "Combined Results", icon: icons.combined },
-      { key: "beststudent", label: "Best Student", icon: icons.trendUp },
-    ],
-  },
-  {
-    key: "system",
-    label: "Settings",
-    items: [{ key: "settings", label: "Settings", icon: icons.settings }],
-  },
-];
-
-const roleAccess: Record<Role, NavKey[]> = {
-  Headmaster: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "combined", "beststudent", "exams", "attendance", "lessonplans", "settings"],
-  Academic: ["dashboard", "students", "staff", "classes", "academic", "reports", "enrollment", "reportcard", "compare", "combined", "beststudent", "exams", "attendance", "lessonplans", "settings"],
-  Teacher: ["dashboard", "exams", "attendance", "lessonplans", "reports", "analysis", "compare", "combined", "beststudent"],
-};
-
 type Period = StoredPeriod;
 
 function loadStoredPeriod(): Period {
@@ -151,21 +95,24 @@ function persistPeriod(period: Period) {
 }
 
 export default function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
-  const role = (user.user_metadata?.role as Role) || "Teacher";
+  const role = resolveRole(user.user_metadata?.role);
   const navigationKey = `active-nav:${user.id}`;
   const [active, setActive] = useState<NavKey>(() =>
     readStoredJson<NavKey>(navigationKey, "dashboard", isNavKey)
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string | null>(() => {
+    const current = readStoredJson<NavKey>(navigationKey, "dashboard", isNavKey);
+    return (
+      visibleMenuFor(role).find(
+        (entry) => entry.kind === "group" && entry.items.some((item) => item.key === current),
+      )?.key ?? null
+    );
+  });
   const [profileOpen, setProfileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountTab, setAccountTab] = useState<"profile" | "password">("profile");
   const [profileDraft, setProfileDraft] = useState<{ name: string; phone: string } | null>(null);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
-    const current = readStoredJson<NavKey>(navigationKey, "dashboard", isNavKey);
-    const group = navGroups.find((g) => g.items.some((n) => n.key === current)) ?? navGroups.find((g) => g.items.some((n) => n.key === "dashboard"));
-    return group ? { [group.key]: true } : {};
-  });
   const [activePeriod, setActivePeriod] = useState<Period>(loadStoredPeriod);
   const [viewPeriod, setViewPeriod] = useState<Period>(loadStoredPeriod);
 
@@ -184,11 +131,10 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
       });
   }, []);
 
-  const allowedKeys = roleAccess[role] ?? roleAccess.Teacher;
-  const visibleNavGroups = navGroups
-    .map((group) => ({ ...group, items: group.items.filter((n) => allowedKeys.includes(n.key)) }))
-    .filter((group) => group.items.length > 0);
+  const allowedKeys = allowedKeysFor(role);
+  const menuEntries = visibleMenuFor(role);
   const effectiveActive: NavKey = allowedKeys.includes(active) ? active : "dashboard";
+  const crumbs = breadcrumbsFor(effectiveActive, menuEntries);
   const displayName =
     profileDraft?.name?.trim() ||
     ((user.user_metadata?.name as string) ?? "").trim() ||
@@ -200,15 +146,19 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     setAccountTab(tab);
     setAccountOpen(true);
   }
-  const title = navGroups.flatMap((group) => group.items).find((n) => n.key === effectiveActive)?.label ?? "Dashboard";
-
   function pickNav(key: NavKey) {
     if (!allowedKeys.includes(key)) return;
     setActive(key);
-    const group = navGroups.find((g) => g.items.some((n) => n.key === key));
-    if (group) setOpenGroups((current) => ({ ...current, [group.key]: true }));
+    const group = menuEntries.find(
+      (entry) => entry.kind === "group" && entry.items.some((item) => item.key === key),
+    );
+    if (group) setOpenGroup(group.key);
     writeStoredJson(navigationKey, key);
     setSidebarOpen(false);
+  }
+
+  function toggleGroup(key: string) {
+    setOpenGroup((current) => (current === key ? null : key));
   }
 
   function applyPeriod(period: Period) {
@@ -224,66 +174,22 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
     <div className="app-shell">
       {sidebarOpen && <div className="backdrop" onClick={() => setSidebarOpen(false)} />}
 
-      <aside className={`sidebar${sidebarOpen ? " sidebar--open" : ""}`}>
-        <div className="sidebar-brand">
-          <img className="brand-logo-img" src="/assets/logo.png" alt="Kitukutu Secondary Technical School logo" />
-          <div>
-            <div className="sidebar-brand-name">Kitukutu Secondary Technical School</div>
-          </div>
-          <button className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close menu">{icons.close}</button>
-        </div>
-
-        <nav className="side-nav">
-          {visibleNavGroups.map((group) => {
-            if (!group.label) {
-              return (
-                <div className="nav-flat" key={group.key}>
-                  {group.items.map((item) => (
-                    <button
-                      key={item.key}
-                      className={`nav-item${effectiveActive === item.key ? " nav-item--active" : ""}`}
-                      onClick={() => pickNav(item.key)}
-                    >
-                      {item.icon}
-                      <span>{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              );
-            }
-            const open = openGroups[group.key] === true;
-            return (
-              <div className={`nav-group${open ? " nav-group--open" : " nav-group--closed"}`} key={group.key}>
-                <button
-                  type="button"
-                  className="nav-group-label"
-                  onClick={() => setOpenGroups((current) => ({ ...current, [group.key]: !open }))}
-                  aria-expanded={open}
-                >
-                  <span>{group.label}</span>
-                  {icons.chevron}
-                </button>
-                {open && group.items.map((item) => (
-                  <button
-                    key={item.key}
-                    className={`nav-item${effectiveActive === item.key ? " nav-item--active" : ""}`}
-                    onClick={() => pickNav(item.key)}
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            );
-          })}
-        </nav>
-      </aside>
+      <Sidebar
+        role={role}
+        active={effectiveActive}
+        openGroup={openGroup}
+        mobileOpen={sidebarOpen}
+        onSelect={pickNav}
+        onOpenGroup={toggleGroup}
+        onCloseMobile={() => setSidebarOpen(false)}
+        storageKey={user.id}
+      />
 
       <div className="app-main">
         <header className="topbar">
           <div className="topbar-left">
             <button className="icon-btn menu-toggle" onClick={() => setSidebarOpen(true)} aria-label="Open menu">{icons.menu}</button>
-            <div className="topbar-title">{title}</div>
+            <Breadcrumbs items={crumbs} onNavigate={pickNav} />
           </div>
 
           <div className="topbar-right">
@@ -328,7 +234,9 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
             <TeacherDashboard
               authUserId={user.id}
               onNavigate={(key) => { if (isNavKey(key)) pickNav(key); }}
-              quickLinks={visibleNavGroups.flatMap((group) => group.items).filter((item) => item.key !== "dashboard")}
+              quickLinks={menuEntries
+                .flatMap((entry) => (entry.kind === "group" ? entry.items : [entry]))
+                .filter((item) => item.key !== "dashboard")}
             />
           ) : (
             <DashboardView
@@ -343,7 +251,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "classes" && <ClassManagement />}
           {effectiveActive === "academic" && <SubjectManagement />}
           {effectiveActive === "students" && <StudentsManagement />}
-          {effectiveActive === "staff" && <TeachersManagement />}
+          {effectiveActive === "staff" && <TeachersManagement currentUserId={user.id} />}
           {effectiveActive === "exams" && <ExamManagement teacherId={role === "Teacher" ? user.id : undefined} role={role} />}
           {effectiveActive === "attendance" && <ExamAttendance teacherId={role === "Teacher" ? user.id : undefined} />}
           {effectiveActive === "reports" && <ResultPage role={role} />}
@@ -394,7 +302,7 @@ function DashboardView({
       } catch (err: unknown) {
         if (!cancelled) {
           setData(null);
-          setDbError(err instanceof Error ? err.message : "Failed to load dashboard data");
+          setDbError(errorMessage(err, "Failed to load dashboard data"));
         }
       } finally {
         if (!cancelled) setLoading(false);

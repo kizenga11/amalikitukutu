@@ -1637,8 +1637,13 @@ select.sm-input { padding-right: 2.2rem; cursor: pointer; }
 	background: rgba(24, 24, 27, .45);
 	overflow-y: auto;
 }
-.pf-modal { width: min(100%, 30rem); padding: 1.5rem 1.6rem 1.4rem; }
-.pf-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.1rem; }
+.pf-modal {
+	width: min(100%, 30rem); padding: 1.5rem 1.6rem 1.4rem;
+	display: flex; flex-direction: column;
+	max-height: calc(100vh - 6rem); max-height: calc(100dvh - 6rem);
+	overflow: hidden;
+}
+.pf-head { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.1rem; }
 .pf-identity { display: flex; align-items: center; gap: .8rem; min-width: 0; }
 .pf-avatar {
 	width: 2.7rem; height: 2.7rem; flex-shrink: 0; display: grid; place-items: center;
@@ -1653,7 +1658,7 @@ select.sm-input { padding-right: 2.2rem; cursor: pointer; }
 	border-radius: 999px; background: var(--primary-soft); color: var(--primary);
 	font-size: .68rem; font-weight: 600;
 }
-.pf-tabs { display: flex; gap: .25rem; padding: .25rem; margin-bottom: 1.2rem; background: var(--page); border-radius: .6rem; }
+.pf-tabs { flex-shrink: 0; display: flex; gap: .25rem; padding: .25rem; margin-bottom: 1.2rem; background: var(--page); border-radius: .6rem; }
 .pf-tab {
 	flex: 1; padding: .5rem .75rem; border: 0; border-radius: .45rem;
 	background: transparent; color: var(--muted); font-size: .82rem; font-weight: 600;
@@ -1661,7 +1666,12 @@ select.sm-input { padding-right: 2.2rem; cursor: pointer; }
 }
 .pf-tab:hover { color: var(--ink); }
 .pf-tab--active { background: var(--white); color: var(--primary); box-shadow: 0 1px 3px rgba(24, 24, 27, .08); }
-.pf-form { gap: 1rem .9rem; }
+.pf-form {
+	gap: 1rem .9rem;
+	flex: 1 1 auto; min-height: 0;
+	overflow-y: auto; overscroll-behavior: contain;
+	-webkit-overflow-scrolling: touch;
+}
 .pf-field--wide { grid-column: 1 / -1; }
 .pf-input-wrap { position: relative; }
 .pf-input-wrap .sm-input { padding-right: 2.7rem; }
@@ -1692,8 +1702,14 @@ select.sm-input { padding-right: 2.2rem; cursor: pointer; }
 	.sm-form-grid { grid-template-columns: 1fr; }
 	.sm-table { font-size: .8rem; }
 	.sm-table th, .sm-table td { padding: .55rem .65rem; }
-	.pf-backdrop { padding: 1rem .75rem 1.5rem; }
-	.pf-modal { padding: 1.25rem 1.15rem 1.15rem; }
+	.pf-backdrop { padding: .75rem; place-items: start center; }
+	.pf-backdrop .pf-modal {
+		width: 100%; max-width: 100%;
+		padding: 1.25rem 1.1rem 1.1rem;
+		border-radius: .65rem;
+		max-height: calc(100svh - 1.5rem);
+		max-height: calc(100dvh - 1.5rem);
+	}
 }
 
 /* ---------- Students Management ---------- */
@@ -1755,6 +1771,16 @@ select.sm-input { padding-right: 2.2rem; cursor: pointer; }
 .st-badge--male { background: #eff6ff; color: #2563eb; }
 .st-badge--female { background: #fdf2f8; color: #db2777; }
 .st-badge--form { background: var(--page); color: #52525b; }
+.st-badge--teacher { background: #f4f4f5; color: #52525b; }
+.st-badge--academic { background: #f5f3ff; color: #7c3aed; }
+.st-badge--headmaster { background: #fffbeb; color: #d97706; }
+
+/* Portal role segmented control in the staff form */
+.st-seg--role button { font-size: .76rem; white-space: nowrap; }
+@media (max-width: 560px) {
+	.st-seg--role { flex-wrap: wrap; }
+	.st-seg--role button { flex-grow: 1; min-width: 7rem; }
+}
 
 .st-pagination {
 	display: flex; align-items: center; justify-content: space-between; gap: 1rem;
