@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { authedFetch } from "@/lib/api-client";
 
 type Tab = "profile" | "password";
 type Feedback = { type: "success" | "error"; text: string } | null;
@@ -86,7 +87,7 @@ export default function ProfilePanel({
 
   useEffect(() => {
     let active = true;
-    fetch("/api/profile")
+    authedFetch("/api/profile")
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error("load"))))
       .then((data: { name?: string; phone?: string; email?: string }) => {
         if (!active) return;
@@ -140,7 +141,7 @@ export default function ProfilePanel({
 
     let staffSynced = true;
     try {
-      const res = await fetch("/api/profile", {
+      const res = await authedFetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmedName, phone: trimmedPhone }),

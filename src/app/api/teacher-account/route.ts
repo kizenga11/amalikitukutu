@@ -39,7 +39,26 @@ function isValidPassword(value: string): boolean {
   return value.length >= 8 && !/\s/.test(value);
 }
 
-async function requireAuthorizedStaff() {
+async function requireAuthorizedStaff(request: NextRequest) {
+  // The browser keeps its session in localStorage, so prefer the bearer token
+  // sent by the client; fall back to cookies for any cookie-based sessions.
+  const authHeader = request.headers.get("authorization");
+  if (authHeader?.toLowerCase().startsWith("bearer ")) {
+    const token = authHeader.slice(7).trim();
+    const {
+      data: { user },
+      error,
+    } = await admin.auth.getUser(token);
+    if (error || !user) {
+      throw new Error("Unauthorized");
+    }
+    const tokenRole = user.user_metadata?.role;
+    if (tokenRole !== "Headmaster" && tokenRole !== "Academic") {
+      throw new Error("Forbidden");
+    }
+    return user;
+  }
+
   const cookieStore = await cookies();
   type CookieSetItem = { name: string; value: string; options?: Parameters<typeof cookieStore.set>[2] };
 
@@ -159,7 +178,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    await requireAuthorizedStaff();
+    await requireAuthorizedStaff(request);
     await upsertAuthUser({
       ...payload,
       email: payload.email.trim().toLowerCase(),
@@ -186,7 +205,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const adminUser = await requireAuthorizedStaff();
+    const adminUser = await requireAuthorizedStaff(request);
     const { data: staff } = await admin.from("staff").select("auth_user_id").eq("id", staffId).single();
     if (staff?.auth_user_id && adminUser.id === staff.auth_user_id) {
       return NextResponse.json({ error: "You cannot delete your own account." }, { status: 400 });

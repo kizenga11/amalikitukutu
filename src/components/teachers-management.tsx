@@ -19,6 +19,8 @@ import {
   type StaffRole,
   type TeachingScope,
 } from "@/lib/school-api";
+import { authedFetch } from "@/lib/api-client";
+import { errorMessage } from "@/lib/errors";
 import { ListRowSkeleton, Spinner } from "@/components/loading";
 
 type ToastType = "success" | "warning";
@@ -263,7 +265,7 @@ export default function TeachersManagement({ currentUserId }: { currentUserId?: 
 
       if (payload.email && payload.password) {
         try {
-          const res = await fetch("/api/teacher-account", {
+          const res = await authedFetch("/api/teacher-account", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ staffId: saved.id, email: payload.email, password: payload.password, displayName: `${first} ${last}`, role: payload.role }),
@@ -312,23 +314,34 @@ export default function TeachersManagement({ currentUserId }: { currentUserId?: 
     }
     setSaving("delete");
     try {
+      const removable: string[] = [];
+      let authFailures = 0;
       for (const id of ids) {
         try {
-          await fetch("/api/teacher-account", {
+          const res = await authedFetch("/api/teacher-account", {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ staffId: id }),
           });
-        } catch {}
+          if (res.ok) removable.push(id);
+          else authFailures += 1;
+        } catch {
+          authFailures += 1;
+        }
       }
-      await deleteTeachers(ids);
-      showToast("success", `${ids.length} staff member(s) deleted.`);
+      if (!removable.length) throw new Error("login accounts could not be removed");
+      await deleteTeachers(removable);
+      if (authFailures) {
+        showToast("warning", `${removable.length} staff deleted, but ${authFailures} login account(s) could not be removed.`);
+      } else {
+        showToast("success", `${removable.length} staff member(s) deleted.`);
+      }
       setSelectedIds([]);
       setBulkDeleteConfirm(false);
-      if (teachers.length === ids.length && page > 1) setPage(page - 1);
+      if (teachers.length === removable.length && page > 1) setPage(page - 1);
       else await loadPage();
-    } catch {
-      showToast("warning", "Database unavailable. Selected staff not deleted.");
+    } catch (err) {
+      showToast("warning", `Selected staff not deleted: ${errorMessage(err)}`);
     } finally {
       setSaving(null);
     }
@@ -345,19 +358,21 @@ export default function TeachersManagement({ currentUserId }: { currentUserId?: 
     }
     setSaving("delete");
     try {
-      try {
-        await fetch("/api/teacher-account", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ staffId: id }),
-        });
-      } catch {}
+      const res = await authedFetch("/api/teacher-account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffId: id }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "the login account could not be removed");
+      }
       await deleteTeacher(id);
-      showToast("warning", `Staff "${deleted ? teacherName(deleted) : "record"}" deleted.`);
+      showToast("success", `Staff "${deleted ? teacherName(deleted) : "record"}" deleted.`);
       if (teachers.length === 1 && page > 1) setPage(page - 1);
       else await loadPage();
-    } catch {
-      showToast("warning", "Database unavailable. Staff member not deleted.");
+    } catch (err) {
+      showToast("warning", `Staff member not deleted: ${errorMessage(err)}`);
     } finally {
       setSaving(null);
       setDeleteConfirm(null);

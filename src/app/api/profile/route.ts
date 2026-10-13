@@ -41,7 +41,19 @@ function splitName(name: string): { first_name: string; middle_name: string | nu
   return { first_name, middle_name, last_name };
 }
 
-async function requireUser(): Promise<User> {
+async function requireUser(request: NextRequest): Promise<User> {
+  // The browser keeps its session in localStorage, so prefer the bearer token
+  // sent by the client; fall back to cookies for any cookie-based sessions.
+  const authHeader = request.headers.get("authorization");
+  if (authHeader?.toLowerCase().startsWith("bearer ")) {
+    const {
+      data: { user },
+      error,
+    } = await admin.auth.getUser(authHeader.slice(7).trim());
+    if (error || !user) throw new Error("Unauthorized");
+    return user;
+  }
+
   const cookieStore = await cookies();
   type CookieSetItem = { name: string; value: string; options?: Parameters<typeof cookieStore.set>[2] };
 
@@ -80,9 +92,9 @@ function errorResponse(error: unknown, fallback: string): NextResponse {
   return NextResponse.json({ error: message }, { status });
 }
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    const user = await requireUser();
+    const user = await requireUser(request);
     const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
 
     const { data: staff } = await admin
@@ -126,7 +138,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const user = await requireUser();
+    const user = await requireUser(request);
 
     const { data: staff, error: staffLookupError } = await admin
       .from("staff")
