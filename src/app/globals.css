@@ -3652,6 +3652,19 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 .lp-table tbody tr:hover { background: var(--page); }
 .lp-table-action a { color: var(--primary); font-weight: 600; text-decoration: none; }
 .lp-table-action a:hover { text-decoration: underline; }
+/* Makundi ya mipango: Form > Somo > Specific Competence */
+.lp-group-list { display: grid; gap: 1.5rem; margin-top: 1rem; }
+.lp-group { display: grid; gap: .8rem; }
+.lp-group-title { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--primary); padding-bottom: .4rem; border-bottom: 2px solid var(--primary); }
+.lp-subgroup { display: grid; gap: .5rem; }
+.lp-group-subtitle { margin: .35rem 0 0; font-size: .92rem; font-weight: 700; color: var(--ink); }
+.lp-competence { margin-left: .6rem; padding-left: .6rem; border-left: 2px solid var(--line); }
+.lp-competence-label { margin: 0 0 .35rem; font-size: .76rem; font-weight: 600; color: var(--muted); cursor: pointer; list-style: none; display: flex; align-items: center; gap: .4rem; }
+.lp-competence-label::-webkit-details-marker { display: none; }
+.lp-competence-label::before { content: "\25B8"; font-size: .7rem; color: var(--muted); }
+.lp-competence[open] > .lp-competence-label::before { content: "\25BE"; }
+.lp-competence-label:hover { color: var(--primary); }
+.lp-competence-count { font-weight: 500; color: var(--muted); }
 .lp-empty { margin-top: .9rem; padding: 1rem 1.1rem; border: 1px dashed var(--line); border-radius: .6rem; color: var(--muted); font-size: .85rem; }
 .lp-empty a { color: var(--primary); font-weight: 600; }
 .lp-format { display: grid; gap: .25rem; margin: .6rem 0 1rem; font-size: .75rem; color: var(--muted); }
@@ -3665,9 +3678,27 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 .lp-crumb { margin-left: auto; font-size: .8rem; color: #52525b; }
 
 @media (max-width: 640px) {
-  .lp-wrap { padding: 1.25rem 1rem 2rem; }
+  .lp-wrap { padding: 1rem .8rem 2rem; gap: 1rem; }
+  .lp-head { flex-direction: column; align-items: stretch; }
+  .lp-head .cm-btn, .lp-form-actions .cm-btn { width: 100%; justify-content: center; }
   .lp-stats { grid-template-columns: 1fr; }
-  .lp-doc { padding: 1rem; }
+  .lp-form { max-width: none; }
+  .lp-crumb { margin-left: 0; flex-basis: 100%; }
+  .lp-table { font-size: .8rem; }
+  .lp-table th, .lp-table td { padding: .5rem .55rem; }
+
+  /* Lesson plan (document) kwenye simu: yote yaonekane, jina la ukurasa lisivunjike. */
+  .lp-doc { padding: .7rem .8rem 1.6rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .lp-doc-fit { font-size: .74rem; }
+  .lp-doc h2 { font-size: 1rem; margin: 0 0 .4rem; }
+  .lp-doc h3 { font-size: .82rem; margin: .5rem 0 .2rem; }
+  .lp-doc p { margin: .25rem 0; }
+  .lp-doc table { font-size: .68rem; }
+  .lp-doc table th, .lp-doc table td { padding: 2px 3px !important; }
+  .lp-doc input, .lp-doc textarea { font-size: .7rem; }
+  .lp-doc input[type="number"]::-webkit-outer-spin-button,
+  .lp-doc input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .lp-doc input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 /* ---------- Admin management: mobile card lists ---------- */

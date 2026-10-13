@@ -8,6 +8,16 @@ export const STAGES = [
 // Muda wa kawaida wa kipindi (unaweza kubadilishwa kwenye ukurasa wa mpango).
 export const DEFAULT_LESSON_TIME = "08:00 - 08:40";
 
+// Hutengeneza muda wa kipindi "HH:MM - HH:MM" kutokana na dakika.
+export function lessonTimeRange(minutes: number, start = "08:00"): string {
+  const [h, m] = start.split(":").map(Number);
+  const total = h * 60 + m + minutes;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const endH = Math.floor((total / 60) % 24);
+  const endM = total % 60;
+  return `${pad(h)}:${pad(m)} - ${pad(endH)}:${pad(endM)}`;
+}
+
 function isoDate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");

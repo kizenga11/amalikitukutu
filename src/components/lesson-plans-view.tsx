@@ -6,6 +6,7 @@ import { getLpOverview, getPlanDetail, deleteAllPlans } from "@/app/lesson-plans
 import Generator from "@/app/lesson-plans/Generator";
 import SeedForm from "@/app/lesson-plans/admin/SeedForm";
 import PlanEditor from "@/app/lesson-plans/[id]/PlanEditor";
+import { groupPlans } from "@/lib/lp/group";
 
 type Overview = Awaited<ReturnType<typeof getLpOverview>>;
 type Detail = Awaited<ReturnType<typeof getPlanDetail>>;
@@ -26,6 +27,7 @@ export default function LessonPlansView() {
   const [selected, setSelected] = useState<Det | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
+  const [confirmAll, setConfirmAll] = useState(false);
   const [notice, setNotice] = useState("");
 
   const refresh = useCallback(() => setTick((t) => t + 1), []);
@@ -85,6 +87,7 @@ export default function LessonPlansView() {
     [ov, subjectOf]
   );
   const plans = useMemo(() => (subject ? (ov?.plans ?? []).filter((p: any) => subjectOf(p) === subject) : ov?.plans ?? []), [ov, subject, subjectOf]);
+  const grouped = useMemo(() => groupPlans(plans), [plans]);
   const seededPeriods = useMemo(
     () =>
       (ov?.syllabi ?? []).reduce((sum: number, s: any) => sum + (s.lp_topics ?? []).reduce((a: number, t: any) => a + (t.total_periods ?? 0), 0), 0),
@@ -93,10 +96,7 @@ export default function LessonPlansView() {
 
   async function deleteAll() {
     if (!token || !ov) return;
-    const msg = isMgmt
-      ? "Delete ALL lesson plans for every teacher? This cannot be undone."
-      : "Delete ALL of your lesson plans? This cannot be undone.";
-    if (!window.confirm(msg)) return;
+    setConfirmAll(false);
     setDeletingAll(true);
     setNotice("");
     const r = await deleteAllPlans(token);
@@ -214,7 +214,7 @@ export default function LessonPlansView() {
               <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <h2 className="panel-title">{isMgmt ? "All plans" : "My plans"} ({plans.length})</h2>
                 {ov.plans.length > 0 && (
-                  <button className="cm-btn cm-btn--danger" onClick={deleteAll} disabled={deletingAll}>
+                  <button className="cm-btn cm-btn--danger" onClick={() => setConfirmAll(true)} disabled={deletingAll}>
                     {deletingAll ? "Deleting..." : isMgmt ? "Delete all plans" : "Delete all my plans"}
                   </button>
                 )}
@@ -232,34 +232,50 @@ export default function LessonPlansView() {
             </div>
 
             {plans.length ? (
-              <div className="lp-table-wrap">
-                <table className="lp-table">
-                  <thead>
-                    <tr>
-                      <th>Subject</th><th>Form</th><th>Subtopic</th><th>Lesson</th><th>Class</th>
-                      {isMgmt && <th>Teacher</th>}
-                      <th>Date</th><th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {plans.map((p: any) => {
-                      const st = one(p.lp_subtopics);
-                      const sl = one(one(st?.lp_topics)?.lp_syllabi);
-                      return (
-                        <tr key={p.id}>
-                          <td>{sl?.subject_name}</td>
-                          <td>{sl?.form_level}</td>
-                          <td>{st?.name}</td>
-                          <td>{p.lesson_no}/{st?.periods}</td>
-                          <td>{p.class_label}</td>
-                          {isMgmt && <td>{p.teacher_name}</td>}
-                          <td>{p.lesson_date ?? "—"}</td>
-                          <td className="lp-table-action"><button className="cm-btn cm-btn--ghost" onClick={() => openPlan(p.id)}>Open</button></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="lp-group-list">
+                {grouped.map((fg) => (
+                  <div className="lp-group" key={String(fg.form)}>
+                    <h3 className="lp-group-title">Form {fg.form}</h3>
+                    {fg.subjects.map((sg) => (
+                      <div className="lp-subgroup" key={sg.subject}>
+                        <h4 className="lp-group-subtitle">{sg.subject}</h4>
+                        {sg.competencies.map((cg) => (
+                          <details className="lp-competence" key={cg.competence}>
+                            <summary className="lp-competence-label">
+                              {cg.competence} <span className="lp-competence-count">({cg.plans.length})</span>
+                            </summary>
+                            <div className="lp-table-wrap">
+                              <table className="lp-table">
+                                <thead>
+                                  <tr>
+                                    <th>Subtopic</th><th>Lesson</th><th>Class</th>
+                                    {isMgmt && <th>Teacher</th>}
+                                    <th>Date</th><th></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {cg.plans.map((p: any) => {
+                                    const st = one(p.lp_subtopics);
+                                    return (
+                                      <tr key={p.id}>
+                                        <td>{st?.name}</td>
+                                        <td>{p.lesson_no}/{st?.periods}</td>
+                                        <td>{p.class_label}</td>
+                                        {isMgmt && <td>{p.teacher_name}</td>}
+                                        <td>{p.lesson_date ?? "—"}</td>
+                                        <td className="lp-table-action"><button className="cm-btn cm-btn--ghost" onClick={() => openPlan(p.id)}>Open</button></td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </details>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="lp-empty">
@@ -268,6 +284,25 @@ export default function LessonPlansView() {
             )}
           </section>
         </>
+      )}
+
+      {confirmAll && (
+        <div className="cm-modal-backdrop" onClick={() => setConfirmAll(false)}>
+          <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="cm-modal-title">{isMgmt ? "Delete all lesson plans" : "Delete all my lesson plans"}</h3>
+            <p className="cm-modal-text">
+              {isMgmt
+                ? "Are you sure you want to delete ALL lesson plans for every teacher? This action cannot be undone."
+                : "Are you sure you want to delete ALL of your lesson plans? This action cannot be undone."}
+            </p>
+            <div className="cm-modal-actions">
+              <button className="cm-btn cm-btn--ghost" disabled={deletingAll} onClick={() => setConfirmAll(false)}>Cancel</button>
+              <button className="cm-btn cm-btn--danger" disabled={deletingAll} onClick={deleteAll}>
+                {deletingAll ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

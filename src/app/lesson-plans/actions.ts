@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { lpDb } from "@/lib/lp/db";
 import { getLpUser, SCHOOL_NAME } from "@/lib/lp/auth";
-import { buildStages, DEFAULT_LESSON_TIME, makeDateSequencer, STAGES } from "@/lib/lp/generate";
+import { buildStages, lessonTimeRange, makeDateSequencer, STAGES } from "@/lib/lp/generate";
 
 type Msg = { ok: boolean; text: string };
 
@@ -112,6 +112,7 @@ export async function generatePlans(_prev: unknown, fd: FormData): Promise<Msg> 
   const subId = String(fd.get("subtopic_id") ?? "all");
   const comp = String(fd.get("specific_competence") ?? "").trim();
   const cls = String(fd.get("class_label") ?? "").trim();
+  const minutes = Math.max(1, Number(fd.get("minutes_per_period")) || 40);
   if (!topicId || !cls) return { ok: false, text: "Select a topic and enter a class." };
 
   const db = lpDb();
@@ -152,7 +153,7 @@ export async function generatePlans(_prev: unknown, fd: FormData): Promise<Msg> 
         .insert({
           teacher_id: u.id, teacher_name: u.name, subtopic_id: s.id, class_label: cls, lesson_no: k,
           lesson_date: nextDate(),
-          lesson_time: DEFAULT_LESSON_TIME,
+          lesson_time: lessonTimeRange(minutes),
           main_competence: topic.main_competence,
           specific_competence: s.specific_competence,
           main_activity: s.main_activity,
@@ -162,7 +163,7 @@ export async function generatePlans(_prev: unknown, fd: FormData): Promise<Msg> 
         .select("id")
         .single();
       if (error || !plan) continue;
-      const stages = buildStages(s, k, s.periods, syl.minutes_per_period ?? 40);
+      const stages = buildStages(s, k, s.periods, minutes);
       await db.from("lp_plan_stages").insert(stages.map((x) => ({ plan_id: plan.id, ...x })));
       created++;
     }
@@ -279,7 +280,7 @@ export async function getLpOverview(accessToken: string): Promise<Overview> {
   const db = lpDb();
   const { data: sy } = await db
     .from("lp_syllabi")
-    .select("id, subject_name, form_level, source, lp_topics(id, seq, name, total_periods, lp_subtopics(id, seq, name, periods))")
+    .select("id, subject_name, form_level, source, lp_topics(id, seq, name, total_periods, lp_subtopics(id, seq, name, periods, specific_competence))")
     .order("subject_name")
     .order("form_level");
   const allSyllabi = (sy ?? []) as any[];
@@ -287,7 +288,7 @@ export async function getLpOverview(accessToken: string): Promise<Overview> {
 
   let planQuery = db
     .from("lp_plans")
-    .select("id, lesson_no, class_label, lesson_date, teacher_name, lp_subtopics(name, periods, lp_topics(name, lp_syllabi(subject_name, form_level)))");
+    .select("id, lesson_no, class_label, lesson_date, teacher_name, specific_competence, lp_subtopics(name, periods, lp_topics(name, lp_syllabi(subject_name, form_level)))");
   if (u.role !== "management") planQuery = planQuery.eq("teacher_id", u.id);
   const { data: pl } = await planQuery.order("id", { ascending: false }).limit(500);
 

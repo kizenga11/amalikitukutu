@@ -101,6 +101,11 @@ export default function Generator({ syllabi, onGenerated, accessToken }: { sylla
       </label>
 
       <label className="sm-field">
+        <span className="sm-field-label">Minutes per period</span>
+        <input name="minutes_per_period" type="number" min={1} step={1} defaultValue={40} className="sm-input" />
+      </label>
+
+      <label className="sm-field">
         <span className="sm-field-label">Class</span>
         <input name="class_label" className="sm-input" placeholder="e.g. Form 1A" required />
       </label>

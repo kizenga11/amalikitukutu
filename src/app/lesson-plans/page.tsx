@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getLpUser } from "@/lib/lp/auth";
 import { lpDb } from "@/lib/lp/db";
 import Generator from "./Generator";
+import { groupPlans } from "@/lib/lp/group";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default async function LessonPlansPage({
   const db = lpDb();
   const { data: sy } = await db
     .from("lp_syllabi")
-    .select("id, subject_name, form_level, source, lp_topics(id, seq, name, lp_subtopics(id, seq, name, periods))")
+    .select("id, subject_name, form_level, source, lp_topics(id, seq, name, lp_subtopics(id, seq, name, periods, specific_competence))")
     .order("subject_name")
     .order("form_level");
   const allSyllabi = (sy ?? []) as any[];
@@ -32,7 +33,7 @@ export default async function LessonPlansPage({
 
   let planQuery = db
     .from("lp_plans")
-    .select("id, lesson_no, class_label, lesson_date, teacher_name, lp_subtopics(name, periods, lp_topics(name, lp_syllabi(subject_name, form_level)))");
+    .select("id, lesson_no, class_label, lesson_date, teacher_name, specific_competence, lp_subtopics(name, periods, lp_topics(name, lp_syllabi(subject_name, form_level)))");
   if (u.role !== "management") planQuery = planQuery.eq("teacher_id", u.id);
   const { data: pl } = await planQuery.order("id", { ascending: false }).limit(500);
   const base = (pl ?? []) as any[];
@@ -42,6 +43,7 @@ export default async function LessonPlansPage({
 
   const planSubjects = [...new Set(base.map(subjectOf).filter(Boolean))].sort() as string[];
   const plans = subject ? base.filter((p) => subjectOf(p) === subject) : base;
+  const grouped = groupPlans(plans);
 
   const topicCount = syllabi.reduce((sum, s) => sum + (s.lp_topics?.length ?? 0), 0);
   const isMgmt = u.role === "management";
@@ -103,34 +105,50 @@ export default async function LessonPlansPage({
         </div>
 
         {plans.length ? (
-          <div className="lp-table-wrap">
-            <table className="lp-table">
-              <thead>
-                <tr>
-                  <th>Subject</th><th>Form</th><th>Subtopic</th><th>Lesson</th><th>Class</th>
-                  {isMgmt && <th>Teacher</th>}
-                  <th>Date</th><th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {plans.map((p) => {
-                  const st = one(p.lp_subtopics);
-                  const sl = one(one(st?.lp_topics)?.lp_syllabi);
-                  return (
-                    <tr key={p.id}>
-                      <td>{sl?.subject_name}</td>
-                      <td>{sl?.form_level}</td>
-                      <td>{st?.name}</td>
-                      <td>{p.lesson_no}/{st?.periods}</td>
-                      <td>{p.class_label}</td>
-                      {isMgmt && <td>{p.teacher_name}</td>}
-                      <td>{p.lesson_date ?? "—"}</td>
-                      <td className="lp-table-action"><Link href={`/lesson-plans/${p.id}`}>Open</Link></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="lp-group-list">
+            {grouped.map((fg) => (
+              <div className="lp-group" key={String(fg.form)}>
+                <h3 className="lp-group-title">Form {fg.form}</h3>
+                {fg.subjects.map((sg) => (
+                  <div className="lp-subgroup" key={sg.subject}>
+                    <h4 className="lp-group-subtitle">{sg.subject}</h4>
+                    {sg.competencies.map((cg) => (
+                      <details className="lp-competence" key={cg.competence}>
+                        <summary className="lp-competence-label">
+                          {cg.competence} <span className="lp-competence-count">({cg.plans.length})</span>
+                        </summary>
+                        <div className="lp-table-wrap">
+                          <table className="lp-table">
+                            <thead>
+                              <tr>
+                                <th>Subtopic</th><th>Lesson</th><th>Class</th>
+                                {isMgmt && <th>Teacher</th>}
+                                <th>Date</th><th></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {cg.plans.map((p) => {
+                                const st = one(p.lp_subtopics);
+                                return (
+                                  <tr key={p.id}>
+                                    <td>{st?.name}</td>
+                                    <td>{p.lesson_no}/{st?.periods}</td>
+                                    <td>{p.class_label}</td>
+                                    {isMgmt && <td>{p.teacher_name}</td>}
+                                    <td>{p.lesson_date ?? "—"}</td>
+                                    <td className="lp-table-action"><Link href={`/lesson-plans/${p.id}`}>Open</Link></td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
         ) : (
           <div className="lp-empty">
