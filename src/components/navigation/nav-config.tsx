@@ -47,6 +47,7 @@ export type NavKey =
   | "exams"
   | "attendance"
   | "lessonplans"
+  | "sms"
   | "settings";
 
 export function isNavKey(value: unknown): value is NavKey {
@@ -55,7 +56,7 @@ export function isNavKey(value: unknown): value is NavKey {
     [
       "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment",
       "reportcard", "compare", "combined", "beststudent", "analysis", "exams",
-      "attendance", "lessonplans", "settings",
+      "attendance", "lessonplans", "sms", "settings",
     ].includes(value)
   );
 }
@@ -98,6 +99,7 @@ export const navIcons = {
   enrollment: <Icon paths={<><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 14 2 2 4-4" /></>} />,
   bestStudent: <Icon paths={<><path d="M10 14.66v1.626a2 2 0 0 1-.976 1.696A5 5 0 0 0 7 21.978" /><path d="M14 14.66v1.626a2 2 0 0 0 .976 1.696A5 5 0 0 1 17 21.978" /><path d="M18 9h1.5a1 1 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z" /><path d="M6 9H4.5a1 1 0 0 1 0-5H6" /></>} />,
   analysis: <Icon paths={<><path d="M3 3v18h18" /><rect x="7" y="10" width="3" height="8" /><rect x="12" y="6" width="3" height="12" /><rect x="17" y="13" width="3" height="5" /></>} />,
+  sms: <Icon paths={<><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M8 9h8" /><path d="M8 13h5" /></>} />,
   chevron: <Icon paths={<><path d="m6 9 6 6 6-6" /></>} />,
   chevronRight: <Icon paths={<><path d="m9 18 6-6-6-6" /></>} />,
   close: <Icon paths={<><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>} />,
@@ -159,6 +161,7 @@ export const menuConfig: MenuEntry[] = [
       { kind: "link", key: "compare", label: "Compare", icon: navIcons.compare, roles: ALL_ROLES },
       { kind: "link", key: "enrollment", label: "Enrollment Report", icon: navIcons.enrollment, roles: ["Headmaster", "Academic", "District Officer"] },
       { kind: "link", key: "beststudent", label: "Best Student", icon: navIcons.bestStudent, roles: ALL_ROLES },
+      { kind: "link", key: "sms", label: "SMS kwa Wazazi", icon: navIcons.sms, roles: ADMIN_ROLES },
       // Kept for feature parity: Subject Analysis was already only visible to Teachers.
       { kind: "link", key: "analysis", label: "Subject Analysis", icon: navIcons.analysis, roles: ["Teacher"] },
     ],

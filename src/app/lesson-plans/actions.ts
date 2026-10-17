@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { lpDb } from "@/lib/lp/db";
@@ -21,7 +21,7 @@ const STAGE_FIELDS = [
 // Somo|Form|Source|Topic#|Topic|Subtopic#|Subtopic|Periods|MainCompetence|SpecificCompetence|MainActivity|SpecificActivity|Resources|References
 // Nguzo 9-14 ni hiari. MainCompetence ya topic huchukuliwa kutoka mstari wa kwanza wa topic hiyo.
 export async function seedSyllabus(_prev: unknown, fd: FormData): Promise<Msg> {
-  const u = await getLpUser(String(fd.get("access_token") ?? "") || undefined);
+  const u = await getLpUser(undefined);
   if (!u || u.role !== "management") return { ok: false, text: "You do not have permission." };
 
   const lines = String(fd.get("data") ?? "")
@@ -105,7 +105,7 @@ export async function seedSyllabus(_prev: unknown, fd: FormData): Promise<Msg> {
 
 /* ---------- MWALIMU: GENERATE ---------- */
 export async function generatePlans(_prev: unknown, fd: FormData): Promise<Msg> {
-  const u = await getLpUser(String(fd.get("access_token") ?? "") || undefined);
+  const u = await getLpUser(undefined);
   if (!u) return { ok: false, text: "You are not signed in." };
 
   const topicId = Number(fd.get("topic_id"));

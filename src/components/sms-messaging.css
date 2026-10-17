@@ -1,0 +1,430 @@
+.sms-tabs {
+  display: inline-flex;
+  gap: .25rem;
+  padding: .25rem;
+  margin-bottom: 1.25rem;
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: .6rem;
+}
+
+.sms-tab {
+  padding: .5rem .95rem;
+  border: 0;
+  border-radius: .45rem;
+  background: transparent;
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sms-tab:hover { color: var(--primary); }
+
+.sms-tab--active {
+  background: var(--white);
+  color: var(--primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+}
+
+.sms-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.sms-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: .5rem;
+  margin-bottom: .75rem;
+}
+
+.sms-selectbar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .75rem;
+}
+
+.sms-selected-count {
+  margin-right: auto;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.sms-table-wrap {
+  max-height: 30rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: .55rem;
+}
+
+.sms-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--page);
+}
+
+.sms-table td { padding: .55rem .75rem; }
+.sms-table th { padding: .6rem .75rem; }
+
+.sms-row--selected { background: var(--primary-soft); }
+.sms-row--selected:hover { background: var(--primary-soft) !important; }
+.sms-row--skip { opacity: .65; }
+
+.sms-student-name { font-weight: 600; font-size: .82rem; }
+.sms-student-meta { font-size: .72rem; color: var(--muted); }
+
+.sms-phone {
+  display: inline-block;
+  padding: .15rem .5rem;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: .75rem;
+  font-weight: 600;
+}
+
+.sms-phone--bad { background: #fef2f2; color: #dc2626; }
+
+.sms-scope {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .5rem;
+  margin-bottom: 1rem;
+}
+
+.sms-scope-option {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  padding: .6rem .7rem;
+  border: 1px solid var(--line);
+  border-radius: .55rem;
+  cursor: pointer;
+  font-size: .8rem;
+  font-weight: 600;
+}
+
+.sms-scope-option span { display: grid; gap: .1rem; }
+.sms-scope-option em { font-style: normal; font-size: .7rem; font-weight: 500; color: var(--muted); }
+
+.sms-scope-option--active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.sms-field { margin-bottom: 1rem; }
+
+.sms-textarea {
+  width: 100%;
+  padding: .65rem .75rem;
+  border: 1px solid var(--line);
+  border-radius: .55rem;
+  font: inherit;
+  font-size: .85rem;
+  resize: vertical;
+}
+
+.sms-textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(27, 67, 50, .12); }
+
+.sms-hint { font-size: .72rem; color: var(--muted); }
+
+.sms-warning {
+  margin: 0 0 1rem;
+  padding: .6rem .75rem;
+  border: 1px solid #fcd34d;
+  border-radius: .5rem;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: .78rem;
+}
+
+.sms-error {
+  margin: 0 0 1rem;
+  padding: .6rem .75rem;
+  border: 1px solid #fecaca;
+  border-radius: .5rem;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: .8rem;
+}
+
+.sms-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  width: 100%;
+  padding: .7rem 1rem;
+}
+
+.sms-report { margin-top: 1.25rem; }
+
+.sms-report .sms-table-wrap { max-height: 22rem; }
+
+.sms-status {
+  display: inline-block;
+  padding: .15rem .5rem;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 600;
+}
+
+.sms-status--ok { background: var(--primary-soft); color: var(--primary); }
+.sms-status--fail { background: #fef2f2; color: #dc2626; }
+.sms-status--skip { background: var(--page); color: var(--muted); }
+
+.sms-config-card {
+  display: flex;
+  gap: .85rem;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1.25rem;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: .65rem;
+}
+
+.sms-config-icon {
+  flex-shrink: 0;
+  width: 2.2rem;
+  height: 2.2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.sms-config-icon svg { width: 1.2rem; height: 1.2rem; }
+
+.sms-config-title { margin: 0 0 .3rem; font-size: .92rem; font-weight: 700; color: #92400e; }
+.sms-config-text { margin: 0 0 .5rem; font-size: .82rem; color: #78350f; line-height: 1.5; }
+.sms-config-text--muted { margin-top: .5rem; margin-bottom: 0; }
+.sms-config-text code,
+.sms-config-list code {
+  padding: .05rem .35rem;
+  border-radius: .3rem;
+  background: rgba(0, 0, 0, .06);
+  font-size: .78rem;
+}
+
+.sms-config-list { margin: 0; padding-left: 1.1rem; font-size: .8rem; color: #78350f; line-height: 1.6; }
+
+/* ── SMS preview phone ───────────────────────────────── */
+.sms-preview { margin-top: 1.25rem; }
+
+.sms-preview-head {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin-bottom: .6rem;
+}
+
+.sms-preview-title {
+  font-size: .68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+}
+
+.sms-phone {
+  max-width: 22rem;
+  margin: 0 auto;
+  padding: .6rem;
+  background: #18181b;
+  border-radius: 1.6rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+}
+
+.sms-phone-screen {
+  min-height: 8rem;
+  padding: .75rem .8rem;
+  background: #f4f4f5;
+  border-radius: 1.15rem;
+}
+
+.sms-phone-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: .6rem;
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.sms-phone-sender { color: var(--ink); letter-spacing: .02em; }
+
+.sms-preview-note {
+  margin: .75rem 0;
+  text-align: center;
+  font-size: .78rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.sms-bubble {
+  padding: .6rem .7rem;
+  margin-bottom: .55rem;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: .8rem .8rem .8rem .25rem;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .04);
+}
+
+.sms-bubble:last-child { margin-bottom: 0; }
+
+.sms-bubble-text {
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sms-bubble-meta {
+  margin-top: .4rem;
+  padding-top: .35rem;
+  border-top: 1px dashed var(--line);
+  font-size: .68rem;
+  color: var(--faint, var(--muted));
+}
+
+@media (max-width: 960px) {
+  .sms-layout { grid-template-columns: 1fr; }
+  .sms-filters { grid-template-columns: 1fr; }
+  .sms-scope { grid-template-columns: 1fr; }
+  .sms-phone { max-width: 100%; }
+  .sms-tabs { display: flex; width: 100%; }
+  .sms-tab { flex: 1; }
+  .sms-selectbar { flex-wrap: wrap; }
+  .sms-selected-count { width: 100%; margin-bottom: .25rem; }
+}
+
+/* ── SMS history ─────────────────────────────────────── */
+.sms-history-btn svg { width: 1rem; height: 1rem; }
+.sms-history-btn { display: inline-flex; align-items: center; gap: .4rem; }
+
+.sms-history-toolbar { margin-bottom: 1rem; }
+.sms-history-toolbar .sm-search-bar { max-width: 24rem; }
+
+.sms-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.sms-history-card { padding: 0; overflow: hidden; }
+
+.sms-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: .9rem 1.1rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sms-history-head:hover { background: var(--page); }
+
+.sms-history-head-main { min-width: 0; }
+
+.sms-history-kind {
+  display: inline-block;
+  padding: .12rem .5rem;
+  margin-bottom: .35rem;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.sms-history-kind--results { background: var(--primary-soft); color: var(--primary); }
+.sms-history-kind--custom { background: #ede9fe; color: #6d28d9; }
+
+.sms-history-title {
+  font-size: .92rem;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sms-history-meta { margin-top: .15rem; font-size: .74rem; color: var(--muted); }
+
+.sms-history-counts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .4rem;
+  flex-shrink: 0;
+}
+
+.sms-history-count {
+  padding: .15rem .5rem;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 600;
+}
+
+.sms-history-total { font-size: .72rem; font-weight: 600; color: var(--muted); }
+
+.sms-history-chevron {
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--muted);
+  transition: transform .2s ease;
+}
+
+.sms-history-chevron--open { transform: rotate(180deg); }
+
+.sms-history-body {
+  padding: 0 1.1rem 1.1rem;
+  border-top: 1px solid var(--line);
+}
+
+.sms-history-sample {
+  margin: .85rem 0;
+  padding: .7rem .85rem;
+  background: var(--page);
+  border-radius: .55rem;
+}
+
+.sms-history-sample-label {
+  display: block;
+  margin-bottom: .3rem;
+  font-size: .66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+}
+
+.sms-history-sample p { margin: 0; font-size: .82rem; line-height: 1.5; color: var(--ink); word-break: break-word; }
+
+.sms-history-detail { margin-top: .25rem; font-size: .68rem; color: var(--muted); word-break: break-word; }
+
+.sms-history-message { max-width: 26rem; font-size: .78rem; line-height: 1.45; color: var(--ink); word-break: break-word; }
+
+.sms-history-note { margin: .6rem 0 0; font-size: .74rem; color: var(--muted); text-align: center; }
+
+@media (max-width: 960px) {
+  .sms-history-head { flex-direction: column; align-items: flex-start; }
+  .sms-history-counts { justify-content: flex-start; }
+  .sms-history-toolbar .sm-search-bar { max-width: 100%; }
+  .sms-history-btn { padding: .5rem .75rem; }
+}
+

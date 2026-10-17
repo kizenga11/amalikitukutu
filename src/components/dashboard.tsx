@@ -32,6 +32,7 @@ const StudentReportCard = dynamic(() => import("@/components/student-report-card
 const CompareResults = dynamic(() => import("@/components/compare-results"), { ssr: false, loading: PageLoading });
 const BestStudentYearly = dynamic(() => import("@/components/best-student-yearly"), { ssr: false, loading: PageLoading });
 const CombinedResults = dynamic(() => import("@/components/combined-results"), { ssr: false, loading: PageLoading });
+const SmsMessaging = dynamic(() => import("@/components/sms-messaging"), { ssr: false, loading: PageLoading });
 const StudentEnrollmentStatistics = dynamic(() => import("@/components/student-enrollment-statistics"), { ssr: false, loading: PageLoading });
 import { fetchAcademicSettings, fetchDashboardData, fetchSchoolInfo, saveAcademicSettings, saveSchoolInfo, type DashboardData, type SchoolInfo } from "@/lib/school-api";
 import { DEFAULT_SCHOOL_INFO } from "@/lib/school-api";
@@ -261,6 +262,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "compare" && <CompareResults role={role} teacherId={role === "Teacher" ? user.id : undefined} />}
           {effectiveActive === "combined" && <CombinedResults />}
           {effectiveActive === "beststudent" && <BestStudentYearly />}
+          {effectiveActive === "sms" && <SmsMessaging />}
           {effectiveActive === "lessonplans" && <LessonPlansView />}
         </main>
       </div>

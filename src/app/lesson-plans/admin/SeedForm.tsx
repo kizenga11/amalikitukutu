@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useActionState, useEffect, useState } from "react";
 import { seedSyllabus } from "../actions";
@@ -10,7 +10,7 @@ SAMPLE|1|TIE|2|Second topic|1|Subtopic C|2`;
 
 type Msg = { ok: boolean; text: string } | null;
 
-export default function SeedForm({ onSeeded, accessToken }: { onSeeded?: () => void; accessToken?: string }) {
+export default function SeedForm({ onSeeded }: { onSeeded?: () => void }) {
   const [text, setText] = useState("");
   const [state, action, pending] = useActionState<Msg, FormData>(seedSyllabus, null);
 
@@ -21,7 +21,7 @@ export default function SeedForm({ onSeeded, accessToken }: { onSeeded?: () => v
 
   return (
     <form action={action} className="lp-seed-form">
-      <input type="hidden" name="access_token" value={accessToken ?? ""} />
+      <input type="hidden" name="access_token" value="" />
       <textarea
         name="data"
         value={text}
