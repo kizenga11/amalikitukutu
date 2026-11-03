@@ -35,6 +35,14 @@ function yearOf(value: string): string {
   return Number.isNaN(date.getTime()) ? value : String(date.getFullYear());
 }
 
+function displayInputDate(value: string): string {
+  if (!value) return "—";
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString("sw", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 function displayNumber(value: number | null): string {
   return value === null ? "—" : Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
@@ -112,14 +120,13 @@ interface CardSheetProps {
   student: DbExamMarkStudent;
   settings: GradingSettings;
   schoolInfo: SchoolInfo | null;
-  exams: DbExamRow[];
-  marksByExam: Record<string, ExamMarksData>;
   exam: DbExamRow;
-  showHistory: boolean;
-  historyCount: number;
+  schoolClosed: boolean;
+  closingDate: string;
+  openingDate: string;
 }
 
-function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, marksByExam, exam, showHistory, historyCount }: CardSheetProps) {
+function CardSheet({ marks, classRow, student, settings, schoolInfo, exam, schoolClosed, closingDate, openingDate }: CardSheetProps) {
   const [behaviorState, setBehaviorState] = useState<{ studentId: string; ratings: (number | null)[] }>(() => ({
     studentId: student.student_id,
     ratings: Array(8).fill(null),
@@ -133,25 +140,6 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
     return row ? { report, row } : null;
   }, [classRow, marks, student, settings]);
 
-  const history = useMemo(() => {
-    const rows: { key: string; examName: string; date: string; avg: number | null; rank: number; grade: string; points: number | null; trend: "up" | "down" | "same" }[] = [];
-    let previousRank: number | null = null;
-    for (const item of exams) {
-      const data = marksByExam[item.id];
-      const itemClass = data?.classes.find((c) => c.class_id === classRow.class_id);
-      if (!itemClass) continue;
-      if (!itemClass.students.some((s) => s.student_id === student.student_id)) continue;
-      const classResults = buildClassResults(itemClass, data.marks, settings.gradeBoundaries, settings.divisionRanges);
-      const report = buildSchoolReport([classResults], settings);
-      const row = report.students.find((r) => r.student.student_id === student.student_id);
-      if (!row) continue;
-      const trend = previousRank === null ? "same" : row.rank < previousRank ? "up" : row.rank > previousRank ? "down" : "same";
-      rows.push({ key: item.id, examName: item.name, date: shortDate(item.start_date), avg: row.avg, rank: row.rank, grade: row.grade, points: row.student.total_points, trend });
-      previousRank = row.rank;
-    }
-    return rows;
-  }, [classRow, exams, marksByExam, settings, student.student_id]);
-
   if (!cardReport) return null;
 
   const { report, row } = cardReport;
@@ -163,19 +151,15 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
   const issueDate = shortDate(new Date().toISOString());
   const examLabel = `${exam.name} ${yearOf(exam.start_date)}`.toUpperCase();
   const division = row.divisionCode;
-  const newestFirst = [...history].reverse();
   const comments = performanceComments(avg);
-  const displayHistory = newestFirst.slice(0, historyCount);
 
   return (
     <div className="rc-paper">
       <header>
         <div className="rc-header">
-          <div className="rc-logo">
-            {schoolInfo?.unionLogo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={schoolInfo.unionLogo} alt="Nembo ya Taifa" />
-            ) : <span className="rc-logo-fallback">TZA</span>}
+          <div className="rc-logo rc-logo--filled">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={schoolInfo?.unionLogo || "/assets/umoja.png"} alt="Nembo ya Taifa" />
           </div>
           <div className="rc-header-info">
             <div className="rc-country">JAMHURI YA MUUNGANO WA TANZANIA</div>
@@ -184,11 +168,9 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
             <div className="rc-address">S.L.P. {(schoolInfo?.address ?? "00000").replace(/^S\.?L\.?\s*P\.?\s*Box\s*/i, "")}</div>
             <div className="rc-report-title">RIPOTI YA MAENDELEO YA MWANAFUNZI</div>
           </div>
-          <div className="rc-logo rc-logo-right">
-            {schoolInfo?.schoolLogo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={schoolInfo.schoolLogo} alt="Nembo ya shule" />
-            ) : <span className="rc-logo-fallback">SHULE</span>}
+          <div className="rc-logo rc-logo-right rc-logo--filled">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={schoolInfo?.schoolLogo || "/assets/logo.png"} alt="Nembo ya shule" />
           </div>
         </div>
         <div className="rc-double-line"><span>{examLabel}</span></div>
@@ -244,44 +226,6 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
           </tbody>
         </table>
       </section>
-
-      {showHistory && historyCount > 0 && (
-        <section className="rc-section">
-          <h3>Historia ya Mitihani — {classRow.class_name}</h3>
-          <table className="rc-table rc-history">
-            <thead>
-              <tr>
-                <th>MTIHANI</th>
-                <th>TAREHE</th>
-                <th>WASTANI</th>
-                <th>NAFASI</th>
-                <th>DARAJA</th>
-                <th>POINTI</th>
-                <th>MWENENDO</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayHistory.length === 0 && (
-                <tr><td colSpan={7}>Hakuna historia ya mitihani iliyorekodiwa.</td></tr>
-              )}
-              {displayHistory.map((item) => (
-                <tr key={item.key}>
-                  <td className="rc-left">{item.examName}</td>
-                  <td>{item.date}</td>
-                  <td>{displayNumber(item.avg)}</td>
-                  <td>{item.rank}</td>
-                  <td>{item.grade}</td>
-                  <td>{displayNumber(item.points)}</td>
-                  <td>
-                    {item.trend === "up" ? "▲" : item.trend === "down" ? "▼" : "—"}
-                    {item.trend === "up" ? " Imeboreka" : item.trend === "down" ? " Imepungua" : " Hakuna mabadiliko"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
 
       <section className="rc-section">
         <h3>2. Muhtasari wa Matokeo</h3>
@@ -389,7 +333,14 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
         </div>
       </section>
 
-      <footer className="rc-footer">Ripoti hii imetolewa na Ofisi ya Taaluma | Tarehe: {issueDate}</footer>
+      <footer className="rc-footer">
+        <div>Ripoti hii imetolewa na Ofisi ya Taaluma | Tarehe: {issueDate}</div>
+        {schoolClosed ? (
+          <div className="rc-footer-closure">
+            Shule itafungwa tarehe {displayInputDate(closingDate)} · Itafunguliwa tarehe {displayInputDate(openingDate)}
+          </div>
+        ) : null}
+      </footer>
     </div>
   );
 }
@@ -410,8 +361,9 @@ export default function StudentReportCard() {
   const [marksLoading, setMarksLoading] = useState(false);
   const [marksReady, setMarksReady] = useState(false);
   const [printAll, setPrintAll] = useState(false);
-  const [showHistory, setShowHistory] = useState(true);
-  const [historyCount, setHistoryCount] = useState(3);
+  const [schoolClosed, setSchoolClosed] = useState(false);
+  const [closingDate, setClosingDate] = useState("");
+  const [openingDate, setOpeningDate] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -521,6 +473,22 @@ export default function StudentReportCard() {
       </div>
 
       <div className="res-toolbar rc-no-print">
+        <label className="res-field"><span className="res-field-label">Hali ya Shule</span>
+          <select className="res-select" value={schoolClosed ? "closed" : "open"} onChange={(event) => setSchoolClosed(event.target.value === "closed")}>
+            <option value="open">Haitafungwi</option>
+            <option value="closed">Itafungwa</option>
+          </select>
+        </label>
+        {schoolClosed && (
+          <>
+            <label className="res-field"><span className="res-field-label">Tarehe ya Kufunga</span>
+              <input type="date" className="res-select" value={closingDate} onChange={(event) => setClosingDate(event.target.value)} />
+            </label>
+            <label className="res-field"><span className="res-field-label">Tarehe ya Kufungua</span>
+              <input type="date" className="res-select" value={openingDate} onChange={(event) => setOpeningDate(event.target.value)} />
+            </label>
+          </>
+        )}
         <label className="res-field"><span className="res-field-label">Mtihani</span>
           <select className="res-select" value={selectedExamId} onChange={(event) => { setSelectedExamId(event.target.value); setSelectedClassId(""); setSelectedStudentId(""); }}>
             {exams.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
@@ -536,19 +504,6 @@ export default function StudentReportCard() {
             {classStudents.map((item) => <option key={item.student_id} value={item.student_id}>{item.first_name} {item.last_name}</option>)}
           </select>
         </label>
-        <label className="res-field">
-          <span className="res-field-label">Historia ya Mitihani</span>
-          <label className="rc-history-toggle">
-            <input type="checkbox" checked={showHistory} onChange={(event) => setShowHistory(event.target.checked)} />
-            <span>{showHistory ? "Washa" : "Zima"}</span>
-          </label>
-        </label>
-        <label className="res-field">
-          <span className="res-field-label">Mitihani ya Awali ({historyCount})</span>
-          <select className="res-select" value={historyCount} disabled={!showHistory} onChange={(event) => setHistoryCount(Number(event.target.value))}>
-            {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((count) => <option key={count} value={count}>{count}</option>)}
-          </select>
-        </label>
         <button className="cm-btn cm-btn--primary rc-no-print" onClick={printWholeClass}>Chapisha Darasa Zima</button>
       </div>
 
@@ -561,11 +516,10 @@ export default function StudentReportCard() {
               student={currentStudent}
               settings={settings}
               schoolInfo={schoolInfo}
-              exams={exams}
-              marksByExam={marksByExam}
               exam={currentExam}
-              showHistory={showHistory}
-              historyCount={historyCount}
+              schoolClosed={schoolClosed}
+              closingDate={closingDate}
+              openingDate={openingDate}
             />
           )}
           {!printAll && (!currentStudent || !reportReady) && (
@@ -581,11 +535,10 @@ export default function StudentReportCard() {
                     student={student}
                     settings={settings}
                     schoolInfo={schoolInfo}
-                    exams={exams}
-                    marksByExam={marksByExam}
                     exam={currentExam}
-                    showHistory={showHistory}
-                    historyCount={historyCount}
+                    schoolClosed={schoolClosed}
+                    closingDate={closingDate}
+                    openingDate={openingDate}
                   />
                 </div>
               ))}

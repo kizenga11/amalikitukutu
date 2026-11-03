@@ -2516,6 +2516,7 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 }
 .rc-header { display: flex; align-items: center; gap: .55rem; border-bottom: 3px solid #0b2a5b; padding-bottom: .35rem; }
 .rc-logo { flex: 0 0 auto; width: 58px; height: 58px; display: grid; place-items: center; overflow: hidden; border: 1.5px dashed #9aa5b8; border-radius: 6px; }
+.rc-logo--filled { border-color: transparent; }
 .rc-logo img { width: 100%; height: 100%; object-fit: contain; }
 .rc-logo-fallback { font-size: .75rem; font-weight: 800; color: #0b2a5b; text-align: center; }
 .rc-logo-right { margin-left: auto; }
@@ -2550,7 +2551,6 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 .rc-rating-button:focus-visible { outline: 2px solid #b8860b; }
 .rc-score { color: var(--muted); letter-spacing: .08em; white-space: nowrap; }
 .rc-bh-spacer { border-style: none !important; width: .35rem; background: transparent; }
-.rc-history td { font-size: 9pt; }
 
 .rc-summary { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .25rem; }
 .rc-summary > div { display: grid; align-content: center; min-height: 42px; padding: .25rem; border: 1px solid #9aa5b8; background: #eef2f9; text-align: center; }
@@ -2576,53 +2576,63 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 .rc-parent-summary { font-weight: 700; text-align: left !important; margin-bottom: .3rem !important; }
 
 .rc-footer { margin-top: .7rem; text-align: center; font-size: 9pt; }
+.rc-footer-closure { margin-top: .2rem; font-size: 9pt; font-weight: 700; color: #0b2a5b; }
 
 .rc-print-all { display: none; }
-.rc-history-toggle { display: inline-flex; align-items: center; gap: .4rem; padding: .55rem .9rem; border: 1px solid var(--line); border-radius: .5rem; background: var(--white); font-size: .8rem; font-weight: 500; cursor: pointer; }
-.rc-history-toggle input { accent-color: var(--primary); }
 
 .print-tools { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .print-orientation .ex-tab { padding: .42rem .85rem; }
 
 @media print {
-  @page { size: A4 portrait; margin: 4mm; }
+  @page rc-report { size: A4 portrait; margin: 6mm; }
   .rc-no-print { display: none !important; }
   .app-main, .content, .rc-page { max-width: none; padding: 0; margin: 0; }
+  .rc-page { page: rc-report; }
   .rc-paper {
-    width: 125%;
-    min-height: 0;
+    width: 100%;
+    min-height: 283mm;
     margin: 0;
-    padding: 0;
-    border: 0;
+    padding: 5mm 7mm;
+    border: 2.5px double #0b2a5b;
     box-shadow: none;
-    zoom: .8;
+    zoom: 1;
+    font-size: 12pt;
+    display: flex;
+    flex-direction: column;
     break-inside: avoid-page;
     page-break-inside: avoid;
   }
-  .rc-section { margin-top: .3rem; break-inside: avoid-page; }
-  .rc-section h3 { margin-bottom: .12rem; font-size: 7.5pt; }
-  .rc-table th, .rc-table td { padding: .08rem .12rem; font-size: 7pt; }
-  .rc-history th, .rc-history td { font-size: 6.5pt; }
-  .rc-header { gap: .35rem; padding-bottom: .2rem; }
+  .rc-section { margin-top: .22rem; break-inside: avoid-page; }
+  .rc-section h3 { margin-bottom: .08rem; font-size: 10pt; }
+  .rc-table th, .rc-table td { padding: .08rem .16rem; font-size: 9.5pt; }
+  .rc-behavior th, .rc-behavior td { padding: .03rem .04rem; font-size: 8pt; }
+  .rc-behavior td.rc-behavior-label { width: 22%; font-size: 8.5pt; }
+  .rc-rating-button { min-height: .9rem; }
+  .rc-header { gap: .35rem; padding-bottom: .18rem; }
   .rc-logo { width: 42px; height: 42px; }
-  .rc-country, .rc-district, .rc-address { font-size: 6.5pt; }
-  .rc-school-name { font-size: 12pt; }
-  .rc-report-title { font-size: 7.5pt; }
-  .rc-student { margin-top: .3rem; }
-  .rc-name-bar, .rc-info-left, .rc-info-right { font-size: 8pt; padding: .1rem .25rem; }
-  .rc-summary > div { min-height: 30px; padding: .12rem; }
-  .rc-summary strong { font-size: 9pt; }
-  .rc-comment-block { padding: .16rem .3rem; }
-  .rc-comment-block > strong, .rc-comment-signature { font-size: 6.5pt; }
-  .rc-comment-block p { margin: .08rem 0; }
-  .rc-comment-signature { margin-top: .2rem; }
+  .rc-country, .rc-district, .rc-address { font-size: 8pt; }
+  .rc-school-name { font-size: 14pt; }
+  .rc-report-title { font-size: 9pt; }
+  .rc-double-line span { font-size: 8pt; }
+  .rc-student { margin-top: .25rem; }
+  .rc-name-bar, .rc-info-left, .rc-info-right { font-size: 10.5pt; padding: .1rem .28rem; }
+  .rc-summary > div { min-height: 24px; padding: .1rem; }
+  .rc-summary strong { font-size: 12pt; }
+  .rc-summary span { font-size: 8pt; }
+  .rc-comment { font-size: 9.5pt; }
+  .rc-comment-block { padding: .14rem .3rem; }
+  .rc-comment-block > strong, .rc-comment-signature { font-size: 8pt; }
+  .rc-comment-block p { margin: .06rem 0; }
+  .rc-comment-signature { margin-top: .15rem; }
   .rc-signature-line { height: 1rem; }
   .rc-stamp { height: 10mm; }
-  .rc-cut { margin: .4rem 0 .2rem; }
-  .rc-parent-msg { padding: .25rem .4rem; font-size: 7pt; }
-  .rc-parent-writing { height: 22px; margin: .15rem 0; }
-  .rc-footer { margin-top: .3rem; font-size: 7pt; }
-  .rc-printing-all .rc-paper { display: block; }
+  .rc-cut { margin: .3rem 0 .15rem; }
+  .rc-parent-msg { padding: .22rem .4rem; font-size: 9.5pt; }
+  .rc-parent-msg h3 { margin-bottom: .18rem; font-size: 10pt; }
+  .rc-parent-writing { height: 18px; margin: .1rem 0; }
+  .rc-parent-signature { font-size: 8pt; }
+  .rc-footer { margin-top: auto; padding-top: .25rem; font-size: 8pt; }
+  .rc-footer-closure { margin-top: .12rem; font-size: 9pt; }
   .rc-print-all { display: block; }
   .rc-sheet { break-inside: avoid-page; page-break-inside: avoid; break-after: page; page-break-after: always; }
   .rc-sheet:last-child { break-after: auto; page-break-after: auto; }
