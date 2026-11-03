@@ -9,6 +9,7 @@ import {
   fetchStudents,
   fetchSubjects,
   insertStudent,
+  renumberStudentRegistrations,
   saveStudentSubjects,
   updateStudent,
   type DbClassRow,
@@ -142,6 +143,7 @@ export default function StudentsManagement() {
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState(false);
   const [saving, setSaving] = useState<null | "save" | "delete">(null);
+  const [renumbering, setRenumbering] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -424,12 +426,28 @@ export default function StudentsManagement() {
 
     try {
       if (editingId) {
+        const prev = students.find((s) => s.id === editingId);
         await updateStudent(editingId, payload);
         await saveStudentSubjects(editingId, assignedSubjectIds);
+        const targets = new Set<string | null>();
+        if (prev?.class_id !== form.classId) {
+          targets.add(prev?.class_id ?? null);
+        }
+        targets.add(form.classId);
+        try {
+          await renumberStudentRegistrations(Array.from(targets));
+        } catch {
+          // ignore renumber errors
+        }
         showToast("success", `Student "${first} ${last}" updated.`);
       } else {
         const inserted = await insertStudent(payload);
         await saveStudentSubjects(inserted.id, assignedSubjectIds);
+        try {
+          await renumberStudentRegistrations([form.classId]);
+        } catch {
+          // ignore renumber errors
+        }
         showToast("success", `Student "${first} ${last}" registered.`);
       }
       setShowForm(false);
@@ -440,12 +458,29 @@ export default function StudentsManagement() {
         await loadPage();
       } else {
         setPage(1);
+        await loadPage();
       }
     } catch (error) {
       const message = errorMessage(error, "Unable to save the student record.");
       showToast("warning", `Student not saved: ${message}`);
     } finally {
       setSaving(null);
+    }
+  }
+
+  async function handleRenumber() {
+    if (renumbering) return;
+    setRenumbering(true);
+    try {
+      const classIds: (string | null)[] = classes.map((c) => c.id);
+      await renumberStudentRegistrations(classIds.length ? classIds : [null]);
+      showToast("success", "Registration numbers assigned: girls first, then boys, alphabetically.");
+      await loadPage();
+    } catch (error) {
+      const message = errorMessage(error, "Unable to assign registration numbers.");
+      showToast("warning", message);
+    } finally {
+      setRenumbering(false);
     }
   }
 
@@ -610,6 +645,9 @@ export default function StudentsManagement() {
           />
           <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={importing} onClick={() => importInputRef.current?.click()}>
             {importing ? "Importing…" : "Import CSV"}
+          </button>
+          <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={renumbering} onClick={handleRenumber}>
+            {renumbering ? "Assigning…" : "Assign Reg Nos"}
           </button>
           <button className="sm-add-btn" onClick={openNew}>+ Register Student</button>
         </div>

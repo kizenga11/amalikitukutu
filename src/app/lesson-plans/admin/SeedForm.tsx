@@ -10,7 +10,7 @@ SAMPLE|1|TIE|2|Second topic|1|Subtopic C|2`;
 
 type Msg = { ok: boolean; text: string } | null;
 
-export default function SeedForm({ onSeeded }: { onSeeded?: () => void }) {
+export default function SeedForm({ onSeeded, accessToken }: { onSeeded?: () => void; accessToken?: string }) {
   const [text, setText] = useState("");
   const [state, action, pending] = useActionState<Msg, FormData>(seedSyllabus, null);
 
@@ -21,7 +21,7 @@ export default function SeedForm({ onSeeded }: { onSeeded?: () => void }) {
 
   return (
     <form action={action} className="lp-seed-form">
-      <input type="hidden" name="access_token" value="" />
+      <input type="hidden" name="access_token" value={accessToken ?? ""} />
       <textarea
         name="data"
         value={text}

@@ -143,6 +143,32 @@ describe("buildYearlyReport eligibility", () => {
     expect(b?.detail).toContain("7 required");
   });
 
+  it("adds average, grade, division and total points to podium entries", () => {
+    const subjects = Array.from({ length: 7 }, (_, index) => subject(`s${index + 1}`, `S${index + 1}`));
+    const marks: YearlyMarkInput[] = [];
+    const enrollment: YearlyEnrollmentInput[] = [];
+
+    for (const subjectItem of subjects) {
+      enrollment.push(enroll("A", subjectItem.id));
+      for (const exam of exams) marks.push(mark(exam.id, "A", subjectItem.id, 80));
+    }
+
+    const report = buildYearlyReport({
+      students: [student("A", "Amina")],
+      subjects,
+      marks,
+      enrollment,
+      exams,
+      settings,
+    });
+
+    expect(report.podium).toHaveLength(1);
+    expect(report.podium[0].average).toBe(80);
+    expect(report.podium[0].grade).toBe("A");
+    expect(report.podium[0].division).toBe("Division I");
+    expect(report.podium[0].total_points).toBe(7);
+  });
+
   it("uses MIN_EXAMS_PER_SUBJECT as the single subject threshold", () => {
     expect(MIN_EXAMS_PER_SUBJECT).toBe(5);
   });

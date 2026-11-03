@@ -149,6 +149,7 @@ export interface PodiumEntry {
   average: number | null;
   grade: string;
   division: string;
+  total_points: number | null;
   position: number;
 }
 
@@ -434,6 +435,7 @@ export function buildYearlyReport(params: {
       average: r.average,
       grade: r.average !== null ? computeGradeAndPoints(r.average, gradeBoundaries).grade : "—",
       division: r.division,
+      total_points: r.total_points,
       position: r.pos_form ?? 0,
     }));
 

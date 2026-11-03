@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Spinner } from "@/components/loading";
 import {
   buildClassResults,
@@ -120,6 +120,12 @@ interface CardSheetProps {
 }
 
 function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, marksByExam, exam, showHistory, historyCount }: CardSheetProps) {
+  const [behaviorState, setBehaviorState] = useState<{ studentId: string; ratings: (number | null)[] }>(() => ({
+    studentId: student.student_id,
+    ratings: Array(8).fill(null),
+  }));
+  const behaviorRatings = behaviorState.studentId === student.student_id ? behaviorState.ratings : Array(8).fill(null);
+
   const cardReport = useMemo(() => {
     const classResults = buildClassResults(classRow, marks.marks, settings.gradeBoundaries, settings.divisionRanges);
     const report = buildSchoolReport([classResults], settings);
@@ -150,11 +156,9 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
 
   const { report, row } = cardReport;
   const totalPoints = row.student.total_points;
-  const gpa = row.gpa;
   const avg = row.avg;
   const classSize = report.summary.students;
   const fullName = `${row.student.first_name}${row.student.middle_name ? ` ${row.student.middle_name}` : ""} ${row.student.last_name}`;
-  const firstName = row.student.first_name;
   const streamName = student.stream_name === "—" ? "Haijafungwa" : student.stream_name;
   const issueDate = shortDate(new Date().toISOString());
   const examLabel = `${exam.name} ${yearOf(exam.start_date)}`.toUpperCase();
@@ -168,27 +172,26 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
       <header>
         <div className="rc-header">
           <div className="rc-logo">
-            <svg viewBox="0 0 120 120" focusable="false" aria-hidden="true">
-              <circle cx="60" cy="60" r="58" fill="#ffffff" stroke="#000000" strokeWidth="2" />
-              <circle cx="60" cy="60" r="33" fill="none" stroke="#000000" strokeWidth="1.5" />
-              <path id="rc-logo-circle" d="M60,28 a32,32 0 1,1 -0.001,0" fill="none" />
-              <path id="rc-logo-circle-bottom" d="M60,92 a32,32 0 1,1 0.001,0" fill="none" />
-              <text fontSize="11.5" fontWeight="bold" fill="#000000">
-                <textPath href="#rc-logo-circle" startOffset="0%" textAnchor="start">{(schoolInfo?.name ?? "AMALI SCHOOL").toUpperCase()}</textPath>
-              </text>
-              <text fontSize="11" fontWeight="bold" fill="#000000">
-                <textPath href="#rc-logo-circle-bottom" startOffset="50%" textAnchor="middle">SHULE YA SEKONDARI</textPath>
-              </text>
-            </svg>
+            {schoolInfo?.unionLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={schoolInfo.unionLogo} alt="Nembo ya Taifa" />
+            ) : <span className="rc-logo-fallback">TZA</span>}
           </div>
           <div className="rc-header-info">
-            <div className="rc-district">{(schoolInfo?.council || schoolInfo?.district || "HALMASHAURI YA WILAYA").toUpperCase()}</div>
+            <div className="rc-country">JAMHURI YA MUUNGANO WA TANZANIA</div>
+            <div className="rc-district">OFISI YA RAIS – TAMISEMI · {(schoolInfo?.council || schoolInfo?.district || "HALMASHAURI YA WILAYA").toUpperCase()}</div>
             <div className="rc-school-name">{(schoolInfo?.name || "Shule").toUpperCase()}</div>
             <div className="rc-address">S.L.P. {(schoolInfo?.address ?? "00000").replace(/^S\.?L\.?\s*P\.?\s*Box\s*/i, "")}</div>
-            <div className="rc-report-title">RIPOTI YA MATOKEO — {examLabel}</div>
+            <div className="rc-report-title">RIPOTI YA MAENDELEO YA MWANAFUNZI</div>
+          </div>
+          <div className="rc-logo rc-logo-right">
+            {schoolInfo?.schoolLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={schoolInfo.schoolLogo} alt="Nembo ya shule" />
+            ) : <span className="rc-logo-fallback">SHULE</span>}
           </div>
         </div>
-        <div className="rc-double-line" />
+        <div className="rc-double-line"><span>{examLabel}</span></div>
       </header>
 
       <section className="rc-student">
@@ -210,6 +213,7 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
       </section>
 
       <section className="rc-section">
+        <h3>1. Matokeo ya Masomo</h3>
         <table className="rc-table rc-subjects">
           <thead>
             <tr>
@@ -280,34 +284,65 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
       )}
 
       <section className="rc-section">
-        <h3>Tabia na Mwenendo</h3>
+        <h3>2. Muhtasari wa Matokeo</h3>
+        <div className="rc-summary">
+          <div><strong>{displayNumber(avg)}%</strong><span>Wastani</span></div>
+          <div><strong>{row.grade}</strong><span>Daraja</span></div>
+          <div><strong>{row.rank || "—"} / {classSize}</strong><span>Nafasi</span></div>
+          <div><strong>{division}</strong><span>Divisheni</span></div>
+          <div><strong>{displayNumber(totalPoints)}</strong><span>Pointi (Bora 7)</span></div>
+          <div><strong>{displayNumber(row.gpa)}</strong><span>GPA</span></div>
+        </div>
+      </section>
+
+      <section className="rc-section">
+        <h3>3. Tabia na Mwenendo</h3>
         <table className="rc-table rc-behavior">
           <thead>
             <tr>
-              <th>NA.</th>
-              <th>MAELEZO</th>
-              <th>ALAMA</th>
+              <th>KIPENGELE</th>
+              {["Bora Sana", "Nzuri", "Wastani", "Dhaifu"].map((rating) => <th key={`left-${rating}`}>{rating}</th>)}
               <th className="rc-bh-spacer" />
-              <th>NA.</th>
-              <th>MAELEZO</th>
-              <th>ALAMA</th>
+              <th>KIPENGELE</th>
+              {["Bora Sana", "Nzuri", "Wastani", "Dhaifu"].map((rating) => <th key={`right-${rating}`}>{rating}</th>)}
             </tr>
           </thead>
           <tbody>
             {[
-              ["1", "Bidii katika kazi", "5", "Heshima kwa walimu na wanafunzi"],
-              ["2", "Heshima na kuthamini wajibu", "6", "Kutii na kufuata maelekezo"],
-              ["3", "Kutunza mali za umma", "7", "Usafi binafsi"],
-              ["4", "Uelewa na ushirikiano", "8", "Kushiriki katika shughuli za kitamaduni"],
-            ].map(([leftNo, leftDesc, rightNo, rightDesc]) => (
-              <tr key={leftNo}>
-                <td>{leftNo}</td>
-                <td className="rc-left">{leftDesc}</td>
-                <td className="rc-score">__________</td>
-                <td className="rc-bh-spacer" />
-                <td>{rightNo}</td>
-                <td className="rc-left">{rightDesc}</td>
-                <td className="rc-score">__________</td>
+              ["Nidhamu", "Usafi"],
+              ["Bidii ya masomo", "Michezo/klabu"],
+              ["Uongozi", "Ushirikiano na wenzake"],
+              ["Heshima kwa walimu", "Utunzaji wa mali ya shule"],
+            ].map(([leftDesc, rightDesc], rowIndex) => (
+              <tr key={leftDesc}>
+                {[leftDesc, rightDesc].map((label, side) => {
+                  const index = rowIndex + side * 4;
+                  return (
+                    <Fragment key={label}>
+                      {side === 1 && <td className="rc-bh-spacer" />}
+                      <td className="rc-left rc-behavior-label">{label}</td>
+                      {["Bora Sana", "Nzuri", "Wastani", "Dhaifu"].map((rating, ratingIndex) => (
+                        <td key={rating} className="rc-behavior-choice">
+                          <button
+                            type="button"
+                            className="rc-rating-button"
+                            aria-label={`${label}: ${rating}`}
+                            aria-pressed={behaviorRatings[index] === ratingIndex}
+                            onClick={() => setBehaviorState((current) => {
+                              const ratings = current.studentId === student.student_id ? current.ratings : Array(8).fill(null);
+                              return {
+                                studentId: student.student_id,
+                                ratings: ratings.map((value, i) => i === index ? (value === ratingIndex ? null : ratingIndex) : value),
+                              };
+                            })}
+                          >
+                            {behaviorRatings[index] === ratingIndex ? "✓" : ""}
+                          </button>
+                        </td>
+                      ))}
+                    </Fragment>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -315,32 +350,42 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exams, mark
       </section>
 
       <section className="rc-section">
-        <h3>Maoni ya Uongozi na Walimu</h3>
+        <h3>4. Maoni na Uthibitisho</h3>
         <div className="rc-comment rc-comments">
-          <p><strong>Mkuu wa Shule:</strong> {comments.headmaster}</p>
-          <p><strong>Mwalimu wa Taaluma:</strong> {comments.academic}</p>
-          <p><strong>Mwalimu wa Darasa:</strong> {comments.classTeacher}</p>
+          <div className="rc-comment-block">
+            <strong>Maoni ya Mwalimu wa Darasa</strong>
+            <p>{comments.classTeacher}</p>
+            <div className="rc-comment-signature">
+              <span>Jina:</span><span className="rc-signature-line rc-signature-name" />
+              <span>Sahihi:</span><span className="rc-signature-line rc-signature-mark" />
+            </div>
+          </div>
+          <div className="rc-comment-block">
+            <strong>Maoni ya Mwalimu wa Taaluma</strong>
+            <p>{comments.academic}</p>
+            <div className="rc-comment-signature">
+              <span>Jina:</span><span className="rc-signature-line rc-signature-name" />
+              <span>Sahihi:</span><span className="rc-signature-line rc-signature-mark" />
+            </div>
+          </div>
+          <div className="rc-comment-block">
+            <strong>Maoni ya Mkuu wa Shule</strong>
+            <p>{comments.headmaster}</p>
+            <div className="rc-comment-signature">
+              <span>Jina:</span><span className="rc-signature-line rc-signature-name" />
+              <span>Sahihi:</span><span className="rc-signature-line rc-signature-mark" />
+              <span className="rc-stamp">Muhuri</span>
+            </div>
+          </div>
         </div>
       </section>
 
       <section className="rc-section rc-parent-section">
+        <div className="rc-cut"><span>✂ KATA HAPA — MZAZI/MLEZI ARUDISHE SEHEMU HII SHULENI ✂</span></div>
         <div className="rc-parent-msg">
-          <p>MZAZI/MLEZI WA {fullName.toUpperCase()}, KATIKA MTIHANI WA {exam.name.toUpperCase()} {yearOf(exam.start_date)}, {firstName.toUpperCase()} MESHIKA NAFASI YA {row.rank || "—"} KATI YA WANAFUNZI {classSize} WALIOFANYA MTIHANI, AKIWA NA WASTANI WA {displayNumber(avg)}%, DIVISENI {division} ZA POINTI {displayNumber(totalPoints)}. ASANTE.</p>
-        </div>
-      </section>
-
-      <section className="rc-section rc-signatures">
-        <div className="rc-sig">
-          <div className="rc-sig-line" />
-          <span>Mwalimu wa Darasa</span>
-        </div>
-        <div className="rc-sig">
-          <div className="rc-sig-line" />
-          <span>Mwalimu wa Taaluma</span>
-        </div>
-        <div className="rc-sig">
-          <div className="rc-sig-line" />
-          <span>Mkuu wa Shule</span>
+          <h3>5. Maoni ya Mzazi / Mlezi</h3>
+          <div className="rc-parent-writing" aria-label="Nafasi ya maoni ya mzazi/mlezi" />
+          <div className="rc-parent-signature">Jina la Mzazi/Mlezi: ____________________ &nbsp; Simu: ____________________ &nbsp; Sahihi: ____________________</div>
         </div>
       </section>
 

@@ -202,7 +202,7 @@ async function buildResultsMessages(examId: string): Promise<{ messages: Map<str
     classNames.set(row.class_id, name?.name ?? "—");
   }
   const classIds = Array.from(classNames.keys());
-  if (classIds.length === 0) return { messages: new Map(), total: 0 };
+  if (classIds.length === 0) return { messages: new Map(), total: 0, examName: (exam.name as string) ?? "" };
 
   const [subjectRels, settingsRes] = await Promise.all([
     admin

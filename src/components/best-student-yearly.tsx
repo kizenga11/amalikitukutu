@@ -2,9 +2,11 @@
 
 import "./best-student-yearly.css";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Spinner } from "@/components/loading";
 import { supabase } from "@/lib/supabase";
+import { currentYearId } from "@/lib/calendar";
 import { fetchSchoolInfo, type SchoolInfo } from "@/lib/school-api";
 import {
   MIN_EXAMS_PER_SUBJECT,
@@ -42,6 +44,16 @@ interface ReportPayload {
 
 type SortField = "pos" | "name" | "average";
 
+const CertificateEditor = dynamic(() => import("@/components/BestStudentCertificate"), {
+  ssr: false,
+  loading: () => (
+    <div className="me-loading" style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0" }}>
+      <Spinner size={18} />
+      <span>Loading certificate…</span>
+    </div>
+  ),
+});
+
 function displayNumber(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
@@ -58,6 +70,39 @@ function divisionCode(division: string): string {
   if (!division) return "—";
   const match = division.match(/(?:Division\s+)?(.+)$/i);
   return match ? match[1] : division;
+}
+
+function formLabelFromValue(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") return "Form Four";
+
+  if (typeof value === "number") {
+    const names = ["One", "Two", "Three", "Four", "Five", "Six"];
+    const index = value - 1;
+    return Number.isInteger(value) && value >= 1 && value <= 6 ? `Form ${names[index]}` : `Form ${value}`;
+  }
+
+  const text = String(value).trim();
+  const match = text.match(/form\s*[- ]?\s*(\d+|one|two|three|four|five|six)/i);
+  if (match) {
+    const raw = match[1].toLowerCase();
+    if (["one", "two", "three", "four", "five", "six"].includes(raw)) {
+      const index = ["one", "two", "three", "four", "five", "six"].indexOf(raw);
+      return `Form ${["One", "Two", "Three", "Four", "Five", "Six"][index]}`;
+    }
+    const asNumber = Number(raw);
+    if (Number.isInteger(asNumber) && asNumber >= 1 && asNumber <= 6) {
+      return `Form ${["One", "Two", "Three", "Four", "Five", "Six"][asNumber - 1]}`;
+    }
+  }
+
+  const lowered = text.toLowerCase();
+  if (lowered.includes("one")) return "Form One";
+  if (lowered.includes("two")) return "Form Two";
+  if (lowered.includes("three")) return "Form Three";
+  if (lowered.includes("four")) return "Form Four";
+  if (lowered.includes("five")) return "Form Five";
+  if (lowered.includes("six")) return "Form Six";
+  return text || "Form Four";
 }
 
 export default function BestStudentYearly() {
@@ -86,6 +131,7 @@ export default function BestStudentYearly() {
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("pos");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [certificateWinnerId, setCertificateWinnerId] = useState<string | null>(null);
 
   const apiGet = useCallback(
     async (params: Record<string, string>): Promise<Response> => {
@@ -118,9 +164,16 @@ export default function BestStudentYearly() {
         if (!response.ok) {
           setOptionsError(data2.error ?? "Could not load forms.");
         } else {
-          setYears(data2.years ?? []);
+          const availableYears = data2.years ?? [];
+          setYears(availableYears);
           setForms(data2.forms ?? []);
-          setYear(data2.years?.[data2.years.length - 1]?.id ?? "");
+          const nowYear = String(new Date().getFullYear());
+          setYear(
+            availableYears.find((y) => y.id === nowYear)?.id ??
+              availableYears.find((y) => y.id === currentYearId)?.id ??
+              availableYears[availableYears.length - 1]?.id ??
+              "",
+          );
         }
       } catch {
         if (active) setOptionsError("Could not reach the server.");
@@ -183,6 +236,7 @@ export default function BestStudentYearly() {
     setPayload(null);
     setMessage("");
     setConfirmLowExams(false);
+    setCertificateWinnerId(null);
   }
 
   function toggleExam(id: string) {
@@ -339,6 +393,9 @@ export default function BestStudentYearly() {
   const canRun = Boolean(year && classId && selectedExamIds.length > 0 && !running && (!lowExams || confirmLowExams));
   const report = payload?.report ?? null;
   const wideReport = subjectColumns.length > 6;
+  const certificateWinners = report?.podium.filter((entry) => entry.position === 1) ?? [];
+  const certificateWinner = certificateWinnerId ? certificateWinners.find((entry) => entry.student_id === certificateWinnerId) ?? null : null;
+  const certificateForm = formLabelFromValue(selectedForm?.form_level ?? payload?.formLevel ?? payload?.className ?? "Form Four");
 
   return (
     <div className={`result-page bs-page${wideReport ? " print-landscape" : ""}`}>
@@ -480,6 +537,30 @@ export default function BestStudentYearly() {
                     <div className="bs-hero-sub">
                       {report.podium[0].average !== null ? `${displayNumber(report.podium[0].average)}%` : "—"} · {report.podium[0].grade} · Division {divisionCode(report.podium[0].division)}
                     </div>
+                    {certificateWinners.length > 0 ? (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 14 }}>
+                        {certificateWinners.map((entry) => (
+                          <button
+                            key={entry.student_id}
+                            type="button"
+                            onClick={() => setCertificateWinnerId(entry.student_id)}
+                            style={{
+                              background: "#0E1F3F",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: 999,
+                              padding: "9px 16px",
+                              fontSize: 13,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              letterSpacing: 0.5,
+                            }}
+                          >
+                            Cheti
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="bs-podium">
                     {report.podium.map((entry) => (
@@ -491,6 +572,38 @@ export default function BestStudentYearly() {
                       </div>
                     ))}
                   </div>
+                </section>
+              ) : null}
+
+              {certificateWinner ? (
+                <section className="result-section no-print" style={{ padding: "18px 20px", background: "#f8f8f4", border: "1px solid #e2e8f0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
+                    <h3 style={{ margin: 0, fontSize: 20 }}>Cheti cha Mwanafunzi Bora</h3>
+                    <button
+                      type="button"
+                      onClick={() => setCertificateWinnerId(null)}
+                      style={{
+                        border: "1px solid #cbd5e1",
+                        background: "#fff",
+                        borderRadius: 999,
+                        padding: "7px 12px",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Funga
+                    </button>
+                  </div>
+                  <CertificateEditor
+                    initialName={certificateWinner.name}
+                    initialForm={certificateForm}
+                    initialYear={String(payload.year ?? new Date().getFullYear())}
+                    logoSrc={schoolInfo?.schoolLogo || "/logo.png"}
+                    average={certificateWinner.average}
+                    grade={certificateWinner.grade}
+                    division={certificateWinner.division}
+                    points={certificateWinner.total_points}
+                  />
                 </section>
               ) : null}
 

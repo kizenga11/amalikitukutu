@@ -388,6 +388,8 @@ export async function fetchStudents(params: StudentListParams): Promise<StudentL
   }
 
   query = query
+    .order("gender", { ascending: true })
+    .order("registration_no", { ascending: true, nullsFirst: false })
     .order("last_name", { ascending: true })
     .order("first_name", { ascending: true })
     .range((params.page - 1) * params.pageSize, params.page * params.pageSize - 1);
@@ -408,54 +410,10 @@ export interface StudentInput {
   stream_id: string | null;
 }
 
-const REGISTRATION_PREFIX = "S8384";
-
-function randomRegistrationCode(): string {
-  return String(Math.floor(Math.random() * 10000)).padStart(4, "0");
-}
-
-export function generateRegistrationNo(existing: Set<string>, year: number = new Date().getFullYear()): string {
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const candidate = `${REGISTRATION_PREFIX}/${randomRegistrationCode()}/${year}`;
-    if (!existing.has(candidate)) return candidate;
-  }
-  throw new Error("Could not generate a unique registration number.");
-}
-
-async function fetchExistingRegistrationNos(): Promise<Set<string>> {
-  const set = new Set<string>();
-  let from = 0;
-  const pageSize = 1000;
-  for (;;) {
-    const { data, error } = await supabase
-      .from("students")
-      .select("registration_no")
-      .not("registration_no", "is", null)
-      .range(from, from + pageSize - 1);
-    if (error) throw error;
-    const rows = (data ?? []) as { registration_no: string }[];
-    for (const row of rows) set.add(row.registration_no);
-    if (rows.length < pageSize) break;
-    from += pageSize;
-  }
-  return set;
-}
-
 export async function insertStudent(input: StudentInput): Promise<DbStudentRow> {
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const payload: StudentInput = { ...input };
-    if (!payload.registration_no) {
-      const existing = await fetchExistingRegistrationNos();
-      payload.registration_no = generateRegistrationNo(existing);
-    }
-    const { data, error } = await supabase.from("students").insert(payload).select().single();
-    if (!error) return data as DbStudentRow;
-    lastError = error;
-    if (error.code === "23505" && !input.registration_no) continue;
-    throw error;
-  }
-  throw lastError ?? new Error("Could not insert the student record.");
+  const { data, error } = await supabase.from("students").insert(input).select().single();
+  if (error) throw error;
+  return data as DbStudentRow;
 }
 
 export async function updateStudent(id: string, input: StudentInput): Promise<DbStudentRow> {
@@ -473,6 +431,14 @@ export async function deleteStudents(ids: string[]): Promise<void> {
   if (!ids.length) return;
   const { error } = await supabase.from("students").delete().in("id", ids);
   if (error) throw error;
+}
+
+export async function renumberStudentRegistrations(classIds: (string | null)[]): Promise<void> {
+  const targets: (string | null)[] = classIds.length ? classIds : [null];
+  for (const classId of targets) {
+    const { error } = await supabase.rpc("renumber_student_registrations", { p_class_id: classId });
+    if (error) throw error;
+  }
 }
 
 // ---------------------------------------------------------------
@@ -1648,6 +1614,87 @@ export async function fetchExamAttendance(examId: string): Promise<ExamAttendanc
   }));
 
   return { classes };
+}
+
+// ── ISAL (Individual Subject Attendance List) ─────────────
+// On-demand roster for one subject of one exam. Loads only the
+// columns the printed sheet needs, in 500-row chunks so large
+// classes never hit the Supabase per-request row limit.
+
+export interface IsalStudent {
+  student_id: string;
+  registration_no: string | null;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string;
+  gender: string;
+  class_id: string;
+  stream_id: string | null;
+  stream_name: string;
+}
+
+export async function fetchIsalRoster(examId: string, subjectId: string): Promise<IsalStudent[]> {
+  const { data: classRels, error: classErr } = await supabase
+    .from("exam_class_subjects")
+    .select("class_id")
+    .eq("exam_id", examId)
+    .eq("subject_id", subjectId);
+  if (classErr) throw classErr;
+
+  const classIds = Array.from(new Set((classRels ?? []).map((row) => row.class_id as string)));
+  if (classIds.length === 0) return [];
+
+  interface RawIsalStudent {
+    id: string;
+    registration_no: string | null;
+    first_name: string;
+    middle_name: string | null;
+    last_name: string;
+    gender: string;
+    class_id: string;
+    stream_id: string | null;
+    stream: { name: string }[] | { name: string } | null;
+  }
+
+  const CHUNK = 500;
+  const students: IsalStudent[] = [];
+  let from = 0;
+
+  for (;;) {
+    const { data, error } = await supabase
+      .from("students")
+      .select(
+        "id, registration_no, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name), student_subjects!inner(subject_id)",
+      )
+      .eq("student_subjects.subject_id", subjectId)
+      .in("class_id", classIds)
+      .order("last_name", { ascending: true })
+      .order("first_name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + CHUNK - 1);
+    if (error) throw error;
+
+    const batch = (data ?? []) as unknown as RawIsalStudent[];
+    for (const raw of batch) {
+      const stream = Array.isArray(raw.stream) ? raw.stream[0] : raw.stream;
+      students.push({
+        student_id: raw.id,
+        registration_no: raw.registration_no,
+        first_name: raw.first_name,
+        middle_name: raw.middle_name,
+        last_name: raw.last_name,
+        gender: raw.gender,
+        class_id: raw.class_id,
+        stream_id: raw.stream_id,
+        stream_name: raw.stream_id ? stream?.name ?? "—" : "—",
+      });
+    }
+
+    if (batch.length < CHUNK) break;
+    from += CHUNK;
+  }
+
+  return students;
 }
 
 // ---------------------------------------------------------------

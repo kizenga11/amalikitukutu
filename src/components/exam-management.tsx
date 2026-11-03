@@ -26,6 +26,7 @@ import {
 } from "@/lib/school-api";
 import { errorMessage } from "@/lib/errors";
 import { ListRowSkeleton, Spinner } from "@/components/loading";
+import Isal from "@/components/isal";
 
 type ToastType = "success" | "warning";
 
@@ -100,6 +101,8 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ExamForm>(emptyForm());
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  const [isalExam, setIsalExam] = useState<DbExamRow | null>(null);
 
   // ── Inline marks entry state ────────────────────────────
   const [viewExam, setViewExam] = useState<DbExamRow | null>(null);
@@ -719,10 +722,12 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
         ))}
       </div>
 
+      {isalExam && <Isal exam={isalExam} onClose={() => setIsalExam(null)} />}
+
       {/* ════════════════════════════════════════════════════════
           VIEW 1: EXAM LIST
           ════════════════════════════════════════════════════════ */}
-      {!viewExam && (
+      {!isalExam && !viewExam && (
         <>
           <div className="page-head">
             <div>
@@ -793,6 +798,9 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
                       {canReopenMarks && row.status === "published" && row.marks_open && (
                         <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={saving} onClick={() => toggleMarksEntry(row, false)}>Close Marks</button>
                       )}
+                      <button className="cm-btn cm-btn--ghost cm-btn--sm" onClick={() => setIsalExam(row)}>
+                        ISAL
+                      </button>
                       <button className="cm-btn cm-btn--ghost cm-btn--sm" onClick={() => enterMarks(row)}>
                         {isTeacher ? "Enter Marks" : "View Marks"}
                       </button>
@@ -861,6 +869,9 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
                           {canReopenMarks && row.status === "published" && row.marks_open && (
                             <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={saving} onClick={() => toggleMarksEntry(row, false)}>Close Marks</button>
                           )}
+                          <button className="cm-btn cm-btn--ghost cm-btn--sm" onClick={() => setIsalExam(row)}>
+                            ISAL
+                          </button>
                           <button className="cm-btn cm-btn--ghost cm-btn--sm" onClick={() => enterMarks(row)}>
                             {isTeacher ? "Enter Marks" : "View Marks"}
                           </button>
@@ -900,7 +911,7 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
       {/* ════════════════════════════════════════════════════════
           VIEW 2: INLINE MARKS ENTRY
           ════════════════════════════════════════════════════════ */}
-      {viewExam && (
+      {!isalExam && viewExam && (
         <>
           <div className="page-head me-view-head">
             <div>

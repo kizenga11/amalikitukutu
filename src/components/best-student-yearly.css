@@ -146,11 +146,11 @@
   font-size: .8rem;
 }
 .bs-table-wrap { overflow-x: auto; border: 1px solid var(--table-border); }
-.bs-table { width: 100%; border-collapse: collapse; }
-.bs-table th, .bs-table td { padding: .32rem .38rem; border: 1px solid var(--table-border); font-size: .72rem; text-align: left; }
-.bs-table th { background: var(--page); color: var(--muted); font-size: .62rem; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
+.bs-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.bs-table th, .bs-table td { padding: .2rem .22rem; border: 1px solid var(--table-border); font-size: .58rem; line-height: 1.2; text-align: left; }
+.bs-table th { background: var(--page); color: var(--muted); font-size: .54rem; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
 .bs-table td.bs-num, .bs-table th.bs-num { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.bs-rank-table { min-width: 100%; table-layout: auto; }
+.bs-rank-table { width: 100%; min-width: 0; table-layout: fixed; }
 .bs-rank-table th:first-child,
 .bs-rank-table td:first-child { position: sticky; left: 0; z-index: 1; background: var(--white); }
 .bs-rank-table thead th:first-child { background: var(--page); z-index: 2; }
@@ -271,8 +271,8 @@
   .bs-rank-wrap,
   .bs-subj-wrap { display: block !important; }
   .bs-hero, .bs-podium-card, .bs-best-card { break-inside: avoid; }
-  .bs-rank-table { min-width: 100%; }
-  .bs-rank-table th, .bs-rank-table td { font-size: 7pt; padding: .12rem .18rem; }
+  .bs-rank-table { min-width: 0; width: 100%; table-layout: fixed; }
+  .bs-rank-table th, .bs-rank-table td { font-size: 6.5pt; padding: .1rem .15rem; }
   .bs-rank-table .bs-col-name { white-space: normal; word-break: break-word; }
   .bs-rank-table thead { display: table-header-group; }
   .bs-rank-table tr { break-inside: avoid; }

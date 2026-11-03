@@ -203,7 +203,7 @@ function ResultsView() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
             <input
               type="search"
-              placeholder="Tafuta kwa namba ya usajili (mf. S8384/0001/2026)…"
+              placeholder="Tafuta kwa namba ya usajili (mf. S7811/0001)…"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               className="results-search-input"

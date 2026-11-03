@@ -13,7 +13,7 @@ function student(
 ): ExamAttendanceStudent {
   return {
     student_id: id,
-    registration_no: `S8384/${id.padStart(4, "0")}/2026`,
+    registration_no: `S7811/${id.padStart(4, "0")}`,
     first_name: first,
     middle_name: middle,
     last_name: last,
