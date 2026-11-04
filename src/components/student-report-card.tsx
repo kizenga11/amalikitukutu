@@ -22,6 +22,14 @@ import {
   type ExamMarksData,
   type SchoolInfo,
 } from "@/lib/school-api";
+import {
+  fetchStreamReportSettings,
+  fetchStreamReports,
+  saveStreamReportSettings,
+  type ScopedExamMarks,
+  type StreamTeacherScope,
+} from "@/lib/stream-teacher-api";
+
 
 function shortDate(value: string): string {
   const date = new Date(value);
@@ -63,8 +71,44 @@ function remarkFor(grade: string): string {
   }
 }
 
-function pronoun(gender: string): string {
-  return gender.toLowerCase().startsWith("f") ? "she" : "he";
+function reportExamFromScoped(exam: {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  has_practical: boolean;
+  status: string;
+}): DbExamRow {
+  return {
+    ...exam,
+    status: exam.status as DbExamRow["status"],
+    marks_open: false,
+    created_at: "",
+    class_count: 0,
+    subject_count: 0,
+  };
+}
+
+function reportMarksFromScoped(data: ScopedExamMarks): ExamMarksData {
+  return {
+    marks: data.marks,
+    classes: [
+      {
+        class_id: data.classRow.class_id,
+        class_name: data.classRow.class_name,
+        subjects: data.classRow.subjects,
+        students: data.classRow.students,
+      },
+    ],
+  };
+}
+
+const GOOD_BEHAVIOUR_RATINGS = [0, 1, 2];
+
+function randomBehaviourRatings(): (number | null)[] {
+  return Array.from({ length: 8 }, () =>
+    GOOD_BEHAVIOUR_RATINGS[Math.floor(Math.random() * GOOD_BEHAVIOUR_RATINGS.length)],
+  );
 }
 
 function performanceComments(avg: number | null): {
@@ -124,15 +168,25 @@ interface CardSheetProps {
   schoolClosed: boolean;
   closingDate: string;
   openingDate: string;
+  canGenerateConduct?: boolean;
+  behaviorRatings: (number | null)[];
+  onBehaviorRatingsChange: (ratings: (number | null)[]) => void;
 }
 
-function CardSheet({ marks, classRow, student, settings, schoolInfo, exam, schoolClosed, closingDate, openingDate }: CardSheetProps) {
-  const [behaviorState, setBehaviorState] = useState<{ studentId: string; ratings: (number | null)[] }>(() => ({
-    studentId: student.student_id,
-    ratings: Array(8).fill(null),
-  }));
-  const behaviorRatings = behaviorState.studentId === student.student_id ? behaviorState.ratings : Array(8).fill(null);
-
+function CardSheet({
+  marks,
+  classRow,
+  student,
+  settings,
+  schoolInfo,
+  exam,
+  schoolClosed,
+  closingDate,
+  openingDate,
+  canGenerateConduct = false,
+  behaviorRatings,
+  onBehaviorRatingsChange,
+}: CardSheetProps) {
   const cardReport = useMemo(() => {
     const classResults = buildClassResults(classRow, marks.marks, settings.gradeBoundaries, settings.divisionRanges);
     const report = buildSchoolReport([classResults], settings);
@@ -163,7 +217,7 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exam, schoo
           </div>
           <div className="rc-header-info">
             <div className="rc-country">JAMHURI YA MUUNGANO WA TANZANIA</div>
-            <div className="rc-district">OFISI YA RAIS – TAMISEMI · {(schoolInfo?.council || schoolInfo?.district || "HALMASHAURI YA WILAYA").toUpperCase()}</div>
+            <div className="rc-district">{(schoolInfo?.council || schoolInfo?.district || "HALMASHAURI YA WILAYA YA IRAMBA").toUpperCase()}</div>
             <div className="rc-school-name">{(schoolInfo?.name || "Shule").toUpperCase()}</div>
             <div className="rc-address">S.L.P. {(schoolInfo?.address ?? "00000").replace(/^S\.?L\.?\s*P\.?\s*Box\s*/i, "")}</div>
             <div className="rc-report-title">RIPOTI YA MAENDELEO YA MWANAFUNZI</div>
@@ -240,7 +294,14 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exam, schoo
       </section>
 
       <section className="rc-section">
-        <h3>3. Tabia na Mwenendo</h3>
+        <div className="rc-section-head">
+          <h3>3. Tabia na Mwenendo</h3>
+          {canGenerateConduct && (
+            <button type="button" className="cm-btn cm-btn--ghost cm-btn--sm rc-no-print" onClick={() => onBehaviorRatingsChange(randomBehaviourRatings())}>
+              Auto-generate
+            </button>
+          )}
+        </div>
         <table className="rc-table rc-behavior">
           <thead>
             <tr>
@@ -272,13 +333,9 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exam, schoo
                             className="rc-rating-button"
                             aria-label={`${label}: ${rating}`}
                             aria-pressed={behaviorRatings[index] === ratingIndex}
-                            onClick={() => setBehaviorState((current) => {
-                              const ratings = current.studentId === student.student_id ? current.ratings : Array(8).fill(null);
-                              return {
-                                studentId: student.student_id,
-                                ratings: ratings.map((value, i) => i === index ? (value === ratingIndex ? null : ratingIndex) : value),
-                              };
-                            })}
+                            onClick={() => onBehaviorRatingsChange(
+                              behaviorRatings.map((value, i) => i === index ? (value === ratingIndex ? null : ratingIndex) : value),
+                            )}
                           >
                             {behaviorRatings[index] === ratingIndex ? "✓" : ""}
                           </button>
@@ -300,7 +357,6 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exam, schoo
             <strong>Maoni ya Mwalimu wa Darasa</strong>
             <p>{comments.classTeacher}</p>
             <div className="rc-comment-signature">
-              <span>Jina:</span><span className="rc-signature-line rc-signature-name" />
               <span>Sahihi:</span><span className="rc-signature-line rc-signature-mark" />
             </div>
           </div>
@@ -308,7 +364,6 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exam, schoo
             <strong>Maoni ya Mwalimu wa Taaluma</strong>
             <p>{comments.academic}</p>
             <div className="rc-comment-signature">
-              <span>Jina:</span><span className="rc-signature-line rc-signature-name" />
               <span>Sahihi:</span><span className="rc-signature-line rc-signature-mark" />
             </div>
           </div>
@@ -316,7 +371,6 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exam, schoo
             <strong>Maoni ya Mkuu wa Shule</strong>
             <p>{comments.headmaster}</p>
             <div className="rc-comment-signature">
-              <span>Jina:</span><span className="rc-signature-line rc-signature-name" />
               <span>Sahihi:</span><span className="rc-signature-line rc-signature-mark" />
               <span className="rc-stamp">Muhuri</span>
             </div>
@@ -324,28 +378,35 @@ function CardSheet({ marks, classRow, student, settings, schoolInfo, exam, schoo
         </div>
       </section>
 
+      {schoolClosed ? (
+        <div className="rc-closure-note">
+          Shule itafungwa tarehe {displayInputDate(closingDate)} · Itafunguliwa tarehe {displayInputDate(openingDate)}
+        </div>
+      ) : null}
+
       <section className="rc-section rc-parent-section">
         <div className="rc-cut"><span>✂ KATA HAPA — MZAZI/MLEZI ARUDISHE SEHEMU HII SHULENI ✂</span></div>
         <div className="rc-parent-msg">
           <h3>5. Maoni ya Mzazi / Mlezi</h3>
-          <div className="rc-parent-writing" aria-label="Nafasi ya maoni ya mzazi/mlezi" />
+          <div className="rc-parent-writing" aria-label="Nafasi ya maoni ya mzazi/mlezi">
+            <span /><span /><span />
+          </div>
           <div className="rc-parent-signature">Jina la Mzazi/Mlezi: ____________________ &nbsp; Simu: ____________________ &nbsp; Sahihi: ____________________</div>
         </div>
       </section>
 
       <footer className="rc-footer">
         <div>Ripoti hii imetolewa na Ofisi ya Taaluma | Tarehe: {issueDate}</div>
-        {schoolClosed ? (
-          <div className="rc-footer-closure">
-            Shule itafungwa tarehe {displayInputDate(closingDate)} · Itafunguliwa tarehe {displayInputDate(openingDate)}
-          </div>
-        ) : null}
       </footer>
     </div>
   );
 }
 
-export default function StudentReportCard() {
+interface StudentReportCardProps {
+  scope?: StreamTeacherScope | null;
+}
+
+export default function StudentReportCard({ scope }: StudentReportCardProps = {}) {
   const [exams, setExams] = useState<DbExamRow[]>([]);
   const [marksByExam, setMarksByExam] = useState<Record<string, ExamMarksData>>({});
   const [selectedExamId, setSelectedExamId] = useState("");
@@ -364,31 +425,67 @@ export default function StudentReportCard() {
   const [schoolClosed, setSchoolClosed] = useState(false);
   const [closingDate, setClosingDate] = useState("");
   const [openingDate, setOpeningDate] = useState("");
+  const [behaviorByStudent, setBehaviorByStudent] = useState<Record<string, (number | null)[]>>({});
   const [error, setError] = useState("");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveError, setSaveError] = useState("");
+  const scopedStreamId = scope?.streamId ?? "";
+  const scopedYear = scope?.year ?? "";
+  const scopedTerm = scope?.term;
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      fetchExams({ search: "", page: 1, pageSize: 100 }),
-      fetchGradingSettings(),
-      fetchSchoolInfo(),
-    ])
-      .then(([examResult, grading, info]) => {
-        if (!active) return;
-        const eligible = examResult.rows
+    (async () => {
+      const [grading, info, savedReport] = await Promise.all([
+        fetchGradingSettings(),
+        fetchSchoolInfo(),
+        scopedStreamId && scopedYear && scopedTerm
+          ? fetchStreamReportSettings(scopedStreamId, scopedYear, scopedTerm).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      let eligible: DbExamRow[];
+      if (scopedStreamId && scopedYear && scopedTerm) {
+        const result = await fetchStreamReports(scopedStreamId, scopedYear, scopedTerm);
+        eligible = result.exams
+          .filter((exam) => exam.status !== "draft")
+          .map(reportExamFromScoped)
+          .sort((a, b) => a.start_date.localeCompare(b.start_date));
+      } else {
+        const examResult = await fetchExams({ search: "", page: 1, pageSize: 100 });
+        eligible = examResult.rows
           .filter((exam) => exam.status !== "draft")
           .sort((a, b) => a.start_date.localeCompare(b.start_date));
-        setExams(eligible);
-        setSettings(grading);
-        setSchoolInfo(info);
-        setSelectedExamId(eligible[eligible.length - 1]?.id ?? "");
-      })
+      }
+      if (!active) return;
+      const restored = savedReport?.settings ?? null;
+      if (restored) {
+        setSchoolClosed(restored.schoolClosed);
+        setClosingDate(restored.closingDate);
+        setOpeningDate(restored.openingDate);
+        setBehaviorByStudent(restored.behavior ?? {});
+      } else {
+        setSchoolClosed(false);
+        setClosingDate("");
+        setOpeningDate("");
+        setBehaviorByStudent({});
+      }
+      setSaveState("idle");
+      setSaveError("");
+      setExams(eligible);
+      setSettings(grading);
+      setSchoolInfo(info);
+      setSelectedExamId(
+        restored?.examId && eligible.some((exam) => exam.id === restored.examId)
+          ? restored.examId
+          : eligible[eligible.length - 1]?.id ?? "",
+      );
+    })()
       .catch(() => active && setError("Imeshindikana kupakia data ya ripoti hiyo kutoka kwenye hifadhidata."))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, []);
+  }, [scopedStreamId, scopedYear, scopedTerm]);
 
   useEffect(() => {
     let active = true;
@@ -405,6 +502,14 @@ export default function StudentReportCard() {
       await Promise.all(
         exams.map(async (exam) => {
           try {
+            if (scopedStreamId && scopedYear && scopedTerm) {
+              const result = await fetchStreamReports(scopedStreamId, scopedYear, scopedTerm, exam.id);
+              if (active && result.data) {
+                const data = result.data;
+                setMarksByExam((current) => ({ ...current, [exam.id]: reportMarksFromScoped(data) }));
+              }
+              return;
+            }
             const data = await fetchExamMarks(exam.id);
             if (active) setMarksByExam((current) => ({ ...current, [exam.id]: data }));
           } catch {
@@ -420,10 +525,10 @@ export default function StudentReportCard() {
     return () => {
       active = false;
     };
-  }, [exams]);
+  }, [exams, scopedStreamId, scopedYear, scopedTerm]);
 
   const currentData = selectedExamId ? marksByExam[selectedExamId] : null;
-  const currentClass = currentData?.classes.find((item) => item.class_id === selectedClassId) ?? currentData?.classes[0];
+  const currentClass = currentData?.classes.find((item) => item.class_id === (scope?.classId ?? selectedClassId)) ?? currentData?.classes[0];
   const currentExam = exams.find((item) => item.id === selectedExamId);
   const participants = useMemo(
     () => (currentData ? examParticipantIds(currentData.marks) : new Set<string>()),
@@ -441,6 +546,34 @@ export default function StudentReportCard() {
     const report = buildSchoolReport([classResults], settings);
     return report.students.some((item) => item.student.student_id === currentStudent.student_id);
   }, [currentData, currentClass, currentStudent, settings]);
+
+  function autoAssignBehaviourAll() {
+    const next: Record<string, (number | null)[]> = {};
+    for (const student of classStudents) {
+      next[student.student_id] = randomBehaviourRatings();
+    }
+    setBehaviorByStudent((current) => ({ ...current, ...next }));
+    setSaveState("idle");
+  }
+
+  async function saveReportSettings() {
+    if (!scope) return;
+    setSaveState("saving");
+    setSaveError("");
+    try {
+      await saveStreamReportSettings(scope.streamId, scope.year, scope.term, {
+        schoolClosed,
+        closingDate,
+        openingDate,
+        examId: selectedExamId,
+        behavior: behaviorByStudent,
+      });
+      setSaveState("saved");
+    } catch (saveFailure) {
+      setSaveState("error");
+      setSaveError(saveFailure instanceof Error ? saveFailure.message : "Imeshindikana kuhifadhi mipangilio.");
+    }
+  }
 
   function printSingle() {
     window.print();
@@ -469,12 +602,11 @@ export default function StudentReportCard() {
           <h2 className="page-title">Ripoti ya Matokeo ya Mwanafunzi</h2>
           <p className="page-sub">Ripoti rasmi ya mwanafunzi mmoja mmoja — tayari kuchapishwa au kuhifadhiwa kama PDF.</p>
         </div>
-        <button className="cm-btn cm-btn--ghost rc-no-print" onClick={printSingle}>Chapisha Moja / Hifadhi kama PDF</button>
       </div>
 
-      <div className="res-toolbar rc-no-print">
+      <div className="rc-report-toolbar rc-no-print">
         <label className="res-field"><span className="res-field-label">Hali ya Shule</span>
-          <select className="res-select" value={schoolClosed ? "closed" : "open"} onChange={(event) => setSchoolClosed(event.target.value === "closed")}>
+          <select className="res-select" value={schoolClosed ? "closed" : "open"} onChange={(event) => { setSchoolClosed(event.target.value === "closed"); setSaveState("idle"); }}>
             <option value="open">Haitafungwi</option>
             <option value="closed">Itafungwa</option>
           </select>
@@ -482,15 +614,15 @@ export default function StudentReportCard() {
         {schoolClosed && (
           <>
             <label className="res-field"><span className="res-field-label">Tarehe ya Kufunga</span>
-              <input type="date" className="res-select" value={closingDate} onChange={(event) => setClosingDate(event.target.value)} />
+              <input type="date" className="res-select" value={closingDate} onChange={(event) => { setClosingDate(event.target.value); setSaveState("idle"); }} />
             </label>
             <label className="res-field"><span className="res-field-label">Tarehe ya Kufungua</span>
-              <input type="date" className="res-select" value={openingDate} onChange={(event) => setOpeningDate(event.target.value)} />
+              <input type="date" className="res-select" value={openingDate} onChange={(event) => { setOpeningDate(event.target.value); setSaveState("idle"); }} />
             </label>
           </>
         )}
         <label className="res-field"><span className="res-field-label">Mtihani</span>
-          <select className="res-select" value={selectedExamId} onChange={(event) => { setSelectedExamId(event.target.value); setSelectedClassId(""); setSelectedStudentId(""); }}>
+          <select className="res-select" value={selectedExamId} onChange={(event) => { setSelectedExamId(event.target.value); setSelectedClassId(""); setSelectedStudentId(""); setSaveState("idle"); }}>
             {exams.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
         </label>
@@ -504,7 +636,22 @@ export default function StudentReportCard() {
             {classStudents.map((item) => <option key={item.student_id} value={item.student_id}>{item.first_name} {item.last_name}</option>)}
           </select>
         </label>
-        <button className="cm-btn cm-btn--primary rc-no-print" onClick={printWholeClass}>Chapisha Darasa Zima</button>
+        <div className="rc-report-actions">
+          <button className="cm-btn cm-btn--ghost" onClick={printSingle}>Chapisha Moja / PDF</button>
+          <button className="cm-btn cm-btn--primary" onClick={printWholeClass}>Chapisha Darasa Zima</button>
+          {scope && (
+            <>
+              <button className="cm-btn cm-btn--ghost rc-auto-btn" onClick={autoAssignBehaviourAll}>
+                Auto-assign Tabia (Wote)
+              </button>
+              <button className="cm-btn cm-btn--primary" onClick={saveReportSettings} disabled={saveState === "saving"}>
+                {saveState === "saving" ? "Inahifadhi..." : "Hifadhi Mipangilio"}
+              </button>
+              {saveState === "saved" && <span className="rc-save-status rc-save-status--ok">Mipangilio imehifadhiwa.</span>}
+              {saveState === "error" && <span className="rc-save-status rc-save-status--error">{saveError}</span>}
+            </>
+          )}
+        </div>
       </div>
 
       {marksLoading ? <div className="me-loading"><Spinner size={20} /></div> : (
@@ -520,6 +667,12 @@ export default function StudentReportCard() {
               schoolClosed={schoolClosed}
               closingDate={closingDate}
               openingDate={openingDate}
+              canGenerateConduct={Boolean(scope)}
+              behaviorRatings={behaviorByStudent[currentStudent.student_id] ?? Array(8).fill(null)}
+              onBehaviorRatingsChange={(ratings) => {
+                setBehaviorByStudent((current) => ({ ...current, [currentStudent.student_id]: ratings }));
+                setSaveState("idle");
+              }}
             />
           )}
           {!printAll && (!currentStudent || !reportReady) && (
@@ -539,6 +692,12 @@ export default function StudentReportCard() {
                     schoolClosed={schoolClosed}
                     closingDate={closingDate}
                     openingDate={openingDate}
+                    canGenerateConduct={Boolean(scope)}
+                    behaviorRatings={behaviorByStudent[student.student_id] ?? Array(8).fill(null)}
+                    onBehaviorRatingsChange={(ratings) => {
+                      setBehaviorByStudent((current) => ({ ...current, [student.student_id]: ratings }));
+                      setSaveState("idle");
+                    }}
                   />
                 </div>
               ))}

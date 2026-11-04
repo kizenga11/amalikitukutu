@@ -21,6 +21,7 @@ type SidebarProps = {
   onCloseMobile: () => void;
   /** Used to remember the collapsed state per user. */
   storageKey: string;
+  hasStreamTeacher?: boolean;
 };
 
 export default function Sidebar({
@@ -32,8 +33,12 @@ export default function Sidebar({
   onOpenGroup,
   onCloseMobile,
   storageKey,
+  hasStreamTeacher = false,
 }: SidebarProps) {
-  const entries = useMemo(() => visibleMenuFor(role), [role]);
+  const entries = useMemo(
+    () => visibleMenuFor(role, { hasStreamTeacher }),
+    [role, hasStreamTeacher],
+  );
   const collapseKey = `nav-collapsed:${storageKey}`;
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {

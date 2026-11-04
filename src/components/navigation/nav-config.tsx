@@ -45,6 +45,11 @@ export type NavKey =
   | "beststudent"
   | "analysis"
   | "exams"
+  | "streamstudents"
+  | "streamsubjects"
+  | "streamresults"
+  | "streamreports"
+  | "streamteachers"
   | "attendance"
   | "lessonplans"
   | "sms"
@@ -56,7 +61,8 @@ export function isNavKey(value: unknown): value is NavKey {
     [
       "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment",
       "reportcard", "compare", "combined", "beststudent", "analysis", "exams",
-      "attendance", "lessonplans", "sms", "settings",
+      "streamstudents", "streamsubjects", "streamresults", "streamreports",
+      "streamteachers", "attendance", "lessonplans", "sms", "settings",
     ].includes(value)
   );
 }
@@ -125,6 +131,19 @@ export const menuConfig: MenuEntry[] = [
   },
   {
     kind: "group",
+    key: "mkondo",
+    label: "My Stream",
+    icon: navIcons.students,
+    roles: ["Teacher"],
+    items: [
+      { kind: "link", key: "streamstudents", label: "Students", icon: navIcons.students, roles: ["Teacher"] },
+      { kind: "link", key: "streamsubjects", label: "Subjects", icon: navIcons.subjects, roles: ["Teacher"] },
+      { kind: "link", key: "streamresults", label: "Results", icon: navIcons.result, roles: ["Teacher"] },
+      { kind: "link", key: "streamreports", label: "Report Card", icon: navIcons.reportCard, roles: ["Teacher"] },
+    ],
+  },
+  {
+    kind: "group",
     key: "people",
     label: "People",
     icon: navIcons.people,
@@ -132,6 +151,7 @@ export const menuConfig: MenuEntry[] = [
     items: [
       { kind: "link", key: "students", label: "Students", icon: navIcons.students, roles: ADMIN_ROLES },
       { kind: "link", key: "staff", label: "Staff", icon: navIcons.staff, roles: ADMIN_ROLES },
+      { kind: "link", key: "streamteachers", label: "Stream Teachers", icon: navIcons.staff, roles: ADMIN_ROLES },
       { kind: "link", key: "classes", label: "Classes", icon: navIcons.classes, roles: ADMIN_ROLES },
     ],
   },
@@ -142,9 +162,9 @@ export const menuConfig: MenuEntry[] = [
     icon: navIcons.teaching,
     roles: ["Headmaster", "Academic", "Teacher"],
     items: [
-      { kind: "link", key: "academic", label: "Subjects", icon: navIcons.subjects, roles: ["Headmaster", "Academic", "Teacher"] },
+      { kind: "link", key: "academic", label: "Subjects", icon: navIcons.subjects, roles: ["Headmaster", "Academic"] },
       { kind: "link", key: "exams", label: "Exams", icon: navIcons.exams, roles: ["Headmaster", "Academic", "Teacher"] },
-      { kind: "link", key: "attendance", label: "Attendance", icon: navIcons.attendance, roles: ["Headmaster", "Academic", "Teacher"] },
+      { kind: "link", key: "attendance", label: "Attendance", icon: navIcons.attendance, roles: ["Headmaster", "Academic"] },
       { kind: "link", key: "lessonplans", label: "Lesson Plans", icon: navIcons.lessonPlans, roles: ["Headmaster", "Academic", "Teacher"] },
     ],
   },
@@ -156,11 +176,11 @@ export const menuConfig: MenuEntry[] = [
     roles: ALL_ROLES,
     items: [
       { kind: "link", key: "reports", label: "Result", icon: navIcons.result, roles: ALL_ROLES },
-      { kind: "link", key: "combined", label: "Combined Results", icon: navIcons.combined, roles: ALL_ROLES },
+      { kind: "link", key: "combined", label: "Combined Results", icon: navIcons.combined, roles: ["Headmaster", "Academic", "District Officer"] },
       { kind: "link", key: "reportcard", label: "Report Card", icon: navIcons.reportCard, roles: ["Headmaster", "Academic", "District Officer"] },
       { kind: "link", key: "compare", label: "Compare", icon: navIcons.compare, roles: ALL_ROLES },
       { kind: "link", key: "enrollment", label: "Enrollment Report", icon: navIcons.enrollment, roles: ["Headmaster", "Academic", "District Officer"] },
-      { kind: "link", key: "beststudent", label: "Best Student", icon: navIcons.bestStudent, roles: ALL_ROLES },
+      { kind: "link", key: "beststudent", label: "Best Student", icon: navIcons.bestStudent, roles: ["Headmaster", "Academic", "District Officer"] },
       { kind: "link", key: "sms", label: "SMS kwa Wazazi", icon: navIcons.sms, roles: ADMIN_ROLES },
       // Kept for feature parity: Subject Analysis was already only visible to Teachers.
       { kind: "link", key: "analysis", label: "Subject Analysis", icon: navIcons.analysis, roles: ["Teacher"] },
@@ -176,9 +196,17 @@ export const menuConfig: MenuEntry[] = [
 ];
 
 /* ---- Helpers ---- */
-export function visibleMenuFor(role: Role): MenuEntry[] {
+export interface NavVisibilityOptions {
+  hasStreamTeacher?: boolean;
+}
+
+export function visibleMenuFor(role: Role, options: NavVisibilityOptions = {}): MenuEntry[] {
   return menuConfig
-    .filter((entry) => entry.roles.includes(role))
+    .filter((entry) => {
+      if (!entry.roles.includes(role)) return false;
+      if (entry.kind === "group" && entry.key === "mkondo" && !options.hasStreamTeacher) return false;
+      return true;
+    })
     .map((entry) =>
       entry.kind === "group"
         ? { ...entry, items: entry.items.filter((item) => item.roles.includes(role)) }
@@ -187,8 +215,8 @@ export function visibleMenuFor(role: Role): MenuEntry[] {
     .filter((entry) => entry.kind === "link" || entry.items.length > 0);
 }
 
-export function allowedKeysFor(role: Role): NavKey[] {
-  return visibleMenuFor(role).flatMap((entry) =>
+export function allowedKeysFor(role: Role, options: NavVisibilityOptions = {}): NavKey[] {
+  return visibleMenuFor(role, options).flatMap((entry) =>
     entry.kind === "group" ? entry.items.map((item) => item.key) : [entry.key],
   );
 }

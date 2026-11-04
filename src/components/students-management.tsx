@@ -18,6 +18,7 @@ import {
   type Gender,
 } from "@/lib/school-api";
 import { errorMessage } from "@/lib/errors";
+import type { StreamTeacherScope } from "@/lib/stream-teacher-api";
 import { ListRowSkeleton, Spinner } from "@/components/loading";
 
 type ToastType = "success" | "warning";
@@ -129,7 +130,11 @@ function parseStudentCsv(text: string): StudentImportRow[] {
   });
 }
 
-export default function StudentsManagement() {
+interface StudentsManagementProps {
+  scope?: StreamTeacherScope | null;
+}
+
+export default function StudentsManagement({ scope }: StudentsManagementProps = {}) {
   const [students, setStudents] = useState<DbStudentRow[]>([]);
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [subjects, setSubjects] = useState<DbSubjectRow[]>([]);
@@ -171,6 +176,9 @@ export default function StudentsManagement() {
       .catch(() => setSubjects([]));
   }, []);
 
+  const scopedClassId = scope?.classId ?? classFilter;
+  const scopedStreamId = scope?.streamId ?? streamFilter;
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
@@ -185,8 +193,8 @@ export default function StudentsManagement() {
     try {
       const result = await fetchStudents({
         search: debouncedSearch,
-        classId: classFilter || undefined,
-        streamId: streamFilter || undefined,
+        classId: scopedClassId || undefined,
+        streamId: scopedStreamId || undefined,
         page,
         pageSize: PAGE_SIZE,
       });
@@ -199,7 +207,7 @@ export default function StudentsManagement() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, classFilter, streamFilter, page]);
+  }, [debouncedSearch, scopedClassId, scopedStreamId, page]);
 
   useEffect(() => {
     let active = true;
@@ -209,8 +217,8 @@ export default function StudentsManagement() {
       try {
         const result = await fetchStudents({
           search: debouncedSearch,
-          classId: classFilter || undefined,
-          streamId: streamFilter || undefined,
+          classId: scopedClassId || undefined,
+          streamId: scopedStreamId || undefined,
           page,
           pageSize: PAGE_SIZE,
         });
@@ -227,7 +235,7 @@ export default function StudentsManagement() {
       }
     })();
     return () => { active = false; };
-  }, [debouncedSearch, classFilter, streamFilter, page]);
+  }, [debouncedSearch, scopedClassId, scopedStreamId, page]);
 
   useEffect(() => {
     return () => { timersRef.current.forEach((t) => clearTimeout(t)); };
@@ -311,7 +319,7 @@ export default function StudentsManagement() {
   }
 
   const streamOptions =
-    classes.find((c) => c.id === (classFilter || form.classId))?.streams ?? [];
+    classes.find((c) => c.id === (scopedClassId || form.classId))?.streams ?? [];
 
   function onClassFilterChange(value: string) {
     setClassFilter(value);
@@ -338,7 +346,7 @@ export default function StudentsManagement() {
   }
 
   function openNew() {
-    setForm(emptyForm());
+    setForm(scope ? { ...emptyForm(), classId: scope.classId, streamId: scope.streamId } : emptyForm());
     setEditingId(null);
     setSelectedOptional([]);
     setShowForm(true);
@@ -352,8 +360,8 @@ export default function StudentsManagement() {
       last: row.last_name,
       gender: row.gender,
       phone: row.phone ?? "",
-      classId: row.class_id ?? "",
-      streamId: row.stream_id ?? "",
+      classId: scope?.classId ?? row.class_id ?? "",
+      streamId: scope?.streamId ?? row.stream_id ?? "",
     });
     setSelectedOptional([]);
     setShowForm(true);
@@ -403,18 +411,20 @@ export default function StudentsManagement() {
     }
 
     setSaving("save");
+    const classId = scope?.classId ?? form.classId;
+    const streamId = scope?.streamId ?? form.streamId;
     const payload = {
       first_name: first,
       middle_name: form.middle.trim() || null,
       last_name: last,
       gender: form.gender,
       phone,
-      class_id: form.classId,
-      stream_id: form.streamId,
+      class_id: classId,
+      stream_id: streamId,
     };
 
     const streamName =
-      classes.find((c) => c.id === form.classId)?.streams.find((s) => s.id === form.streamId)?.name ?? "";
+      classes.find((c) => c.id === classId)?.streams.find((s) => s.id === streamId)?.name ?? "";
     const assignedSubjectIds = [
       ...subjects
         .filter((s) => (s.stream === streamName || s.stream === "Both") && s.subject_type === "Compulsory")
@@ -430,10 +440,10 @@ export default function StudentsManagement() {
         await updateStudent(editingId, payload);
         await saveStudentSubjects(editingId, assignedSubjectIds);
         const targets = new Set<string | null>();
-        if (prev?.class_id !== form.classId) {
+        if (prev?.class_id !== classId) {
           targets.add(prev?.class_id ?? null);
         }
-        targets.add(form.classId);
+        targets.add(classId);
         try {
           await renumberStudentRegistrations(Array.from(targets));
         } catch {
@@ -444,7 +454,7 @@ export default function StudentsManagement() {
         const inserted = await insertStudent(payload);
         await saveStudentSubjects(inserted.id, assignedSubjectIds);
         try {
-          await renumberStudentRegistrations([form.classId]);
+          await renumberStudentRegistrations([classId]);
         } catch {
           // ignore renumber errors
         }
@@ -630,25 +640,29 @@ export default function StudentsManagement() {
               Delete selected ({selectedIds.length})
             </button>
           )}
-          <a className="cm-btn cm-btn--ghost cm-btn--sm" href="/student-import-template.csv" download>
-            Download CSV template
-          </a>
-          <input
-            ref={importInputRef}
-            type="file"
-            accept=".csv,text/csv"
-            hidden
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void handleImportFile(file);
-            }}
-          />
-          <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={importing} onClick={() => importInputRef.current?.click()}>
-            {importing ? "Importing…" : "Import CSV"}
-          </button>
-          <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={renumbering} onClick={handleRenumber}>
-            {renumbering ? "Assigning…" : "Assign Reg Nos"}
-          </button>
+          {!scope && (
+            <>
+              <a className="cm-btn cm-btn--ghost cm-btn--sm" href="/student-import-template.csv" download>
+                Download CSV template
+              </a>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                hidden
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void handleImportFile(file);
+                }}
+              />
+              <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={importing} onClick={() => importInputRef.current?.click()}>
+                {importing ? "Importing…" : "Import CSV"}
+              </button>
+              <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={renumbering} onClick={handleRenumber}>
+                {renumbering ? "Assigning…" : "Assign Reg Nos"}
+              </button>
+            </>
+          )}
           <button className="sm-add-btn" onClick={openNew}>+ Register Student</button>
         </div>
       </div>
@@ -665,7 +679,7 @@ export default function StudentsManagement() {
           />
         </div>
         <div className="st-filter__wrap">
-          <select className="st-filter" value={classFilter} onChange={(e) => onClassFilterChange(e.target.value)}>
+          <select className="st-filter" value={scopedClassId} onChange={(e) => onClassFilterChange(e.target.value)} disabled={Boolean(scope)}>
             <option value="">All classes</option>
             {classes.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -675,9 +689,9 @@ export default function StudentsManagement() {
         <div className="st-filter__wrap">
           <select
             className="st-filter"
-            value={streamFilter}
+            value={scopedStreamId}
             onChange={(e) => { setStreamFilter(e.target.value); setPage(1); }}
-            disabled={!classFilter}
+            disabled={Boolean(scope) || !scopedClassId}
           >
             <option value="">All streams</option>
             {streamOptions.map((s) => (
@@ -685,7 +699,7 @@ export default function StudentsManagement() {
             ))}
           </select>
         </div>
-        {hasFilters && (
+        {hasFilters && !scope && (
           <button
             className="st-reset"
             onClick={() => { setSearch(""); setDebouncedSearch(""); setClassFilter(""); setStreamFilter(""); setPage(1); }}
@@ -936,7 +950,7 @@ export default function StudentsManagement() {
                   <label className="st-field">
                     <span className="st-field-label">Class <em>*</em></span>
                     <div className="st-input-wrap">
-                      <select className="st-input" value={form.classId} onChange={(e) => onFormClassChange(e.target.value)}>
+                      <select className="st-input" value={form.classId} onChange={(e) => onFormClassChange(e.target.value)} disabled={Boolean(scope)}>
                         <option value="">Select class…</option>
                         {classes.map((c) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
@@ -950,7 +964,7 @@ export default function StudentsManagement() {
                   <label className="st-field">
                     <span className="st-field-label">Stream <em>*</em></span>
                     <div className="st-input-wrap">
-                      <select className="st-input" value={form.streamId} onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, streamId: v })); recomputeOptionalForStream(form.classId, v); }} disabled={!form.classId}>
+                      <select className="st-input" value={form.streamId} onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, streamId: v })); recomputeOptionalForStream(form.classId, v); }} disabled={Boolean(scope) || !form.classId}>
                         <option value="">{form.classId ? "Select stream…" : "Select class first"}</option>
                         {(classes.find((c) => c.id === form.classId)?.streams ?? []).map((s) => (
                           <option key={s.id} value={s.id}>{s.name}</option>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchSubjects, insertSubject, updateSubject as updateSubjectDb, deleteSubjectRow } from "@/lib/school-api";
+import type { StreamTeacherScope } from "@/lib/stream-teacher-api";
 import { readStoredJson, writeStoredJson } from "@/lib/preferences";
 import { Skeleton, Spinner, ListRowSkeleton } from "@/components/loading";
 
@@ -64,7 +65,11 @@ function emptyForm(): Omit<Subject, "id"> {
   return { code: "", name: "", type: "Compulsory", hasPractical: false, stream: "Both" };
 }
 
-export default function SubjectManagement() {
+interface SubjectManagementProps {
+  scope?: StreamTeacherScope | null;
+}
+
+export default function SubjectManagement({ scope }: SubjectManagementProps = {}) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [dbMode, setDbMode] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -120,7 +125,11 @@ export default function SubjectManagement() {
     persistSubjects(next);
   }, []);
 
-  const filtered = subjects.filter((s) => {
+  const scopedSubjects = scope
+    ? subjects.filter((s) => s.stream === "Both" || s.stream === scope.streamName)
+    : subjects;
+
+  const filtered = scopedSubjects.filter((s) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q);
@@ -222,7 +231,8 @@ export default function SubjectManagement() {
   }
 
   function openNew() {
-    setForm(emptyForm());
+    const stream = scope?.streamName === "General" || scope?.streamName === "Vocational" ? scope.streamName : "Both";
+    setForm({ ...emptyForm(), stream });
     setEditingId(null);
     setShowForm(true);
   }

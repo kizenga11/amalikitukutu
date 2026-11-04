@@ -1152,6 +1152,7 @@ button:disabled, select:disabled { cursor: not-allowed; }
 
 /* ---------- Content ---------- */
 .content { flex: 1; padding: 1.75rem 2rem 3rem; width: 100%; max-width: 1200px; margin: 0 auto; }
+.content.content--wide { max-width: none; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
 .page-title { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; }
 .page-sub { margin: .3rem 0 0; color: var(--muted); font-size: .875rem; }
@@ -2501,6 +2502,30 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 
 /* ---------- Student report card ---------- */
 .rc-page { width: 100%; }
+.rc-report-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  align-items: end;
+  gap: .75rem;
+  margin-bottom: 1rem;
+  padding: .85rem;
+  border: 1px solid var(--line);
+  border-radius: .7rem;
+  background: var(--white);
+}
+.rc-report-toolbar .res-field { min-width: 0; }
+.rc-report-toolbar .res-select { width: 100%; min-width: 0; }
+.rc-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  grid-column: 1 / -1;
+}
+.rc-report-actions .cm-btn { flex: 1 1 auto; justify-content: center; white-space: nowrap; }
+.rc-auto-btn { border-color: var(--primary); }
+.rc-save-status { flex: 1 1 100%; font-size: .7rem; }
+.rc-save-status--ok { color: #177245; }
+.rc-save-status--error { color: #b42318; }
 .rc-paper {
   width: 210mm;
   min-height: 297mm;
@@ -2538,6 +2563,8 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 .rc-info-left .rc-sep, .rc-info-right .rc-sep { margin: 0 .3rem; color: var(--muted); }
 
 .rc-section { margin-top: .55rem; }
+.rc-section-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.rc-section-head h3 { flex: 1; }
 .rc-section h3 { text-align: left; font-weight: 700; font-size: 9pt; margin: 0 0 .25rem; text-transform: uppercase; letter-spacing: .03em; color: #0b2a5b; border-left: 4px solid #b8860b; padding-left: .35rem; }
 .rc-table { width: 100%; border-collapse: collapse; }
 .rc-table th, .rc-table td { border: 1px solid #9aa5b8; padding: .15rem .2rem; font-size: 8.5pt; text-align: center; }
@@ -2561,22 +2588,22 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 .rc-comment-block { padding: .3rem .45rem; border: 1px solid #9aa5b8; break-inside: avoid; }
 .rc-comment-block > strong { color: #0b2a5b; font-size: 8pt; text-transform: uppercase; }
 .rc-comment-block p { margin: .15rem 0; }
-.rc-comment-signature { display: flex; align-items: flex-end; gap: .3rem; margin-top: .45rem; font-size: 7.5pt; }
+.rc-comment-signature { display: flex; align-items: flex-end; justify-content: flex-end; gap: .3rem; margin-top: .45rem; font-size: 7.5pt; }
 .rc-signature-line { display: inline-block; height: 1.4rem; border-bottom: 1px solid #000; }
-.rc-signature-name { flex: 2 1 0; min-width: 35mm; }
-.rc-signature-mark { flex: 1 1 0; min-width: 20mm; }
+.rc-signature-mark { flex: 0 0 45mm; min-width: 35mm; }
 .rc-stamp { display: grid; flex: 0 0 20mm; height: 14mm; place-items: center; margin-left: .25rem; border: 1px dashed #9aa5b8; font-size: 7pt; }
 .rc-cut { margin: .75rem 0 .4rem; border-top: 2px dashed #555; text-align: center; font-size: 7pt; }
 .rc-cut span { position: relative; top: -.55rem; padding: 0 .5rem; background: #fff; }
 .rc-parent-msg { padding: .4rem .6rem; border: 2px solid #0b2a5b; background: #fff; font-size: 9pt; }
 .rc-parent-msg h3 { margin-bottom: .35rem; }
 .rc-parent-msg p { margin: 0; text-align: justify; }
-.rc-parent-writing { height: 36px; margin: .35rem 0; border-bottom: 1px dotted #777; }
+.rc-parent-writing { margin: .35rem 0; }
+.rc-parent-writing span { display: block; height: 1.35rem; border-bottom: 1px dotted #777; }
 .rc-parent-signature { font-size: 7pt; }
 .rc-parent-summary { font-weight: 700; text-align: left !important; margin-bottom: .3rem !important; }
 
+.rc-closure-note { margin: .45rem 0 .2rem; padding: .25rem .4rem; border: 1px solid #9aa5b8; color: #0b2a5b; font-size: 8pt; font-weight: 700; text-align: center; }
 .rc-footer { margin-top: .7rem; text-align: center; font-size: 9pt; }
-.rc-footer-closure { margin-top: .2rem; font-size: 9pt; font-weight: 700; color: #0b2a5b; }
 
 .rc-print-all { display: none; }
 
@@ -2629,20 +2656,28 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
   .rc-cut { margin: .3rem 0 .15rem; }
   .rc-parent-msg { padding: .22rem .4rem; font-size: 9.5pt; }
   .rc-parent-msg h3 { margin-bottom: .18rem; font-size: 10pt; }
-  .rc-parent-writing { height: 18px; margin: .1rem 0; }
+  .rc-parent-writing { margin: .1rem 0; }
+  .rc-parent-writing span { height: 1.05rem; }
   .rc-parent-signature { font-size: 8pt; }
+  .rc-closure-note { margin: .2rem 0 .1rem; padding: .16rem .3rem; font-size: 8pt; }
   .rc-footer { margin-top: auto; padding-top: .25rem; font-size: 8pt; }
-  .rc-footer-closure { margin-top: .12rem; font-size: 9pt; }
   .rc-print-all { display: block; }
   .rc-sheet { break-inside: avoid-page; page-break-inside: avoid; break-after: page; page-break-after: always; }
   .rc-sheet:last-child { break-after: auto; page-break-after: auto; }
 }
 
 @media screen and (max-width: 820px) {
+	.rc-report-toolbar {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: .6rem;
+		padding: .7rem;
+	}
+	.rc-report-actions .cm-btn { flex: 1 1 100%; }
 	.rc-paper {
 		width: 100%;
 		min-height: 0;
-		padding: 1rem;
+		padding: .8rem;
+		border-width: 2px;
 	}
 	.rc-header { gap: .5rem; }
 	.rc-logo { width: 42px; height: 42px; }
@@ -2656,12 +2691,15 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 	.rc-info-left { border-right: 0; border-bottom: 1px solid #000; }
 	.rc-info-left, .rc-info-right { font-size: .74rem; padding: .3rem .1rem; }
 	.rc-info-right { text-align: left; }
-	.rc-section { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+	.rc-section { overflow-x: visible; }
 	.rc-section h3 { font-size: .72rem; }
-	.rc-table th, .rc-table td { padding: .14rem .2rem; font-size: .68rem; }
-	.rc-behavior th, .rc-behavior td { padding: .1rem .04rem; font-size: .53rem; }
-	.rc-behavior td.rc-behavior-label { font-size: .56rem; }
-	.rc-rating-button { min-height: 1rem; }
+	.rc-table { table-layout: fixed; }
+	.rc-table th, .rc-table td { padding: .14rem .18rem; font-size: .66rem; overflow-wrap: anywhere; }
+	.rc-subjects th:first-child, .rc-subjects td:first-child { width: 34%; }
+	.rc-subjects th:last-child, .rc-subjects td:last-child { width: 16%; }
+	.rc-behavior th, .rc-behavior td { padding: .12rem .03rem; font-size: .52rem; }
+	.rc-behavior td.rc-behavior-label { width: 15%; font-size: .54rem; }
+	.rc-rating-button { min-height: 1.25rem; }
 	.rc-history td { font-size: .66rem; }
 	.rc-score { letter-spacing: .02em; }
 	.rc-comment, .rc-parent-msg { font-size: .72rem; padding: .35rem; }

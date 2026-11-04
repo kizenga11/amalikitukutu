@@ -272,7 +272,7 @@ export default function StudentReport() {
               <div className="rp-s1">
                 JAMHURI YA MUUNGANO WA TANZANIA
                 <br />
-                OFISI YA RAIS – TAMISEMI · HALMASHAURI YA WILAYA YA IRAMBA
+                HALMASHAURI YA WILAYA YA IRAMBA
               </div>
               <input
                 className="rp-in rp-h1"

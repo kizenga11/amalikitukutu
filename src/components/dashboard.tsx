@@ -34,6 +34,8 @@ const BestStudentYearly = dynamic(() => import("@/components/best-student-yearly
 const CombinedResults = dynamic(() => import("@/components/combined-results"), { ssr: false, loading: PageLoading });
 const SmsMessaging = dynamic(() => import("@/components/sms-messaging"), { ssr: false, loading: PageLoading });
 const StudentEnrollmentStatistics = dynamic(() => import("@/components/student-enrollment-statistics"), { ssr: false, loading: PageLoading });
+const StreamTeacherAssignment = dynamic(() => import("@/components/stream-teacher-assignment"), { ssr: false, loading: PageLoading });
+const MkondoWangu = dynamic(() => import("@/components/mkondo-wangu"), { ssr: false, loading: PageLoading });
 import { fetchAcademicSettings, fetchDashboardData, fetchSchoolInfo, saveAcademicSettings, saveSchoolInfo, type DashboardData, type SchoolInfo } from "@/lib/school-api";
 import { DEFAULT_SCHOOL_INFO } from "@/lib/school-api";
 import { readStoredJson, readStoredPeriod, writeStoredJson, writeStoredPeriod, type StoredPeriod } from "@/lib/preferences";
@@ -49,6 +51,8 @@ import {
   visibleMenuFor,
   type NavKey,
 } from "@/components/navigation/nav-config";
+import { fetchStreamTeacherMe, type StreamTeacherAssignment as StreamTeacherRecord } from "@/lib/stream-teacher-api";
+import type { StreamTeacherSection } from "@/components/mkondo-wangu";
 
 type IconProps = { paths: React.ReactNode };
 
@@ -116,6 +120,28 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
   const [profileDraft, setProfileDraft] = useState<{ name: string; phone: string } | null>(null);
   const [activePeriod, setActivePeriod] = useState<Period>(loadStoredPeriod);
   const [viewPeriod, setViewPeriod] = useState<Period>(loadStoredPeriod);
+  const [streamAssignments, setStreamAssignments] = useState<StreamTeacherRecord[]>([]);
+  const [selectedStreamId, setSelectedStreamId] = useState("");
+
+  useEffect(() => {
+    if (role !== "Teacher") return;
+    let activeRequest = true;
+    fetchStreamTeacherMe()
+      .then((result) => {
+        if (!activeRequest) return;
+        setStreamAssignments(result.assignments);
+        const forYear = result.assignments.filter((item) => item.academic_year_id === activePeriod.yearId);
+        setSelectedStreamId((current) =>
+          forYear.some((item) => item.stream_id === current) ? current : (forYear[0]?.stream_id ?? ""),
+        );
+      })
+      .catch(() => {
+        if (activeRequest) setStreamAssignments([]);
+      });
+    return () => {
+      activeRequest = false;
+    };
+  }, [role, activePeriod.yearId]);
 
   useEffect(() => {
     fetchAcademicSettings()
@@ -132,9 +158,23 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
       });
   }, []);
 
-  const allowedKeys = allowedKeysFor(role);
-  const menuEntries = visibleMenuFor(role);
+  const yearStreamAssignments = streamAssignments.filter(
+    (assignment) => assignment.academic_year_id === activePeriod.yearId,
+  );
+  const hasStreamTeacher = role === "Teacher" && yearStreamAssignments.length > 0;
+  const allowedKeys = allowedKeysFor(role, { hasStreamTeacher });
+  const menuEntries = visibleMenuFor(role, { hasStreamTeacher });
   const effectiveActive: NavKey = allowedKeys.includes(active) ? active : "dashboard";
+  const streamSection: StreamTeacherSection | null =
+    effectiveActive === "streamstudents"
+      ? "students"
+      : effectiveActive === "streamsubjects"
+        ? "subjects"
+        : effectiveActive === "streamresults"
+          ? "results"
+          : effectiveActive === "streamreports"
+            ? "reports"
+            : null;
   const crumbs = breadcrumbsFor(effectiveActive, menuEntries);
   const displayName =
     profileDraft?.name?.trim() ||
@@ -184,6 +224,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
         onOpenGroup={toggleGroup}
         onCloseMobile={() => setSidebarOpen(false)}
         storageKey={user.id}
+        hasStreamTeacher={hasStreamTeacher}
       />
 
       <div className="app-main">
@@ -230,7 +271,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           </div>
         </header>
 
-        <main className="content">
+        <main className={streamSection === "results" ? "content content--wide" : "content"}>
           {effectiveActive === "dashboard" && (role === "Teacher" ? (
             <TeacherDashboard
               authUserId={user.id}
@@ -253,6 +294,17 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "academic" && <SubjectManagement />}
           {effectiveActive === "students" && <StudentsManagement />}
           {effectiveActive === "staff" && <TeachersManagement currentUserId={user.id} />}
+          {effectiveActive === "streamteachers" && <StreamTeacherAssignment year={activePeriod.yearId} />}
+          {streamSection && (
+            <MkondoWangu
+              section={streamSection}
+              assignments={yearStreamAssignments}
+              selectedStreamId={selectedStreamId}
+              onSelectStream={setSelectedStreamId}
+              year={activePeriod.yearId}
+              term={activePeriod.term}
+            />
+          )}
           {effectiveActive === "exams" && <ExamManagement teacherId={role === "Teacher" ? user.id : undefined} role={role} />}
           {effectiveActive === "attendance" && <ExamAttendance teacherId={role === "Teacher" ? user.id : undefined} />}
           {effectiveActive === "reports" && <ResultPage role={role} />}
