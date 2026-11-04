@@ -8,6 +8,7 @@ import { Spinner } from "@/components/loading";
 import { supabase } from "@/lib/supabase";
 import { currentYearId } from "@/lib/calendar";
 import { fetchSchoolInfo, type SchoolInfo } from "@/lib/school-api";
+import type { StreamTeacherScope } from "@/lib/stream-teacher-api";
 import {
   MIN_EXAMS_PER_SUBJECT,
   type ExcludedStudent,
@@ -105,7 +106,11 @@ function formLabelFromValue(value: string | number | null | undefined): string {
   return text || "Form Four";
 }
 
-export default function BestStudentYearly() {
+interface Props {
+  scope?: StreamTeacherScope | null;
+}
+
+export default function BestStudentYearly({ scope = null }: Props = {}) {
   const [token, setToken] = useState<string | null>(null);
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
 
@@ -143,8 +148,13 @@ export default function BestStudentYearly() {
     [token],
   );
 
+  const scopeClassId = scope?.classId ?? "";
+  const scopeStreamId = scope?.streamId ?? "";
+  const scopeYear = scope?.year ?? "";
+
   useEffect(() => {
     let active = true;
+
     (async () => {
       const { data } = await supabase.auth.getSession();
       const sessionToken = data.session?.access_token ?? null;
@@ -156,7 +166,13 @@ export default function BestStudentYearly() {
         return;
       }
       try {
-        const response = await fetch("/api/best-student?action=options", {
+        const params = new URLSearchParams({ action: "options" });
+        if (scopeStreamId) {
+          params.set("streamId", scopeStreamId);
+          params.set("classId", scopeClassId);
+          params.set("year", scopeYear);
+        }
+        const response = await fetch(`/api/best-student?${params.toString()}`, {
           headers: { Authorization: `Bearer ${sessionToken}` },
         });
         const data2 = (await response.json()) as { years?: { id: string; label: string }[]; forms?: FormOption[]; error?: string };
@@ -169,11 +185,14 @@ export default function BestStudentYearly() {
           setForms(data2.forms ?? []);
           const nowYear = String(new Date().getFullYear());
           setYear(
-            availableYears.find((y) => y.id === nowYear)?.id ??
-              availableYears.find((y) => y.id === currentYearId)?.id ??
-              availableYears[availableYears.length - 1]?.id ??
+            scopeYear ||
+              availableYears.find((y) => y.id === nowYear)?.id ||
+              availableYears.find((y) => y.id === currentYearId)?.id ||
+              availableYears[availableYears.length - 1]?.id ||
               "",
           );
+          setClassId(scopeClassId);
+          setStreamId(scopeStreamId);
         }
       } catch {
         if (active) setOptionsError("Could not reach the server.");
@@ -184,7 +203,7 @@ export default function BestStudentYearly() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [scopeClassId, scopeStreamId, scopeYear]);
 
   useEffect(() => {
     fetchSchoolInfo()
@@ -193,16 +212,14 @@ export default function BestStudentYearly() {
   }, []);
 
   useEffect(() => {
-    if (!year || !classId || !token) {
-      setExams([]);
-      setSelectedExamIds([]);
-      return;
-    }
+    if (!year || !classId || !token) return;
     let active = true;
-    setLoadingExams(true);
     (async () => {
+      setLoadingExams(true);
       try {
-        const response = await apiGet({ action: "exams", year, classId });
+        const params: Record<string, string> = { action: "exams", year, classId };
+        if (scopeStreamId) params.streamId = scopeStreamId;
+        const response = await apiGet(params);
         const data = (await response.json()) as { exams?: ExamOption[]; error?: string };
         if (!active) return;
         if (!response.ok) {
@@ -228,7 +245,7 @@ export default function BestStudentYearly() {
     return () => {
       active = false;
     };
-  }, [year, classId, token, apiGet]);
+  }, [year, classId, token, apiGet, scopeStreamId]);
 
   const selectedForm = forms.find((form) => form.class_id === classId) ?? null;
 
@@ -387,6 +404,7 @@ export default function BestStudentYearly() {
     return <div className="st-empty-state">{optionsError}</div>;
   }
 
+  const scoped = Boolean(scope);
   const noForms = forms.length === 0;
   const allSelected = exams.length > 0 && selectedExamIds.length === exams.length;
   const lowExams = selectedExamIds.length > 0 && selectedExamIds.length < MIN_EXAMS_PER_SUBJECT;
@@ -402,7 +420,11 @@ export default function BestStudentYearly() {
       <div className="page-head result-controls no-print">
         <div>
           <h2 className="page-title">Best Student of the Year</h2>
-          <p className="page-sub">Pick an academic year, form and the exams to combine, then show the yearly ranking.</p>
+          <p className="page-sub">
+            {scoped
+              ? `Rank the best students in ${scope?.className} - ${scope?.streamName} using the exams you select.`
+              : "Pick an academic year, form and the exams to combine, then show the yearly ranking."}
+          </p>
         </div>
         {payload ? (
           <div className="print-tools">
@@ -413,14 +435,16 @@ export default function BestStudentYearly() {
       </div>
 
       {noForms ? (
-        <div className="st-empty-state">No forms have been set up yet.</div>
+        <div className="st-empty-state">
+          {scoped ? "No form was found for your assigned stream." : "No forms have been set up yet."}
+        </div>
       ) : (
         <>
           <div className="bs-controls no-print">
             <div className="bs-filter-row">
               <label className="res-field">
                 <span className="res-field-label">Academic Year</span>
-                <select className="res-select" value={year} onChange={(event) => { setYear(event.target.value); setClassId(""); setStreamId(""); resetReport(); }}>
+                <select className="res-select" value={year} disabled={scoped} onChange={(event) => { setYear(event.target.value); setClassId(""); setStreamId(""); setExams([]); setSelectedExamIds([]); resetReport(); }}>
                   <option value="">— Select year —</option>
                   {years.map((y) => <option key={y.id} value={y.id}>{y.label}</option>)}
                 </select>
@@ -428,16 +452,16 @@ export default function BestStudentYearly() {
 
               <label className="res-field">
                 <span className="res-field-label">Form</span>
-                <select className="res-select" value={classId} onChange={(event) => { setClassId(event.target.value); setStreamId(""); resetReport(); }}>
+                <select className="res-select" value={classId} disabled={scoped} onChange={(event) => { setClassId(event.target.value); setStreamId(""); setExams([]); setSelectedExamIds([]); resetReport(); }}>
                   <option value="">— Select form —</option>
                   {forms.map((form) => <option key={form.class_id} value={form.class_id}>{form.class_name}</option>)}
                 </select>
               </label>
 
               <label className="res-field">
-                <span className="res-field-label">Stream (optional)</span>
-                <select className="res-select" value={streamId} onChange={(event) => { setStreamId(event.target.value); resetReport(); }} disabled={!classId}>
-                  <option value="">All streams</option>
+                <span className="res-field-label">{scoped ? "Your stream" : "Stream (optional)"}</span>
+                <select className="res-select" value={streamId} onChange={(event) => { setStreamId(event.target.value); resetReport(); }} disabled={scoped || !classId}>
+                  {!scoped && <option value="">All streams</option>}
                   {(selectedForm?.streams ?? []).map((stream) => <option key={stream.id} value={stream.id}>{stream.name}</option>)}
                 </select>
               </label>

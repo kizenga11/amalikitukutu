@@ -19,6 +19,7 @@ import {
   type YearlySubjectMeta,
   type YearlySettings,
 } from "@/lib/yearly-results";
+import { isUuid, requireStreamTeacher } from "@/lib/stream-teacher-server";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -64,7 +65,14 @@ async function fetchAllRows<T>(
   return rows;
 }
 
-type AuthorizeResult = { ok: true } | { error: NextResponse };
+type AuthorizeResult = { ok: true; role: string } | { error: NextResponse };
+
+interface StreamScope {
+  classId: string;
+  streamId: string;
+}
+
+type ScopeResult = { scope: StreamScope | null } | { error: NextResponse };
 
 async function authorize(request: NextRequest): Promise<AuthorizeResult> {
   const header = request.headers.get("authorization") ?? "";
@@ -80,20 +88,46 @@ async function authorize(request: NextRequest): Promise<AuthorizeResult> {
   }
 
   const metaRole = user.user_metadata?.role as string | undefined;
-  let allowed = metaRole === "Headmaster" || metaRole === "Academic" || metaRole === "Teacher";
-  if (!allowed) {
+  let role = metaRole;
+  const isAllowed = (value: string | undefined): value is "Headmaster" | "Academic" | "Teacher" =>
+    value === "Headmaster" || value === "Academic" || value === "Teacher";
+  if (!isAllowed(role)) {
     const { data: staff } = await admin
       .from("staff")
       .select("role")
       .eq("auth_user_id", user.id)
       .maybeSingle();
-    allowed = staff?.role === "Headmaster" || staff?.role === "Academic" || staff?.role === "Teacher";
+    role = (staff?.role as string | undefined) ?? undefined;
   }
-  if (!allowed) {
+  if (!isAllowed(role)) {
     return { error: NextResponse.json({ error: "You do not have access to yearly results." }, { status: 403 }) };
   }
 
-  return { ok: true };
+  return { ok: true, role };
+}
+
+async function resolveScope(request: NextRequest, url: URL, role: string): Promise<ScopeResult> {
+  if (role !== "Teacher") return { scope: null };
+
+  const streamId = url.searchParams.get("streamId")?.trim() ?? "";
+  const year = url.searchParams.get("year")?.trim() ?? "";
+  const classId = url.searchParams.get("classId")?.trim() ?? "";
+  if (!isUuid(streamId) || !isValidYear(year)) {
+    return {
+      error: NextResponse.json(
+        { error: "Stream teachers must select their assigned stream and academic year." },
+        { status: 400 },
+      ),
+    };
+  }
+
+  const access = await requireStreamTeacher(request, streamId, year);
+  if (!access.ok) return { error: access.response };
+  if (classId && classId !== access.assignment.class_id) {
+    return { error: NextResponse.json({ error: "You are not assigned to this class." }, { status: 403 }) };
+  }
+
+  return { scope: { classId: access.assignment.class_id, streamId } };
 }
 
 interface StreamRow {
@@ -102,7 +136,7 @@ interface StreamRow {
   name: string;
 }
 
-async function optionsResponse(): Promise<NextResponse> {
+async function optionsResponse(scope: StreamScope | null): Promise<NextResponse> {
   const [classesRes, streamsRes] = await Promise.all([
     admin.from("school_classes").select("id, form_level, name").order("form_level"),
     admin.from("streams").select("id, class_id, name"),
@@ -111,24 +145,30 @@ async function optionsResponse(): Promise<NextResponse> {
     return NextResponse.json({ error: "Could not load forms." }, { status: 500 });
   }
   const streams = (streamsRes.data ?? []) as StreamRow[];
-  const forms = (classesRes.data ?? []).map((cls) => ({
-    class_id: cls.id as string,
-    class_name: cls.name as string,
-    form_level: cls.form_level as number,
-    streams: streams
-      .filter((s) => s.class_id === cls.id)
-      .map((s) => ({ id: s.id, name: s.name }))
-      .sort((a, b) => a.name.localeCompare(b.name)),
-  }));
+  const forms = (classesRes.data ?? [])
+    .filter((cls) => !scope || cls.id === scope.classId)
+    .map((cls) => ({
+      class_id: cls.id as string,
+      class_name: cls.name as string,
+      form_level: cls.form_level as number,
+      streams: streams
+        .filter((s) => s.class_id === cls.id && (!scope || s.id === scope.streamId))
+        .map((s) => ({ id: s.id, name: s.name }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }));
   return NextResponse.json({
     years: academicYears.map((y) => ({ id: y.id, label: y.label })),
     forms,
   });
 }
 
-async function examsResponse(url: URL): Promise<NextResponse> {
+async function examsResponse(url: URL, scope: StreamScope | null): Promise<NextResponse> {
   const year = url.searchParams.get("year")?.trim() ?? "";
-  const classId = url.searchParams.get("classId")?.trim() ?? "";
+  const requestedClassId = url.searchParams.get("classId")?.trim() ?? "";
+  if (scope && requestedClassId && requestedClassId !== scope.classId) {
+    return NextResponse.json({ error: "You are not assigned to this class." }, { status: 403 });
+  }
+  const classId = scope?.classId ?? requestedClassId;
   if (!isValidYear(year) || !classId) {
     return NextResponse.json({ error: "Select an academic year and a form first." }, { status: 400 });
   }
@@ -179,10 +219,18 @@ interface RawStudent {
   stream: { name: string }[] | { name: string } | null;
 }
 
-async function reportResponse(url: URL): Promise<NextResponse> {
+async function reportResponse(url: URL, scope: StreamScope | null): Promise<NextResponse> {
   const year = url.searchParams.get("year")?.trim() ?? "";
-  const classId = url.searchParams.get("classId")?.trim() ?? "";
-  const streamId = url.searchParams.get("streamId")?.trim() ?? "";
+  const requestedClassId = url.searchParams.get("classId")?.trim() ?? "";
+  const requestedStreamId = url.searchParams.get("streamId")?.trim() ?? "";
+  if (scope && requestedClassId && requestedClassId !== scope.classId) {
+    return NextResponse.json({ error: "You are not assigned to this class." }, { status: 403 });
+  }
+  if (scope && requestedStreamId && requestedStreamId !== scope.streamId) {
+    return NextResponse.json({ error: "You are not assigned to this stream." }, { status: 403 });
+  }
+  const classId = scope?.classId ?? requestedClassId;
+  const streamId = scope?.streamId ?? requestedStreamId;
   const examIds = (url.searchParams.get("examIds") ?? "")
     .split(",")
     .map((id) => id.trim())
@@ -368,9 +416,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const action = url.searchParams.get("action") ?? "options";
 
   try {
-    if (action === "options") return await optionsResponse();
-    if (action === "exams") return await examsResponse(url);
-    if (action === "report") return await reportResponse(url);
+    const scoped = await resolveScope(request, url, auth.role);
+    if ("error" in scoped) return scoped.error;
+
+    if (action === "options") return await optionsResponse(scoped.scope);
+    if (action === "exams") return await examsResponse(url, scoped.scope);
+    if (action === "report") return await reportResponse(url, scoped.scope);
     return NextResponse.json({ error: "Invalid action." }, { status: 400 });
   } catch (error) {
     const message = errorMessage(error, "Unknown error.");

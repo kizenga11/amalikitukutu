@@ -7,8 +7,9 @@ import StudentsManagement from "@/components/students-management";
 import SubjectManagement from "@/components/subject-management";
 import StudentReportCard from "@/components/student-report-card";
 import StreamResults from "@/components/stream-results";
+import BestStudentYearly from "@/components/best-student-yearly";
 
-export type StreamTeacherSection = "students" | "subjects" | "results" | "reports";
+export type StreamTeacherSection = "students" | "subjects" | "results" | "reports" | "beststudent";
 
 interface Props {
   section: StreamTeacherSection;
@@ -73,6 +74,9 @@ export default function MkondoWangu({
       {section === "subjects" && <SubjectManagement scope={scope} />}
       {section === "results" && <StreamResults streamId={selected.stream_id} year={year} />}
       {section === "reports" && <StudentReportCard scope={scope} />}
+      {section === "beststudent" && (
+        <BestStudentYearly key={`${scope.classId}-${scope.streamId}-${scope.year}`} scope={scope} />
+      )}
     </div>
   );
 }

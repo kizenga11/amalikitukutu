@@ -174,7 +174,9 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           ? "results"
           : effectiveActive === "streamreports"
             ? "reports"
-            : null;
+            : effectiveActive === "streambeststudent"
+              ? "beststudent"
+              : null;
   const crumbs = breadcrumbsFor(effectiveActive, menuEntries);
   const displayName =
     profileDraft?.name?.trim() ||

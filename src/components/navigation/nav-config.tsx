@@ -49,6 +49,7 @@ export type NavKey =
   | "streamsubjects"
   | "streamresults"
   | "streamreports"
+  | "streambeststudent"
   | "streamteachers"
   | "attendance"
   | "lessonplans"
@@ -62,7 +63,7 @@ export function isNavKey(value: unknown): value is NavKey {
       "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment",
       "reportcard", "compare", "combined", "beststudent", "analysis", "exams",
       "streamstudents", "streamsubjects", "streamresults", "streamreports",
-      "streamteachers", "attendance", "lessonplans", "sms", "settings",
+      "streambeststudent", "streamteachers", "attendance", "lessonplans", "sms", "settings",
     ].includes(value)
   );
 }
@@ -140,6 +141,7 @@ export const menuConfig: MenuEntry[] = [
       { kind: "link", key: "streamsubjects", label: "Subjects", icon: navIcons.subjects, roles: ["Teacher"] },
       { kind: "link", key: "streamresults", label: "Results", icon: navIcons.result, roles: ["Teacher"] },
       { kind: "link", key: "streamreports", label: "Report Card", icon: navIcons.reportCard, roles: ["Teacher"] },
+      { kind: "link", key: "streambeststudent", label: "Best Student", icon: navIcons.bestStudent, roles: ["Teacher"] },
     ],
   },
   {
