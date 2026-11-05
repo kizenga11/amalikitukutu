@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 type Ratings = (number | null)[];
 
 interface SettingsRow {
+  teacher_id?: string | null;
   stream_id: string;
   settings: { behavior?: unknown } | null;
   updated_at: string | null;
@@ -39,11 +40,6 @@ function sanitizeRatings(value: unknown): Ratings | null {
 
 function filledCount(ratings: Ratings): number {
   return ratings.filter((rating) => typeof rating === "number").length;
-}
-
-function staffName(row: StaffRow | undefined): string {
-  if (!row) return "";
-  return [row.first_name, row.last_name].filter(Boolean).join(" ").trim() || row.name || "";
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
