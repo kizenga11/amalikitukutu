@@ -60,7 +60,7 @@ describe("ISAL helpers", () => {
     expect(isalStreamLabel(student("3", "A", "B", "Male", "c1", "—"))).toBe("—");
   });
 
-  it("lists girls alphabetically before boys and shows their registration numbers", () => {
+  it("lists students by registration number ascending", () => {
     const sheet = buildIsalSheet({
       subject,
       classNames,
@@ -71,11 +71,17 @@ describe("ISAL helpers", () => {
         student("4", "asha", "juma", "Male"),
       ],
     });
+    expect(sheet.pages[0].rows.map((row) => row.registration_no)).toEqual([
+      "S7811/0001",
+      "S7811/0002",
+      "S7811/0003",
+      "S7811/0004",
+    ]);
     expect(sheet.pages[0].rows.map((row) => row.full_name)).toEqual([
-      "ASHA JUMA",
       "ZAWADI MUSSA",
       "ASHA JUMA",
       "BARAKA ALLY",
+      "ASHA JUMA",
     ]);
     expect(sheet.pages[0].rows.map((row) => row.sex)).toEqual(["F", "F", "M", "M"]);
     expect(sheet.pages[0].rows.map((row) => row.class_name)).toEqual([
@@ -85,15 +91,9 @@ describe("ISAL helpers", () => {
       "Form II",
     ]);
     expect(sheet.pages[0].rows.map((row) => row.no)).toEqual([1, 2, 3, 4]);
-    expect(sheet.pages[0].rows.map((row) => row.registration_no)).toEqual([
-      "S7811/0002",
-      "S7811/0001",
-      "S7811/0004",
-      "S7811/0003",
-    ]);
   });
 
-  it("keeps ISAL rows grouped by class before alphabetizing girls and boys", () => {
+  it("orders ISAL rows by registration number across classes", () => {
     const sheet = buildIsalSheet({
       subject,
       classNames,
@@ -105,10 +105,10 @@ describe("ISAL helpers", () => {
       ],
     });
     expect(sheet.pages[0].rows.map((row) => [row.class_name, row.sex])).toEqual([
-      ["Form II", "F"],
-      ["Form II", "M"],
       ["Form III", "F"],
+      ["Form II", "M"],
       ["Form III", "M"],
+      ["Form II", "F"],
     ]);
   });
 

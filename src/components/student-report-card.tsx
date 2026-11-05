@@ -29,7 +29,44 @@ import {
   type ScopedExamMarks,
   type StreamTeacherScope,
 } from "@/lib/stream-teacher-api";
+import {
+  clearReportSignature,
+  fetchReportSignatures,
+  saveReportSignature,
+  type ReportSignature,
+  type ReportSignerRole,
+} from "@/lib/report-signatures-api";
+import { fetchReportBehaviour } from "@/lib/report-behaviour-api";
+import SignaturePad from "@/components/signature-pad";
+import type { Role } from "@/components/navigation/nav-config";
 
+interface ReportSignatureBundle {
+  academic: ReportSignature | null;
+  headmaster: ReportSignature | null;
+  streamTeachers: Record<string, ReportSignature>;
+}
+
+const SIGNER_LABELS: Record<ReportSignerRole, string> = {
+  Academic: "Mtaaluma",
+  StreamTeacher: "Mwalimu wa Mkondo",
+  Headmaster: "Mkuu wa Shule",
+};
+
+function signerRoleFor(role: Role | undefined): ReportSignerRole | null {
+  if (role === "Teacher") return "StreamTeacher";
+  if (role === "Academic") return "Academic";
+  if (role === "Headmaster") return "Headmaster";
+  return null;
+}
+
+function termOfDate(value: string): 1 | 2 {
+  const month = Number(value.slice(5, 7));
+  return month >= 7 ? 2 : 1;
+}
+
+function emptySignatureBundle(): ReportSignatureBundle {
+  return { academic: null, headmaster: null, streamTeachers: {} };
+}
 
 function shortDate(value: string): string {
   const date = new Date(value);
@@ -111,6 +148,10 @@ function randomBehaviourRatings(): (number | null)[] {
   );
 }
 
+function filledBehaviourCount(ratings: (number | null)[]): number {
+  return ratings.filter((rating) => typeof rating === "number").length;
+}
+
 function performanceComments(avg: number | null): {
   headmaster: string;
   academic: string;
@@ -158,6 +199,44 @@ function performanceComments(avg: number | null): {
   };
 }
 
+interface SignatureSlotProps {
+  signature: ReportSignature | null;
+  canSign: boolean;
+  onSign: () => void;
+  showStamp?: boolean;
+}
+
+function SignatureSlot({ signature, canSign, onSign, showStamp = false }: SignatureSlotProps) {
+  return (
+    <>
+      <div className="rc-comment-signature">
+        <span>Sahihi:</span>
+        <span className={`rc-signature-line rc-signature-mark${signature ? " rc-signature-mark--signed" : ""}`}>
+          {signature ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className="rc-signature-image"
+              src={signature.signature_data}
+              alt="Sahihi"
+            />
+          ) : null}
+        </span>
+        {showStamp ? <span className="rc-stamp">Muhuri</span> : null}
+        {canSign ? (
+          <button type="button" className="rc-signature-button rc-no-print" onClick={onSign}>
+            {signature ? "Badilisha" : "Saini"}
+          </button>
+        ) : null}
+      </div>
+      {signature ? (
+        <div className="rc-signature-meta">
+          {shortDate(signature.updated_at)}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 interface CardSheetProps {
   marks: ExamMarksData;
   classRow: ExamMarksClass;
@@ -170,7 +249,11 @@ interface CardSheetProps {
   openingDate: string;
   canGenerateConduct?: boolean;
   behaviorRatings: (number | null)[];
+  behaviorEditable?: boolean;
   onBehaviorRatingsChange: (ratings: (number | null)[]) => void;
+  signatures: ReportSignatureBundle;
+  signerRole: ReportSignerRole | null;
+  onSign: (role: ReportSignerRole) => void;
 }
 
 function CardSheet({
@@ -185,7 +268,11 @@ function CardSheet({
   openingDate,
   canGenerateConduct = false,
   behaviorRatings,
+  behaviorEditable = false,
   onBehaviorRatingsChange,
+  signatures,
+  signerRole,
+  onSign,
 }: CardSheetProps) {
   const cardReport = useMemo(() => {
     const classResults = buildClassResults(classRow, marks.marks, settings.gradeBoundaries, settings.divisionRanges);
@@ -206,6 +293,9 @@ function CardSheet({
   const examLabel = `${exam.name} ${yearOf(exam.start_date)}`.toUpperCase();
   const division = row.divisionCode;
   const comments = performanceComments(avg);
+  const teacherSignature = student.stream_id ? signatures.streamTeachers[student.stream_id] ?? null : null;
+  const behaviourFilled = filledBehaviourCount(behaviorRatings);
+  const behaviourTotal = behaviorRatings.length || 8;
 
   return (
     <div className="rc-paper">
@@ -296,11 +386,18 @@ function CardSheet({
       <section className="rc-section">
         <div className="rc-section-head">
           <h3>3. Tabia na Mwenendo</h3>
-          {canGenerateConduct && (
-            <button type="button" className="cm-btn cm-btn--ghost cm-btn--sm rc-no-print" onClick={() => onBehaviorRatingsChange(randomBehaviourRatings())}>
-              Auto-generate
-            </button>
-          )}
+          <div className="rc-behaviour-status-wrap rc-no-print">
+            <span className={`rc-behaviour-status${behaviourFilled > 0 ? " rc-behaviour-status--filled" : " rc-behaviour-status--empty"}`}>
+              {behaviourFilled > 0
+                ? `Imejazwa (${behaviourFilled}/${behaviourTotal})`
+                : "Bado haijajazwa"}
+            </span>
+            {canGenerateConduct && (
+              <button type="button" className="cm-btn cm-btn--ghost cm-btn--sm" onClick={() => onBehaviorRatingsChange(randomBehaviourRatings())}>
+                Auto-generate
+              </button>
+            )}
+          </div>
         </div>
         <table className="rc-table rc-behavior">
           <thead>
@@ -333,9 +430,13 @@ function CardSheet({
                             className="rc-rating-button"
                             aria-label={`${label}: ${rating}`}
                             aria-pressed={behaviorRatings[index] === ratingIndex}
-                            onClick={() => onBehaviorRatingsChange(
-                              behaviorRatings.map((value, i) => i === index ? (value === ratingIndex ? null : ratingIndex) : value),
-                            )}
+                            disabled={!behaviorEditable}
+                            onClick={() => {
+                              if (!behaviorEditable) return;
+                              onBehaviorRatingsChange(
+                                behaviorRatings.map((value, i) => i === index ? (value === ratingIndex ? null : ratingIndex) : value),
+                              );
+                            }}
                           >
                             {behaviorRatings[index] === ratingIndex ? "✓" : ""}
                           </button>
@@ -354,26 +455,32 @@ function CardSheet({
         <h3>4. Maoni na Uthibitisho</h3>
         <div className="rc-comment rc-comments">
           <div className="rc-comment-block">
-            <strong>Maoni ya Mwalimu wa Darasa</strong>
+            <strong>Maoni ya Mwalimu wa Mkondo</strong>
             <p>{comments.classTeacher}</p>
-            <div className="rc-comment-signature">
-              <span>Sahihi:</span><span className="rc-signature-line rc-signature-mark" />
-            </div>
+            <SignatureSlot
+              signature={teacherSignature}
+              canSign={signerRole === "StreamTeacher"}
+              onSign={() => onSign("StreamTeacher")}
+            />
           </div>
           <div className="rc-comment-block">
             <strong>Maoni ya Mwalimu wa Taaluma</strong>
             <p>{comments.academic}</p>
-            <div className="rc-comment-signature">
-              <span>Sahihi:</span><span className="rc-signature-line rc-signature-mark" />
-            </div>
+            <SignatureSlot
+              signature={signatures.academic}
+              canSign={signerRole === "Academic"}
+              onSign={() => onSign("Academic")}
+            />
           </div>
           <div className="rc-comment-block">
             <strong>Maoni ya Mkuu wa Shule</strong>
             <p>{comments.headmaster}</p>
-            <div className="rc-comment-signature">
-              <span>Sahihi:</span><span className="rc-signature-line rc-signature-mark" />
-              <span className="rc-stamp">Muhuri</span>
-            </div>
+            <SignatureSlot
+              signature={signatures.headmaster}
+              canSign={signerRole === "Headmaster"}
+              onSign={() => onSign("Headmaster")}
+              showStamp
+            />
           </div>
         </div>
       </section>
@@ -404,9 +511,10 @@ function CardSheet({
 
 interface StudentReportCardProps {
   scope?: StreamTeacherScope | null;
+  role?: Role;
 }
 
-export default function StudentReportCard({ scope }: StudentReportCardProps = {}) {
+export default function StudentReportCard({ scope, role }: StudentReportCardProps = {}) {
   const [exams, setExams] = useState<DbExamRow[]>([]);
   const [marksByExam, setMarksByExam] = useState<Record<string, ExamMarksData>>({});
   const [selectedExamId, setSelectedExamId] = useState("");
@@ -429,9 +537,14 @@ export default function StudentReportCard({ scope }: StudentReportCardProps = {}
   const [error, setError] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
+  const [signatures, setSignatures] = useState<ReportSignature[]>([]);
+  const [signatureLoading, setSignatureLoading] = useState(false);
+  const [signatureError, setSignatureError] = useState("");
+  const [signPadRole, setSignPadRole] = useState<ReportSignerRole | null>(null);
   const scopedStreamId = scope?.streamId ?? "";
   const scopedYear = scope?.year ?? "";
   const scopedTerm = scope?.term;
+  const signerRole = signerRoleFor(role ?? (scope ? "Teacher" : undefined));
 
   useEffect(() => {
     let active = true;
@@ -539,6 +652,112 @@ export default function StudentReportCard({ scope }: StudentReportCardProps = {}
     [currentClass, participants],
   );
   const currentStudent = classStudents.find((item) => item.student_id === selectedStudentId) ?? classStudents[0];
+  const signatureClassId = currentClass?.class_id ?? "";
+  const signatureStreamId = scopedStreamId;
+  const signatureYear = scopedYear || (currentExam ? yearOf(currentExam.start_date) : "");
+  const signatureTerm = scopedTerm ?? (currentExam ? termOfDate(currentExam.start_date) : undefined);
+  const signatureBundle = useMemo<ReportSignatureBundle>(() => {
+    const bundle = emptySignatureBundle();
+    for (const signature of signatures) {
+      if (signature.signer_role === "Academic" && !signature.stream_id) {
+        bundle.academic = signature;
+      } else if (signature.signer_role === "Headmaster" && !signature.stream_id) {
+        bundle.headmaster = signature;
+      } else if (signature.signer_role === "StreamTeacher" && signature.stream_id) {
+        bundle.streamTeachers[signature.stream_id] = signature;
+      }
+    }
+    return bundle;
+  }, [signatures]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!signatureClassId || !signatureYear || !signatureTerm) {
+        setSignatures([]);
+        setSignatureLoading(false);
+        setSignatureError("");
+        return;
+      }
+      setSignatures([]);
+      setSignatureLoading(true);
+      setSignatureError("");
+      try {
+        const response = await fetchReportSignatures({
+          classId: signatureClassId,
+          streamId: signerRole === "StreamTeacher" ? signatureStreamId : null,
+          year: signatureYear,
+          term: signatureTerm,
+        });
+        if (active) setSignatures(response.signatures);
+      } catch (failure) {
+        if (active) {
+          setSignatureError(failure instanceof Error ? failure.message : "Imeshindikana kupakia sahihi.");
+        }
+      } finally {
+        if (active) setSignatureLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [signatureClassId, signatureStreamId, signatureYear, signatureTerm, signerRole]);
+
+  useEffect(() => {
+    if (!signatureClassId || !signatureYear || !signatureTerm) return;
+    const refresh = () => {
+      (async () => {
+        try {
+          const response = await fetchReportSignatures({
+            classId: signatureClassId,
+            streamId: signerRole === "StreamTeacher" ? signatureStreamId : null,
+            year: signatureYear,
+            term: signatureTerm,
+          });
+          setSignatures(response.signatures);
+        } catch {
+          // Ignore background refresh errors.
+        }
+      })();
+    };
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, [signatureClassId, signatureStreamId, signatureYear, signatureTerm, signerRole]);
+
+  useEffect(() => {
+    let active = true;
+    if (scope || signerRole === "StreamTeacher") return;
+    (async () => {
+      if (!signatureClassId || !signatureYear || !signatureTerm) {
+        if (active) setBehaviorByStudent({});
+        return;
+      }
+      setBehaviorByStudent({});
+      try {
+        const result = await fetchReportBehaviour({
+          classId: signatureClassId,
+          year: signatureYear,
+          term: signatureTerm,
+        });
+        if (!active) return;
+        setBehaviorByStudent(result.behavior);
+      } catch {
+        if (!active) return;
+        setBehaviorByStudent({});
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [scope, signerRole, signatureClassId, signatureYear, signatureTerm]);
+
+  const ownSignature = signerRole === "StreamTeacher"
+    ? signatureBundle.streamTeachers[scopedStreamId || currentStudent?.stream_id || ""] ?? null
+    : signerRole === "Academic"
+      ? signatureBundle.academic
+      : signerRole === "Headmaster"
+        ? signatureBundle.headmaster
+        : null;
 
   const reportReady = useMemo(() => {
     if (!currentData || !currentClass || !currentStudent) return false;
@@ -573,6 +792,50 @@ export default function StudentReportCard({ scope }: StudentReportCardProps = {}
       setSaveState("error");
       setSaveError(saveFailure instanceof Error ? saveFailure.message : "Imeshindikana kuhifadhi mipangilio.");
     }
+  }
+
+  async function handleSaveSignature(signatureData: string) {
+    if (!signPadRole) throw new Error("Huna ruhusa ya kusaini ripoti hii.");
+    if (!signatureClassId || !signatureYear || !signatureTerm) {
+      throw new Error("Chagua mtihani na darasa kwanza kabla ya kusaini.");
+    }
+    if (signPadRole === "StreamTeacher" && !scopedStreamId) {
+      throw new Error("Mkondo haujatambuliwa kwa sahihi hii.");
+    }
+    const streamId = signPadRole === "StreamTeacher" ? scopedStreamId : null;
+    const response = await saveReportSignature({
+      classId: signatureClassId,
+      streamId,
+      year: signatureYear,
+      term: signatureTerm,
+      signatureData,
+    });
+    setSignatures((current) => [
+      ...current.filter((item) => !(
+        item.signer_role === response.signature.signer_role
+        && item.stream_id === response.signature.stream_id
+      )),
+      response.signature,
+    ]);
+    setSignPadRole(null);
+  }
+
+  async function handleClearSignature() {
+    if (!signPadRole) return;
+    if (!signatureClassId || !signatureYear || !signatureTerm) return;
+    if (signPadRole === "StreamTeacher" && !scopedStreamId) return;
+    const streamId = signPadRole === "StreamTeacher" ? scopedStreamId : null;
+    await clearReportSignature({
+      classId: signatureClassId,
+      streamId,
+      year: signatureYear,
+      term: signatureTerm,
+    });
+    setSignatures((current) => current.filter((item) => !(
+      item.signer_role === signPadRole
+      && item.stream_id === streamId
+    )));
+    setSignPadRole(null);
   }
 
   function printSingle() {
@@ -651,6 +914,8 @@ export default function StudentReportCard({ scope }: StudentReportCardProps = {}
               {saveState === "error" && <span className="rc-save-status rc-save-status--error">{saveError}</span>}
             </>
           )}
+          {signatureLoading && <span className="rc-save-status">Inapakia sahihi...</span>}
+          {signatureError && <span className="rc-save-status rc-save-status--error">{signatureError}</span>}
         </div>
       </div>
 
@@ -669,10 +934,14 @@ export default function StudentReportCard({ scope }: StudentReportCardProps = {}
               openingDate={openingDate}
               canGenerateConduct={Boolean(scope)}
               behaviorRatings={behaviorByStudent[currentStudent.student_id] ?? Array(8).fill(null)}
+              behaviorEditable={Boolean(scope)}
               onBehaviorRatingsChange={(ratings) => {
                 setBehaviorByStudent((current) => ({ ...current, [currentStudent.student_id]: ratings }));
                 setSaveState("idle");
               }}
+              signatures={signatureBundle}
+              signerRole={signerRole}
+              onSign={setSignPadRole}
             />
           )}
           {!printAll && (!currentStudent || !reportReady) && (
@@ -694,16 +963,37 @@ export default function StudentReportCard({ scope }: StudentReportCardProps = {}
                     openingDate={openingDate}
                     canGenerateConduct={Boolean(scope)}
                     behaviorRatings={behaviorByStudent[student.student_id] ?? Array(8).fill(null)}
+                    behaviorEditable={Boolean(scope)}
                     onBehaviorRatingsChange={(ratings) => {
                       setBehaviorByStudent((current) => ({ ...current, [student.student_id]: ratings }));
                       setSaveState("idle");
                     }}
+                    signatures={signatureBundle}
+                    signerRole={signerRole}
+                    onSign={setSignPadRole}
                   />
                 </div>
               ))}
             </div>
           )}
         </>
+      )}
+
+      {signPadRole && (
+        <SignaturePad
+          open={Boolean(signPadRole)}
+          roleLabel={SIGNER_LABELS[signPadRole]}
+          scopeLabel={[
+            currentClass.class_name,
+            signPadRole === "StreamTeacher" ? (scope?.streamName ?? currentStudent?.stream_name ?? "") : "",
+            signatureYear,
+            signatureTerm ? `Muhula ${signatureTerm}` : "",
+          ].filter(Boolean).join(" · ")}
+          canClear={Boolean(ownSignature)}
+          onClose={() => setSignPadRole(null)}
+          onSave={handleSaveSignature}
+          onClear={handleClearSignature}
+        />
       )}
     </div>
   );

@@ -80,7 +80,8 @@ export function isalSheetStreamLabel(
   return labels.join(", ");
 }
 
-// Girls come first, with each gender alphabetized by full name.
+// Rows follow registration number ascending; students without a
+// registration number go last, then fall back to alphabetical order.
 export function buildIsalRows(
   students: IsalStudent[],
   classNames?: Map<string, string>,
@@ -94,13 +95,17 @@ export function buildIsalRows(
       class_name: classNames?.get(student.class_id) ?? "—",
       sex: isalSex(student.gender),
     }))
-    .sort(
-      (a, b) =>
-        a.class_name.localeCompare(b.class_name, undefined, { sensitivity: "base" }) ||
-        (a.sex === "F" ? 0 : 1) - (b.sex === "F" ? 0 : 1) ||
+    .sort((a, b) => {
+      const regA = a.registration_no?.trim() ?? "";
+      const regB = b.registration_no?.trim() ?? "";
+      if (!regA && regB) return 1;
+      if (regA && !regB) return -1;
+      return (
+        regA.localeCompare(regB, undefined, { numeric: true, sensitivity: "base" }) ||
         a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" }) ||
-        a.student_id.localeCompare(b.student_id),
-    )
+        a.student_id.localeCompare(b.student_id)
+      );
+    })
     .map((row, index) => ({ ...row, no: index + 1 }));
 }
 

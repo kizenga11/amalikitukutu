@@ -31,6 +31,7 @@ const ResultPage = dynamic(() => import("@/components/result-page"), { ssr: fals
 const StudentReportCard = dynamic(() => import("@/components/student-report-card"), { ssr: false, loading: PageLoading });
 const CompareResults = dynamic(() => import("@/components/compare-results"), { ssr: false, loading: PageLoading });
 const BestStudentYearly = dynamic(() => import("@/components/best-student-yearly"), { ssr: false, loading: PageLoading });
+const AwardCertificates = dynamic(() => import("@/components/award-certificates"), { ssr: false, loading: PageLoading });
 const CombinedResults = dynamic(() => import("@/components/combined-results"), { ssr: false, loading: PageLoading });
 const SmsMessaging = dynamic(() => import("@/components/sms-messaging"), { ssr: false, loading: PageLoading });
 const StudentEnrollmentStatistics = dynamic(() => import("@/components/student-enrollment-statistics"), { ssr: false, loading: PageLoading });
@@ -176,7 +177,9 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
             ? "reports"
             : effectiveActive === "streambeststudent"
               ? "beststudent"
-              : null;
+              : effectiveActive === "streamcertificates"
+                ? "certificates"
+                : null;
   const crumbs = breadcrumbsFor(effectiveActive, menuEntries);
   const displayName =
     profileDraft?.name?.trim() ||
@@ -312,10 +315,11 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "reports" && <ResultPage role={role} />}
           {effectiveActive === "analysis" && <SubjectAnalysis authUserId={user.id} />}
           {effectiveActive === "enrollment" && <StudentEnrollmentStatistics />}
-          {effectiveActive === "reportcard" && <StudentReportCard />}
+          {effectiveActive === "reportcard" && <StudentReportCard role={role} />}
           {effectiveActive === "compare" && <CompareResults role={role} teacherId={role === "Teacher" ? user.id : undefined} />}
           {effectiveActive === "combined" && <CombinedResults />}
           {effectiveActive === "beststudent" && <BestStudentYearly />}
+          {effectiveActive === "certificates" && <AwardCertificates />}
           {effectiveActive === "sms" && <SmsMessaging />}
           {effectiveActive === "lessonplans" && <LessonPlansView />}
         </main>

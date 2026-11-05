@@ -53,7 +53,6 @@ type MarksStep = "class" | "stream" | "subjects" | "grid";
 
 let toastId = 0;
 const PAGE_SIZE = 10;
-const MARKS_PAGE_SIZE = 50;
 
 function emptyForm(): ExamForm {
   return { name: "", startDate: "", endDate: "", hasPractical: false, classSubjects: {} };
@@ -117,7 +116,6 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
   const [absent, setAbsent] = useState<Record<string, Record<string, boolean>>>({});
   const [marksSaving, setMarksSaving] = useState(false);
   const [marksLoading, setMarksLoading] = useState(false);
-  const [marksPage, setMarksPage] = useState(1);
   const [marksSaveProgress, setMarksSaveProgress] = useState<{ done: number; total: number } | null>(null);
 
   const [teacherAssignments, setTeacherAssignments] = useState<TeachingAssignment[]>([]);
@@ -316,7 +314,6 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
     setMarksData(null);
     setScores({});
     setAbsent({});
-    setMarksPage(1);
     setMarksSaveProgress(null);
     setMarksLoading(true);
     Promise.all([
@@ -363,7 +360,6 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
     setMarksData(null);
     setScores({});
     setAbsent({});
-    setMarksPage(1);
     setMarksSaveProgress(null);
   }
 
@@ -377,7 +373,6 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
   function selectStream(streamId: string | null) {
     setSelectedStreamId(streamId);
     setSelectedSubjectIds([]);
-    setMarksPage(1);
     setMarksStep("subjects");
   }
 
@@ -392,7 +387,6 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
       showToast("warning", "Select at least one subject.");
       return;
     }
-    setMarksPage(1);
     setMarksStep("grid");
   }
 
@@ -644,16 +638,21 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
         selectedSubjectSet.has(subjectId) && (!isTeacher || scopedTeacherSubjectIds.has(subjectId))
       )
     )
-    .sort(
-      (a, b) =>
+    .sort((a, b) => {
+      const regA = a.registration_no;
+      const regB = b.registration_no;
+      if (!regA && !regB) {
+        return a.first_name.localeCompare(b.first_name) || a.last_name.localeCompare(b.last_name);
+      }
+      if (!regA) return 1;
+      if (!regB) return -1;
+      return (
+        regA.localeCompare(regB, undefined, { numeric: true, sensitivity: "base" }) ||
         a.first_name.localeCompare(b.first_name) ||
         a.last_name.localeCompare(b.last_name)
-    );
-  const marksPageCount = Math.max(1, Math.ceil(gridStudents.length / MARKS_PAGE_SIZE));
-  const safeMarksPage = Math.min(marksPage, marksPageCount);
-  const pagedStudents = gridStudents.slice((safeMarksPage - 1) * MARKS_PAGE_SIZE, safeMarksPage * MARKS_PAGE_SIZE);
-  const marksFrom = gridStudents.length === 0 ? 0 : (safeMarksPage - 1) * MARKS_PAGE_SIZE + 1;
-  const marksTo = Math.min(safeMarksPage * MARKS_PAGE_SIZE, gridStudents.length);
+      );
+    });
+  const pagedStudents = gridStudents;
   const gridSubjects = activeClassRow
     ? (isTeacher
         ? activeClassRow.subjects.filter((s) => scopedTeacherSubjectIds.has(s.id))
@@ -1088,9 +1087,9 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
                   {/* Stream tabs */}
                   {activeStreams.length > 1 && (
                     <div className="ex-tabs ex-tabs--streams">
-                      <button className={`ex-tab${selectedStreamId === null ? " ex-tab--active" : ""}`} onClick={() => { setSelectedStreamId(null); setMarksPage(1); }}>All Streams</button>
+                      <button className={`ex-tab${selectedStreamId === null ? " ex-tab--active" : ""}`} onClick={() => setSelectedStreamId(null)}>All Streams</button>
                       {activeStreams.map((opt) => (
-                        <button key={opt.id ?? "__none__"} className={`ex-tab${selectedStreamId === opt.id ? " ex-tab--active" : ""}`} onClick={() => { setSelectedStreamId(opt.id); setMarksPage(1); }}>
+                        <button key={opt.id ?? "__none__"} className={`ex-tab${selectedStreamId === opt.id ? " ex-tab--active" : ""}`} onClick={() => setSelectedStreamId(opt.id)}>
                           {opt.name} <span className="ex-tab-count">{opt.count}</span>
                         </button>
                       ))}
@@ -1105,7 +1104,7 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
                       return (
                         <div key={st.student_id} className={`me-mcard${isAbs ? " me-mcard--absent" : ""}`}>
                           <div className="me-mcard-head">
-                            <span className="me-mcard-no">{(safeMarksPage - 1) * MARKS_PAGE_SIZE + idx + 1}</span>
+                            <span className="me-mcard-no">{idx + 1}</span>
                             <span className="me-mcard-name">
                               {st.first_name} {st.middle_name ? `${st.middle_name} ` : ""}{st.last_name}
                               {selectedStreamId === null && st.stream_id && <small className="me-mcard-stream">{st.stream_name}</small>}
@@ -1185,9 +1184,9 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
                           const isAbs = absent[selectedClassId!]?.[st.student_id] ?? false;
                           return (
                             <tr key={st.student_id} className={isAbs ? "ex-row-absent" : ""}>
-                              <td className="ex-col-num">{(safeMarksPage - 1) * MARKS_PAGE_SIZE + idx + 1}</td>
+                              <td className="ex-col-num">{idx + 1}</td>
                               <td className="ex-col-student">
-                                <span className="ex-student-name">{st.first_name} {st.last_name}</span>
+                                <span className="ex-student-name">{st.first_name} {st.middle_name ? `${st.middle_name} ` : ""}{st.last_name}</span>
                                 {selectedStreamId === null && st.stream_id && <span className="ex-stream-tag">{st.stream_name}</span>}
                               </td>
                               <td className="ex-col-absent">
@@ -1234,18 +1233,6 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
                       </tbody>
                     </table>
                   </div>
-
-                  {/* Student pagination */}
-                  {marksPageCount > 1 && (
-                    <div className="st-pagination ex-pagination">
-                      <span className="st-pagination-info">Showing {marksFrom}\u2013{marksTo} of {gridStudents.length.toLocaleString()} students</span>
-                      <div className="st-pagination-controls">
-                        <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={safeMarksPage <= 1} onClick={() => setMarksPage((p) => Math.max(1, p - 1))}>{'\u2190'} Prev</button>
-                        <span className="st-pagination-info" style={{ display: "inline-flex", alignItems: "center", padding: "0 .4rem" }}>Page {safeMarksPage} of {marksPageCount}</span>
-                        <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={safeMarksPage >= marksPageCount} onClick={() => setMarksPage((p) => Math.min(marksPageCount, p + 1))}>Next {'\u2192'}</button>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Quick-fill */}
                   {!marksLocked && (

@@ -10,6 +10,12 @@
  */
 
 import { forwardRef, useEffect, useRef, useState } from "react";
+import SignaturePad from "@/components/signature-pad";
+import {
+  loadCertificateSignature,
+  saveCertificateSignature,
+  type CertificateSigner,
+} from "@/lib/certificate-signatures";
 
 const W = 1123;
 const H = 794;
@@ -28,6 +34,8 @@ export type CertificateProps = {
   points?: number | null;
   logoSrc?: string;
   umojaSrc?: string;
+  headSignature?: string;
+  academicSignature?: string;
   scale?: number; // preview scale only (download is always full size)
 };
 
@@ -106,7 +114,7 @@ function displayDivision(value: string | undefined) {
 }
 
 export const Certificate = forwardRef<HTMLDivElement, CertificateProps>(function Certificate(
-  { studentName, formLevel, academicYear, awardDate, average, grade, division, points, logoSrc = "/logo.png", umojaSrc = "/assets/umoja.png", scale = 1 },
+  { studentName, formLevel, academicYear, awardDate, average, grade, division, points, logoSrc = "/logo.png", umojaSrc = "/assets/umoja.png", headSignature, academicSignature, scale = 1 },
   ref
 ) {
   const sans = "'Montserrat', sans-serif";
@@ -182,7 +190,12 @@ export const Certificate = forwardRef<HTMLDivElement, CertificateProps>(function
 
           <div style={{ marginTop: "auto", width: "100%", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
             <div style={{ width: 230, textAlign: "center" }}>
-              <div style={{ height: 44 }} />
+              <div style={{ height: 52, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+                {headSignature ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img alt="" src={headSignature} style={{ maxHeight: 48, maxWidth: 210, objectFit: "contain" }} />
+                ) : null}
+              </div>
               <div style={{ borderTop: `1.5px solid ${NAVY}`, paddingTop: 8, fontSize: 11, fontWeight: 600, letterSpacing: 3 }}>HEAD OF SCHOOL</div>
               <div style={{ marginTop: 4, fontSize: 11, color: "#4A5568" }}>Date: {awardDate || `____ / ____ / ${academicYear}`}</div>
             </div>
@@ -200,7 +213,12 @@ export const Certificate = forwardRef<HTMLDivElement, CertificateProps>(function
             </svg>
 
             <div style={{ width: 230, textAlign: "center" }}>
-              <div style={{ height: 44 }} />
+              <div style={{ height: 52, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+                {academicSignature ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img alt="" src={academicSignature} style={{ maxHeight: 48, maxWidth: 210, objectFit: "contain" }} />
+                ) : null}
+              </div>
               <div style={{ borderTop: `1.5px solid ${NAVY}`, paddingTop: 8, fontSize: 11, fontWeight: 600, letterSpacing: 3 }}>ACADEMIC MASTER</div>
               <div style={{ marginTop: 4, fontSize: 11, color: "#4A5568" }}>Kitukutu Technical Secondary School</div>
             </div>
@@ -230,8 +248,30 @@ export default function CertificateEditor(props: {
   const [grade, setGrade] = useState(props.grade ?? "A");
   const [division, setDivision] = useState(props.division ?? "Division I");
   const [points, setPoints] = useState<number | null>(props.points ?? null);
+  const [headSignature, setHeadSignature] = useState(() => loadCertificateSignature("head"));
+  const [academicSignature, setAcademicSignature] = useState(() => loadCertificateSignature("academic"));
+  const [signPad, setSignPad] = useState<CertificateSigner | null>(null);
+
+  function updateSignature(signer: CertificateSigner, value: string) {
+    if (signer === "head") setHeadSignature(value);
+    else setAcademicSignature(value);
+    saveCertificateSignature(signer, value);
+  }
+
+  async function saveSignatureData(signatureData: string) {
+    if (!signPad) return;
+    updateSignature(signPad, signatureData);
+    setSignPad(null);
+  }
+
+  async function clearSignatureData() {
+    if (!signPad) return;
+    updateSignature(signPad, "");
+    setSignPad(null);
+  }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAverage(props.average ?? null);
     setGrade(props.grade ?? "A");
     setDivision(props.division ?? "Division I");
@@ -319,6 +359,33 @@ export default function CertificateEditor(props: {
           {busy === "png" ? "Inatengeneza..." : "Pakua PNG"}
         </button>
       </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#4A5568" }}>Sahihi za cheti (huhifadhiwa kwenye kivinjari):</span>
+        <button type="button" onClick={() => setSignPad("head")} style={{ ...field, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
+          {headSignature ? "Badilisha sahihi ya Mkuu wa Shule" : "Saini Mkuu wa Shule"}
+          {headSignature ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="" src={headSignature} style={{ height: 26, maxWidth: 90, objectFit: "contain" }} />
+          ) : null}
+        </button>
+        <button type="button" onClick={() => setSignPad("academic")} style={{ ...field, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
+          {academicSignature ? "Badilisha sahihi ya Taaluma" : "Saini Mwalimu wa Taaluma"}
+          {academicSignature ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="" src={academicSignature} style={{ height: 26, maxWidth: 90, objectFit: "contain" }} />
+          ) : null}
+        </button>
+        {headSignature ? (
+          <button type="button" onClick={() => updateSignature("head", "")} style={{ ...field, cursor: "pointer", background: "#fff", color: "#B91C1C" }}>
+            Futa sahihi ya Mkuu
+          </button>
+        ) : null}
+        {academicSignature ? (
+          <button type="button" onClick={() => updateSignature("academic", "")} style={{ ...field, cursor: "pointer", background: "#fff", color: "#B91C1C" }}>
+            Futa sahihi ya Taaluma
+          </button>
+        ) : null}
+      </div>
       {error && <div style={{ color: "#B91C1C", fontSize: 13 }}>{error}</div>}
       <div style={{ overflowX: "auto" }}>
         <Certificate
@@ -331,9 +398,23 @@ export default function CertificateEditor(props: {
           division={division}
           points={points}
           logoSrc={props.logoSrc}
+          headSignature={headSignature}
+          academicSignature={academicSignature}
           scale={0.8}
         />
       </div>
+
+      <SignaturePad
+        open={signPad !== null}
+        title={signPad === "head" ? "Saini cheti cha mwanafunzi bora — Mkuu wa Shule" : "Saini cheti cha mwanafunzi bora — Mwalimu wa Taaluma"}
+        note="Sahihi hii itaonekana kwenye cheti cha mwanafunzi bora na vyeti vya tuzo kwenye kivinjari hiki."
+        roleLabel={signPad === "head" ? "Mkuu wa Shule" : "Mwalimu wa Taaluma"}
+        scopeLabel="Cheti cha Mwanafunzi Bora"
+        canClear={Boolean(signPad === "head" ? headSignature : academicSignature)}
+        onClose={() => setSignPad(null)}
+        onSave={saveSignatureData}
+        onClear={clearSignatureData}
+      />
     </div>
   );
 }

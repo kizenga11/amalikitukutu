@@ -1301,6 +1301,7 @@ export async function fetchExamDetail(examId: string): Promise<DbExamDetail> {
 
 export interface DbExamMarkStudent {
   student_id: string;
+  registration_no: string | null;
   first_name: string;
   middle_name: string | null;
   last_name: string;
@@ -1332,6 +1333,21 @@ function markKey(studentId: string, subjectId: string): string {
   return `${studentId}|${subjectId}`;
 }
 
+function compareRegistrationNo(a: string | null, b: string | null): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+}
+
+function byRegistrationNo(a: DbExamMarkStudent, b: DbExamMarkStudent): number {
+  return (
+    compareRegistrationNo(a.registration_no, b.registration_no) ||
+    a.last_name.localeCompare(b.last_name) ||
+    a.first_name.localeCompare(b.first_name)
+  );
+}
+
 export async function fetchExamMarks(examId: string): Promise<ExamMarksData> {
   const detail = await fetchExamDetail(examId);
   const classIds = detail.classes.map((c) => c.id);
@@ -1340,7 +1356,7 @@ export async function fetchExamMarks(examId: string): Promise<ExamMarksData> {
     classIds.length > 0
       ? await supabase
           .from("students")
-          .select("id, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name)")
+          .select("id, registration_no, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name)")
           .in("class_id", classIds)
       : { data: null, error: null };
   if (studentErr) throw studentErr;
@@ -1379,6 +1395,7 @@ export async function fetchExamMarks(examId: string): Promise<ExamMarksData> {
 
   interface StudentRaw {
     id: string;
+    registration_no: string | null;
     first_name: string;
     middle_name: string | null;
     last_name: string;
@@ -1415,6 +1432,7 @@ export async function fetchExamMarks(examId: string): Promise<ExamMarksData> {
       }
       studentsInClass.push({
         student_id: raw.id,
+        registration_no: raw.registration_no,
         first_name: raw.first_name,
         middle_name: raw.middle_name,
         last_name: raw.last_name,
@@ -1424,7 +1442,7 @@ export async function fetchExamMarks(examId: string): Promise<ExamMarksData> {
         subjects: Array.from(studentSubjects.get(raw.id) ?? []),
       });
     }
-    studentsInClass.sort((a, b) => a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name));
+    studentsInClass.sort(byRegistrationNo);
     return {
       class_id: c.id,
       class_name: c.name,
@@ -1668,6 +1686,7 @@ export async function fetchIsalRoster(examId: string, subjectId: string): Promis
       )
       .eq("student_subjects.subject_id", subjectId)
       .in("class_id", classIds)
+      .order("registration_no", { ascending: true, nullsFirst: false })
       .order("last_name", { ascending: true })
       .order("first_name", { ascending: true })
       .order("id", { ascending: true })

@@ -113,6 +113,7 @@ export interface ScopedMarkCell {
 
 export interface ScopedExamStudent {
   student_id: string;
+  registration_no: string | null;
   first_name: string;
   middle_name: string | null;
   last_name: string;

@@ -279,6 +279,7 @@ export interface ScopedExamSubject {
 
 export interface ScopedExamStudent {
   student_id: string;
+  registration_no: string | null;
   first_name: string;
   middle_name: string | null;
   last_name: string;
@@ -356,9 +357,10 @@ export async function loadScopedExamMarks(
       .eq("class_id", assignment.class_id),
     streamTeacherAdmin
       .from("students")
-      .select("id, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name)")
+      .select("id, registration_no, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name)")
       .eq("class_id", assignment.class_id)
       .eq("stream_id", assignment.stream_id)
+      .order("registration_no", { ascending: true, nullsFirst: false })
       .order("last_name")
       .order("first_name"),
   ]);
@@ -389,6 +391,7 @@ export async function loadScopedExamMarks(
   const studentRows: ScopedExamStudent[] = [];
   for (const row of (studentRes.data ?? []) as unknown as {
     id: string;
+    registration_no: string | null;
     first_name: string;
     middle_name: string | null;
     last_name: string;
@@ -401,6 +404,7 @@ export async function loadScopedExamMarks(
     studentIds.push(row.id);
     studentRows.push({
       student_id: row.id,
+      registration_no: row.registration_no,
       first_name: row.first_name,
       middle_name: row.middle_name,
       last_name: row.last_name,

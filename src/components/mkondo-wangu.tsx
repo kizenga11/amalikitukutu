@@ -8,8 +8,9 @@ import SubjectManagement from "@/components/subject-management";
 import StudentReportCard from "@/components/student-report-card";
 import StreamResults from "@/components/stream-results";
 import BestStudentYearly from "@/components/best-student-yearly";
+import AwardCertificates from "@/components/award-certificates";
 
-export type StreamTeacherSection = "students" | "subjects" | "results" | "reports" | "beststudent";
+export type StreamTeacherSection = "students" | "subjects" | "results" | "reports" | "beststudent" | "certificates";
 
 interface Props {
   section: StreamTeacherSection;
@@ -73,9 +74,12 @@ export default function MkondoWangu({
       {section === "students" && <StudentsManagement scope={scope} />}
       {section === "subjects" && <SubjectManagement scope={scope} />}
       {section === "results" && <StreamResults streamId={selected.stream_id} year={year} />}
-      {section === "reports" && <StudentReportCard scope={scope} />}
+      {section === "reports" && <StudentReportCard scope={scope} role="Teacher" />}
       {section === "beststudent" && (
         <BestStudentYearly key={`${scope.classId}-${scope.streamId}-${scope.year}`} scope={scope} />
+      )}
+      {section === "certificates" && (
+        <AwardCertificates key={`${scope.classId}-${scope.streamId}-${scope.year}`} scope={scope} />
       )}
     </div>
   );

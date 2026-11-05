@@ -43,6 +43,7 @@ export type NavKey =
   | "compare"
   | "combined"
   | "beststudent"
+  | "certificates"
   | "analysis"
   | "exams"
   | "streamstudents"
@@ -50,6 +51,7 @@ export type NavKey =
   | "streamresults"
   | "streamreports"
   | "streambeststudent"
+  | "streamcertificates"
   | "streamteachers"
   | "attendance"
   | "lessonplans"
@@ -61,9 +63,9 @@ export function isNavKey(value: unknown): value is NavKey {
     typeof value === "string" &&
     [
       "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment",
-      "reportcard", "compare", "combined", "beststudent", "analysis", "exams",
+      "reportcard", "compare", "combined", "beststudent", "certificates", "analysis", "exams",
       "streamstudents", "streamsubjects", "streamresults", "streamreports",
-      "streambeststudent", "streamteachers", "attendance", "lessonplans", "sms", "settings",
+      "streambeststudent", "streamcertificates", "streamteachers", "attendance", "lessonplans", "sms", "settings",
     ].includes(value)
   );
 }
@@ -142,6 +144,7 @@ export const menuConfig: MenuEntry[] = [
       { kind: "link", key: "streamresults", label: "Results", icon: navIcons.result, roles: ["Teacher"] },
       { kind: "link", key: "streamreports", label: "Report Card", icon: navIcons.reportCard, roles: ["Teacher"] },
       { kind: "link", key: "streambeststudent", label: "Best Student", icon: navIcons.bestStudent, roles: ["Teacher"] },
+      { kind: "link", key: "streamcertificates", label: "Award Certificates", icon: navIcons.bestStudent, roles: ["Teacher"] },
     ],
   },
   {
@@ -183,6 +186,7 @@ export const menuConfig: MenuEntry[] = [
       { kind: "link", key: "compare", label: "Compare", icon: navIcons.compare, roles: ALL_ROLES },
       { kind: "link", key: "enrollment", label: "Enrollment Report", icon: navIcons.enrollment, roles: ["Headmaster", "Academic", "District Officer"] },
       { kind: "link", key: "beststudent", label: "Best Student", icon: navIcons.bestStudent, roles: ["Headmaster", "Academic", "District Officer"] },
+      { kind: "link", key: "certificates", label: "Award Certificates", icon: navIcons.bestStudent, roles: ["Headmaster", "Academic"] },
       { kind: "link", key: "sms", label: "SMS kwa Wazazi", icon: navIcons.sms, roles: ADMIN_ROLES },
       // Kept for feature parity: Subject Analysis was already only visible to Teachers.
       { kind: "link", key: "analysis", label: "Subject Analysis", icon: navIcons.analysis, roles: ["Teacher"] },
