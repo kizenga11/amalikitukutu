@@ -192,7 +192,8 @@ export default function ExamManagement({ teacherId, role }: { teacherId?: string
   }, [debouncedSearch, page]);
 
   useEffect(() => {
-    return () => { timersRef.current.forEach((t) => clearTimeout(t)); };
+    const timers = timersRef.current;
+    return () => { timers.forEach((t) => clearTimeout(t)); };
   }, []);
 
   const teacherClassIds = new Set(teacherAssignments.map((a) => a.class_id));

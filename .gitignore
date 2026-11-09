@@ -37,8 +37,16 @@ diag-*.mjs
 # local scripts with credentials
 scripts/register-admin-accounts.mjs
 
+# python solver
+/solver/.venv
+/solver/__pycache__
+/solver/.pytest_cache
+*.pyc
+
 # env files (can opt-in for committing if needed)
 .env*
+# ...but keep the template so new clones know which vars are required
+!.env.example
 
 # vercel
 .vercel

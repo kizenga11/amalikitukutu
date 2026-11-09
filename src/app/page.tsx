@@ -12,6 +12,7 @@ const Dashboard = dynamic(() => import("@/components/dashboard"), {
     <main className="loading-screen">
       <div className="loader">
         <div className="loader-logo">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset, sized by CSS */}
           <img src="/assets/logo.png" alt="Amali Kitukutu logo" />
         </div>
         <p className="muted">Loading portal...</p>
@@ -210,6 +211,7 @@ export default function Home() {
       <main className="loading-screen">
         <div className="loader">
           <div className="loader-logo">
+            {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset, sized by CSS */}
             <img src="/assets/logo.png" alt="Amali Kitukutu logo" />
           </div>
           <p className="muted">Loading…</p>
@@ -239,6 +241,7 @@ export default function Home() {
         <div className="container header-flex">
           <div className="logo">
             <a href="#home" aria-label="Amali Kitukutu home">
+              {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset, sized by CSS */}
               <img src="/assets/logo.png" alt="Amali Kitukutu Logo" />
             </a>
             <div className="logo-text">
@@ -516,6 +519,7 @@ export default function Home() {
         <div className="container">
           <div className="footer-grid">
             <div>
+              {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset, sized by CSS */}
               <div className="footer-logo"><img src="/assets/logo.png" alt="" /><h3>Amali Kitukutu</h3></div>
               <p>Amali Kitukutu Technical School is a vocational training institution dedicated to providing practical skills in Electrical Installation, Masonry, Computer Programming, and Electronics Repair.</p>
             </div>

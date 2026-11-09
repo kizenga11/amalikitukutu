@@ -9,7 +9,7 @@ type Msg = { ok: boolean; text: string } | null;
 export default function Generator({ syllabi, onGenerated, accessToken }: { syllabi: any[]; onGenerated?: () => void; accessToken?: string }) {
   const [sy, setSy] = useState("");
   const [tp, setTp] = useState("");
-  const [sub, setSub] = useState("");
+  const [subOverride, setSubOverride] = useState<string | null>(null);
   const [comp, setComp] = useState("");
   const [state, action, pending] = useActionState<Msg, FormData>(generatePlans, null);
 
@@ -40,11 +40,13 @@ export default function Generator({ syllabi, onGenerated, accessToken }: { sylla
     return out;
   }, [subs]);
 
-  // Default the subtopic to the first subtopic of the selected topic.
-  useEffect(() => {
-    setSub(subs.length ? String(subs[0].id) : "");
-    setComp("");
-  }, [subs]);
+  // The subtopic defaults to the first one of the selected topic. No effect is
+  // needed: the value is derived, and the override is cleared when the topic changes.
+  const sub = subOverride && subs.some((s: any) => String(s.id) === subOverride)
+    ? subOverride
+    : subs.length
+      ? String(subs[0].id)
+      : "";
 
   return (
     <form action={action} className="lp-form">
@@ -54,7 +56,7 @@ export default function Generator({ syllabi, onGenerated, accessToken }: { sylla
         <select
           className="st-filter lp-full"
           value={sy}
-          onChange={(e) => { setSy(e.target.value); setTp(""); }}
+          onChange={(e) => { setSy(e.target.value); setTp(""); setSubOverride(null); setComp(""); }}
           required
         >
           <option value="">-- select --</option>
@@ -66,7 +68,7 @@ export default function Generator({ syllabi, onGenerated, accessToken }: { sylla
 
       <label className="sm-field">
         <span className="sm-field-label">Topic</span>
-        <select name="topic_id" className="st-filter lp-full" value={tp} onChange={(e) => setTp(e.target.value)} required disabled={!sy}>
+        <select name="topic_id" className="st-filter lp-full" value={tp} onChange={(e) => { setTp(e.target.value); setSubOverride(null); setComp(""); }} required disabled={!sy}>
           <option value="">-- select --</option>
           {topics.map((t: any) => (
             <option key={t.id} value={t.id}>{t.seq}. {t.name}</option>
@@ -92,7 +94,7 @@ export default function Generator({ syllabi, onGenerated, accessToken }: { sylla
 
       <label className="sm-field">
         <span className="sm-field-label">Subtopic</span>
-        <select name="subtopic_id" className="st-filter lp-full" value={sub} onChange={(e) => setSub(e.target.value)} disabled={!tp || !!comp} required>
+        <select name="subtopic_id" className="st-filter lp-full" value={sub} onChange={(e) => setSubOverride(e.target.value)} disabled={!tp || !!comp} required>
           <option value="all">All subtopics of this topic</option>
           {subs.map((s: any) => (
             <option key={s.id} value={s.id}>{s.seq}. {s.name} (periods {s.periods})</option>

@@ -37,6 +37,8 @@ const SmsMessaging = dynamic(() => import("@/components/sms-messaging"), { ssr: 
 const StudentEnrollmentStatistics = dynamic(() => import("@/components/student-enrollment-statistics"), { ssr: false, loading: PageLoading });
 const StreamTeacherAssignment = dynamic(() => import("@/components/stream-teacher-assignment"), { ssr: false, loading: PageLoading });
 const MkondoWangu = dynamic(() => import("@/components/mkondo-wangu"), { ssr: false, loading: PageLoading });
+const TimetableView = dynamic(() => import("@/components/timetable/timetable-view"), { ssr: false, loading: PageLoading });
+import type { TimetableSection } from "@/components/timetable/timetable-view";
 import { fetchAcademicSettings, fetchDashboardData, fetchSchoolInfo, saveAcademicSettings, saveSchoolInfo, type DashboardData, type SchoolInfo } from "@/lib/school-api";
 import { DEFAULT_SCHOOL_INFO } from "@/lib/school-api";
 import { readStoredJson, readStoredPeriod, writeStoredJson, writeStoredPeriod, type StoredPeriod } from "@/lib/preferences";
@@ -180,6 +182,19 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
               : effectiveActive === "streamcertificates"
                 ? "certificates"
                 : null;
+  const timetableSection: TimetableSection | null =
+    effectiveActive === "ttsetup"
+      ? "setup"
+      : effectiveActive === "ttperiods"
+        ? "periods"
+        : effectiveActive === "ttrules"
+          ? "rules"
+          : effectiveActive === "ttgenerate"
+            ? "generate"
+            : effectiveActive === "tttimetables"
+              ? "timetables"
+              : null;
+  const wideContent = streamSection === "results" || timetableSection !== null;
   const crumbs = breadcrumbsFor(effectiveActive, menuEntries);
   const displayName =
     profileDraft?.name?.trim() ||
@@ -276,7 +291,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           </div>
         </header>
 
-        <main className={streamSection === "results" ? "content content--wide" : "content"}>
+        <main className={wideContent ? "content content--wide" : "content"}>
           {effectiveActive === "dashboard" && (role === "Teacher" ? (
             <TeacherDashboard
               authUserId={user.id}
@@ -322,6 +337,15 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "certificates" && <AwardCertificates />}
           {effectiveActive === "sms" && <SmsMessaging />}
           {effectiveActive === "lessonplans" && <LessonPlansView />}
+          {timetableSection && (
+            <TimetableView
+              section={timetableSection}
+              role={role}
+              year={activePeriod.yearId}
+              term={activePeriod.term}
+              onShowTimetable={() => pickNav("tttimetables")}
+            />
+          )}
         </main>
       </div>
       {accountOpen && (
@@ -759,12 +783,18 @@ function SettingsPanel({ active, onSave }: { active: Period; onSave: (period: Pe
                 <label className="settings-field">
                   <span className="settings-field-label">Union Logo (left)</span>
                   <input className="settings-input" type="file" accept="image/*" onChange={(event) => handleLogoChange("unionLogo", event.target.files?.[0])} />
-                  {school.unionLogo && <img className="settings-logo-preview" src={school.unionLogo} alt="Union logo preview" />}
+                  {school.unionLogo && (
+                    // eslint-disable-next-line @next/next/no-img-element -- user-uploaded logo, may be a data URL
+                    <img className="settings-logo-preview" src={school.unionLogo} alt="Union logo preview" />
+                  )}
                 </label>
                 <label className="settings-field">
                   <span className="settings-field-label">School Logo (right)</span>
                   <input className="settings-input" type="file" accept="image/*" onChange={(event) => handleLogoChange("schoolLogo", event.target.files?.[0])} />
-                  {school.schoolLogo && <img className="settings-logo-preview" src={school.schoolLogo} alt="School logo preview" />}
+                  {school.schoolLogo && (
+                    // eslint-disable-next-line @next/next/no-img-element -- user-uploaded logo, may be a data URL
+                    <img className="settings-logo-preview" src={school.schoolLogo} alt="School logo preview" />
+                  )}
                 </label>
               </div>
             </div>

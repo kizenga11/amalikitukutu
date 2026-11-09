@@ -2454,6 +2454,8 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 .result-division-wrap { display: flex; justify-content: center; overflow: visible; border: 1px solid var(--table-border); }
 .result-division-heading { text-align: center; }
 .result-division-table { width: 100%; max-width: 42rem; min-width: 30rem; margin: 0 auto; }
+.result-division-points-table { max-width: 50rem; }
+.result-division-caption { margin-top: .4rem; text-align: center; font-size: .7rem; color: var(--muted); }
 .result-division-table th, .result-division-table td { text-align: center; padding: .45rem 1.25rem; font-size: .78rem; }
 .result-division-table td { background: var(--white); }
 .result-division-incomplete td { background: var(--page); font-style: italic; }

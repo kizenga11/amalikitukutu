@@ -94,6 +94,7 @@ export default function Sidebar({
   return (
     <aside className={`sidebar${mobileOpen ? " sidebar--open" : ""}${collapsed ? " sidebar--collapsed" : ""}`}>
       <div className="sidebar-brand">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset, sized by CSS */}
         <img className="brand-logo-img" src="/assets/logo.png" alt="Kitukutu Secondary Technical School logo" />
         <div className="sn-brand-text">
           <div className="sidebar-brand-name">Kitukutu Secondary Technical School</div>

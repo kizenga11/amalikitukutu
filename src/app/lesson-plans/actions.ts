@@ -7,6 +7,54 @@ import { buildStages, lessonTimeRange, makeDateSequencer, STAGES } from "@/lib/l
 
 type Msg = { ok: boolean; text: string };
 
+/* ---------- AINA ZA SAFU ZINAZORUDISHWA NA SUPABASE ---------- */
+type MaybeArray<T> = T | T[] | null;
+
+type LpSyllabusRow = {
+  id: number;
+  subject_name: string;
+  form_level: number;
+  source: string;
+};
+
+type LpTopicRow = {
+  id: number;
+  seq: number;
+  name: string;
+  total_periods: number;
+  lp_subtopics?: LpSubtopicRow[];
+  lp_syllabi?: MaybeArray<LpSyllabusRow>;
+};
+
+type LpSubtopicRow = {
+  id: number;
+  seq: number;
+  name: string;
+  periods: number;
+  specific_competence?: string | null;
+  lp_topics?: MaybeArray<LpTopicRow>;
+};
+
+type LpPlanRow = {
+  id: number;
+  lesson_no: number;
+  class_label: string;
+  lesson_date?: string | null;
+  teacher_name: string;
+  specific_competence?: string | null;
+  lp_subtopics?: MaybeArray<LpSubtopicRow>;
+};
+
+type LpStageRow = {
+  id: number;
+  plan_id: number;
+  stage: string;
+  minutes: number;
+  teaching_activities: string | null;
+  learning_activities: string | null;
+  assessment_criteria: string | null;
+};
+
 // Safu za hiari za kiolezo cha hatua (nguzo 15-26 kwenye seed). Zikitolewa,
 // hutumika kama maudhui ya hatua; zisipokuwepo, buildStages hutengeneza kiotomatiki.
 const STAGE_FIELDS = [
@@ -265,8 +313,8 @@ export async function deleteAllPlans(accessToken: string): Promise<DeleteAllResu
 type Overview =
   | {
       ok: true;
-      syllabi: any[];
-      plans: any[];
+      syllabi: LpSyllabusRow[];
+      plans: LpPlanRow[];
       subjects: string[] | null;
       role: "management" | "teacher";
       userName: string;
@@ -283,8 +331,8 @@ export async function getLpOverview(accessToken: string): Promise<Overview> {
     .select("id, subject_name, form_level, source, lp_topics(id, seq, name, total_periods, lp_subtopics(id, seq, name, periods, specific_competence))")
     .order("subject_name")
     .order("form_level");
-  const allSyllabi = (sy ?? []) as any[];
-  const syllabi = allSyllabi.filter((s) => !u.subjects || u.subjects.includes(s.subject_name as string));
+  const allSyllabi = (sy ?? []) as LpSyllabusRow[];
+  const syllabi = allSyllabi.filter((s) => !u.subjects || u.subjects.includes(s.subject_name));
 
   let planQuery = db
     .from("lp_plans")
@@ -295,7 +343,7 @@ export async function getLpOverview(accessToken: string): Promise<Overview> {
   return {
     ok: true,
     syllabi,
-    plans: (pl ?? []) as any[],
+    plans: (pl ?? []) as LpPlanRow[],
     subjects: u.subjects,
     role: u.role,
     userName: u.name,
@@ -303,11 +351,13 @@ export async function getLpOverview(accessToken: string): Promise<Overview> {
 }
 
 /* ---------- DWASHIBODI: FUNGUA MPANGO ---------- */
+type LpPlanDetailRow = { teacher_name: string; lesson_no: number } & Record<string, unknown>;
+
 type PlanDetail =
   | {
       ok: true;
-      plan: any;
-      stages: any[];
+      plan: LpPlanDetailRow;
+      stages: LpStageRow[];
       canEdit: boolean;
       canDelete: boolean;
       meta: { school: string; teacher: string; form: number; subject: string; topic: string; subtopic: string; lessonNo: number; periods: number };
@@ -319,21 +369,24 @@ export async function getPlanDetail(accessToken: string, id: number): Promise<Pl
   if (!u) return { ok: false, text: "You are not signed in." };
 
   const db = lpDb();
-  const { data: row } = await db
+  const { data } = await db
     .from("lp_plans")
     .select("*, lp_subtopics(name, periods, lp_topics(name, lp_syllabi(subject_name, form_level)))")
     .eq("id", id)
     .single();
-  if (!row) return { ok: false, text: "Plan not found." };
+  if (!data) return { ok: false, text: "Plan not found." };
+  const row = data as LpPlanRow & { teacher_id: string; plan_id: number } & Record<string, unknown>;
 
   const isOwner = row.teacher_id === u.id;
   if (!isOwner && u.role !== "management") return { ok: false, text: "You do not have permission to view this plan." };
 
   const { data: stages } = await db.from("lp_plan_stages").select("*").eq("plan_id", row.id);
-  const sorted = [...(stages ?? [])].sort((a: any, b: any) => STAGES.indexOf(a.stage) - STAGES.indexOf(b.stage));
+  const sorted = [...((stages ?? []) as LpStageRow[])].sort(
+    (a, b) => (STAGES as readonly string[]).indexOf(a.stage) - (STAGES as readonly string[]).indexOf(b.stage)
+  );
 
-  const one = (x: any) => (Array.isArray(x) ? x[0] : x);
-  const { lp_subtopics, ...plan } = row as any;
+  const one = <T,>(x: MaybeArray<T> | undefined): T | null | undefined => (Array.isArray(x) ? x[0] : x);
+  const { lp_subtopics, ...plan } = row;
   const sub = one(lp_subtopics);
   const topic = one(sub?.lp_topics);
   const syl = one(topic?.lp_syllabi);
@@ -341,18 +394,18 @@ export async function getPlanDetail(accessToken: string, id: number): Promise<Pl
   return {
     ok: true,
     plan,
-    stages: sorted as any[],
+    stages: sorted,
     canEdit: isOwner,
     canDelete: isOwner || u.role === "management",
     meta: {
       school: SCHOOL_NAME,
       teacher: plan.teacher_name,
-      form: syl?.form_level,
-      subject: syl?.subject_name,
-      topic: topic?.name,
-      subtopic: sub?.name,
+      form: syl?.form_level as number,
+      subject: syl?.subject_name as string,
+      topic: topic?.name as string,
+      subtopic: sub?.name as string,
       lessonNo: plan.lesson_no,
-      periods: sub?.periods,
+      periods: sub?.periods as number,
     },
   };
 }

@@ -12,7 +12,6 @@ const env = Object.fromEntries(
 );
 
 const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-const GENERATED = 5050 + Math.floor(Math.random() * 900);
 
 function expect(value, what) {
   if (!value) throw new Error(`Failed: ${what}`);
@@ -130,7 +129,7 @@ const SUBJECT_SEEDS = [
 ];
 const { data: subjects, error: subjectsError } = await supabase
   .from("subjects")
-  .insert(SUBJECT_SEEDS.map(({ base, ...s }) => s))
+  .insert(SUBJECT_SEEDS.map((s) => Object.fromEntries(Object.entries(s).filter(([key]) => key !== "base"))))
   .select("id, code, name");
 expect(subjects, "subjects insert");
 if (subjectsError) throw subjectsError;
@@ -270,7 +269,6 @@ const today = new Date();
 const day = today.getDay(); // 0 Sun … 6 Sat
 const monday = new Date(today);
 monday.setDate(today.getDate() - ((day + 6) % 7));
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const attendanceRows = [];
 for (let i = 0; i < 5; i++) {
   const date = new Date(monday);

@@ -108,7 +108,6 @@ export default function ProfilePanel({
 
   const initials = (name || email || "U").slice(0, 2).toUpperCase();
   const strength = scorePassword(next);
-  const emailLocked = Boolean(user.email);
 
   async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

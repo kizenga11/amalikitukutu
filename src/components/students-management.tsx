@@ -238,7 +238,8 @@ export default function StudentsManagement({ scope }: StudentsManagementProps = 
   }, [debouncedSearch, scopedClassId, scopedStreamId, page]);
 
   useEffect(() => {
-    return () => { timersRef.current.forEach((t) => clearTimeout(t)); };
+    const timers = timersRef.current;
+    return () => { timers.forEach((t) => clearTimeout(t)); };
   }, []);
 
   function showToast(type: ToastType, message: string) {

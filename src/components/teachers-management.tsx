@@ -177,7 +177,8 @@ export default function TeachersManagement({ currentUserId }: { currentUserId?: 
   }, [debouncedSearch, page]);
 
   useEffect(() => {
-    return () => { timersRef.current.forEach((t) => clearTimeout(t)); };
+    const timers = timersRef.current;
+    return () => { timers.forEach((t) => clearTimeout(t)); };
   }, []);
 
   // ── Toast helpers ──────────────────────────────────────

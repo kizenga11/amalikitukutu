@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchSubjects, insertSubject, updateSubject as updateSubjectDb, deleteSubjectRow } from "@/lib/school-api";
 import type { StreamTeacherScope } from "@/lib/stream-teacher-api";
 import { readStoredJson, writeStoredJson } from "@/lib/preferences";
-import { Skeleton, Spinner, ListRowSkeleton } from "@/components/loading";
+import { Spinner, ListRowSkeleton } from "@/components/loading";
 
 type ToastType = "success" | "warning";
 
@@ -101,7 +101,8 @@ export default function SubjectManagement({ scope }: SubjectManagementProps = {}
         setDbMode(false);
       })
       .finally(() => setLoading(false));
-    return () => { timersRef.current.forEach((t) => clearTimeout(t)); };
+    const timers = timersRef.current;
+    return () => { timers.forEach((t) => clearTimeout(t)); };
   }, []);
 
   function showToast(type: ToastType, message: string) {

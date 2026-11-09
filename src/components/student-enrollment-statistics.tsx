@@ -233,6 +233,7 @@ export default function StudentEnrollmentStatistics() {
 function ReportHeader({ school, generatedDate }: { school: SchoolInfo; generatedDate: string }) {
   return (
     <header className="enrollment-header">
+      {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded logo, may be a data URL */}
       <img src={school.schoolLogo || "/assets/logo.png"} alt="" className="enrollment-logo" />
       <div>
         <div className="enrollment-school-name">{school.name || DEFAULT_SCHOOL_INFO.name}</div>

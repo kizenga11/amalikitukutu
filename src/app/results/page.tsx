@@ -102,12 +102,7 @@ function ResultsView() {
 
   useEffect(() => {
     const keyword = search.trim();
-    if (!selectedExamId || keyword.length < 2) {
-      setData(null);
-      setSelectedStudentId("");
-      setLoadingResults(false);
-      return;
-    }
+    if (!selectedExamId || keyword.length < 2) return;
     let active = true;
     const timer = window.setTimeout(() => {
     const controller = new AbortController();
@@ -163,6 +158,7 @@ function ResultsView() {
         <div className="container header-flex">
           <div className="logo">
             <Link href="/" aria-label="Amali Kitukutu home">
+              {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset, sized by CSS */}
               <img src="/assets/logo.png" alt="Amali Kitukutu Logo" />
             </Link>
             <div className="logo-text">
@@ -205,7 +201,15 @@ function ResultsView() {
               type="search"
               placeholder="Tafuta kwa namba ya usajili (mf. S7811/0001)…"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value;
+                setSearch(value);
+                if (value.trim().length < 2) {
+                  setData(null);
+                  setSelectedStudentId("");
+                  setLoadingResults(false);
+                }
+              }}
               className="results-search-input"
               disabled={!selectedExamId}
             />

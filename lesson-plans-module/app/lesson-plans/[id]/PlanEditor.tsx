@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { savePlan } from "../actions";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -42,7 +43,7 @@ export default function PlanEditor({
       <style>{`@media print{.no-print{display:none!important}}`}</style>
 
       <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
-        <a href="/lesson-plans">&larr; Rudi</a>
+        <Link href="/lesson-plans">&larr; Rudi</Link>
         {canEdit && (
           <button
             disabled={pending}

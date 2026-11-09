@@ -131,6 +131,37 @@ export default function ResultPage({ role }: { role?: string }) {
     return buildSchoolReport([{ ...classResults, students }], settings);
   }, [classRow, marksData, selectedStream, settings]);
 
+  const divisionPointRows = useMemo(() => {
+    if (!report) return [] as { division: string; points: number; boys: number; girls: number }[];
+    const buckets = new Map<string, Map<number, { boys: number; girls: number }>>();
+    for (const row of report.students) {
+      const points = row.student.total_points;
+      if (row.student.incomplete || points === null) continue;
+      const byPoints = buckets.get(row.divisionCode) ?? new Map<number, { boys: number; girls: number }>();
+      const entry = byPoints.get(points) ?? { boys: 0, girls: 0 };
+      if (genderLabel(row.student.gender) === "F") entry.girls += 1;
+      else entry.boys += 1;
+      byPoints.set(points, entry);
+      buckets.set(row.divisionCode, byPoints);
+    }
+    const rows: { division: string; points: number; boys: number; girls: number }[] = [];
+    for (const range of settings.divisionRanges) {
+      const code = range.division.replace(/^Division\s+/i, "");
+      const byPoints = buckets.get(code);
+      if (!byPoints) continue;
+      [...byPoints.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .forEach(([points, counts]) => rows.push({ division: code, points, boys: counts.boys, girls: counts.girls }));
+    }
+    return rows;
+  }, [report, settings.divisionRanges]);
+
+  const selectionTotal = report?.students.length ?? 0;
+  const incompleteStudents = report?.students.filter((row) => row.student.incomplete) ?? [];
+  const incompleteBoys = incompleteStudents.filter((row) => genderLabel(row.student.gender) === "M").length;
+  const incompleteGirls = incompleteStudents.filter((row) => genderLabel(row.student.gender) === "F").length;
+  const incompletePercent = selectionTotal > 0 ? (incompleteStudents.length / selectionTotal) * 100 : 0;
+
   if (loading) return <div className="me-loading"><Spinner size={20} /></div>;
   if (error) return <div className="st-empty-state">{error}</div>;
   if (!exam || !marksData) return <div className="st-empty-state">No exams are available for result viewing.</div>;
@@ -179,7 +210,36 @@ export default function ResultPage({ role }: { role?: string }) {
 
           <section className="result-section">
             <h3 className="result-division-heading">Division Summary</h3>
-            <div className="result-table-wrap result-division-wrap"><table className="result-table result-division-table"><thead><tr><th>Div</th><th>Boys</th><th>Girls</th><th>Total</th></tr></thead><tbody>{report.divisions.map((row) => <tr key={row.division}><td>{row.division}</td><td>{row.boys}</td><td>{row.girls}</td><td>{row.boys + row.girls}</td></tr>)}<tr className="result-division-incomplete"><td>Incomplete</td><td>{report.students.filter((row) => row.student.incomplete && genderLabel(row.student.gender) === "M").length}</td><td>{report.students.filter((row) => row.student.incomplete && genderLabel(row.student.gender) === "F").length}</td><td>{report.students.filter((row) => row.student.incomplete).length}</td></tr></tbody></table></div>
+            <div className="result-table-wrap result-division-wrap">
+              <table className="result-table result-division-table result-division-points-table">
+                <thead>
+                  <tr><th>Div</th><th>Boys</th><th>Girls</th><th>Total</th><th>%</th></tr>
+                </thead>
+                <tbody>
+                  {report.divisions.map((row) => {
+                    const total = row.boys + row.girls;
+                    const percent = selectionTotal > 0 ? (total / selectionTotal) * 100 : 0;
+                    return (
+                      <tr key={row.division}>
+                        <td>{row.division}</td>
+                        <td>{row.boys}</td>
+                        <td>{row.girls}</td>
+                        <td>{total}</td>
+                        <td>{displayNumber(percent)}%</td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="result-division-incomplete">
+                    <td>Incomplete</td>
+                    <td>{incompleteBoys}</td>
+                    <td>{incompleteGirls}</td>
+                    <td>{incompleteStudents.length}</td>
+                    <td>{displayNumber(incompletePercent)}%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="result-division-caption">Percent is the share of all students in this selection.</p>
           </section>
 
           <section className="result-summary-grid rp-summary-grid">
@@ -249,6 +309,40 @@ export default function ResultPage({ role }: { role?: string }) {
               ))}
             </div>
             <div className="result-table-wrap rp-subject-wrap"><table className="result-table result-subject-table"><thead><tr><th rowSpan={2}>#</th><th rowSpan={2}>Subject</th><th colSpan={3}>A</th><th colSpan={3}>B</th><th colSpan={3}>C</th><th colSpan={3}>D</th><th colSpan={3}>F</th><th rowSpan={2}>Avg</th><th rowSpan={2}>Grade</th><th rowSpan={2}>REG</th><th rowSpan={2}>SAT</th><th rowSpan={2}>PASS</th><th rowSpan={2}>GPA</th><th rowSpan={2}>Competency</th></tr><tr>{["A", "B", "C", "D", "F"].map((grade) => [<th key={`${grade}-f`} className="result-gender-th">F</th>, <th key={`${grade}-m`} className="result-gender-th">M</th>, <th key={`${grade}-t`} className="result-gender-th">T</th>])}</tr></thead><tbody>{report.subjects.map((subject, index) => <tr key={subject.subject_id}><td>{index + 1}</td><td><strong>{subject.subject_code}</strong> — {subject.subject_name}</td>{["A", "B", "C", "D", "F"].map((grade) => { const f = subject.countsF[grade] ?? 0; const m = subject.countsM[grade] ?? 0; return [<td key={`${grade}-f`} className="result-gender-cells">{f}</td>, <td key={`${grade}-m`} className="result-gender-cells">{m}</td>, <td key={`${grade}-t`} className="result-gender-cells">{f + m}</td>]; })}<td>{displayNumber(subject.avg)}</td><td>{subject.grade}</td><td>{subject.registered}</td><td>{subject.sat}</td><td>{subject.passed}</td><td>{displayNumber(subject.gpa)}</td><td>{subject.competency}</td></tr>)}</tbody></table></div>
+          </section>
+
+          <section className="result-section">
+            <h3 className="result-division-heading">Division Summary by Points</h3>
+            {divisionPointRows.length === 0 ? (
+              <div className="rp-card-empty">No eligible students for a division yet.</div>
+            ) : (
+              <>
+                <div className="result-table-wrap result-division-wrap">
+                  <table className="result-table result-division-table result-division-points-table">
+                    <thead>
+                      <tr><th>Division</th><th>Points</th><th>Boys</th><th>Girls</th><th>Total</th><th>%</th></tr>
+                    </thead>
+                    <tbody>
+                      {divisionPointRows.map((row) => {
+                        const total = row.boys + row.girls;
+                        const percent = selectionTotal > 0 ? (total / selectionTotal) * 100 : 0;
+                        return (
+                          <tr key={`${row.division}-${row.points}`}>
+                            <td>{row.division === "0" ? "Division 0" : `Division ${row.division}`}</td>
+                            <td>{row.points}</td>
+                            <td>{row.boys}</td>
+                            <td>{row.girls}</td>
+                            <td>{total}</td>
+                            <td>{displayNumber(percent)}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="result-division-caption">Percent is the share of all students in this selection.</p>
+              </>
+            )}
           </section>
 
           <footer className="result-footer">Generated: {generated}</footer>

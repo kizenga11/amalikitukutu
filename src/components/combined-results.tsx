@@ -8,7 +8,6 @@ import { supabase } from "@/lib/supabase";
 import { fetchSchoolInfo, type SchoolInfo } from "@/lib/school-api";
 import { DEFAULT_GRADE_BOUNDARIES, computeGradeAndPoints } from "@/lib/grading";
 import type { ExamReport, ExamStudentRow, ExamSubjectCell } from "@/lib/combined-results";
-import { buildDownloadName, printWithFileName } from "@/lib/download-name";
 
 interface StreamOption {
   id: string;

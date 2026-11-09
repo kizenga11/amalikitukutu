@@ -111,7 +111,7 @@ const VERDICT_LABEL: Record<ComparePayload["summary"]["verdict"], string> = {
   same: "Same",
 };
 
-export default function TeacherExamCompare({ teacherId }: { teacherId?: string }) {
+export default function TeacherExamCompare() {
   const [token, setToken] = useState<string | null>(null);
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
   const [forms, setForms] = useState<FormOption[]>([]);
@@ -187,12 +187,11 @@ export default function TeacherExamCompare({ teacherId }: { teacherId?: string }
 
   useEffect(() => {
     if (!classId || !subjectId || !token) {
-      setExams([]);
       return;
     }
     let active = true;
-    setLoadingExams(true);
     (async () => {
+      setLoadingExams(true);
       try {
         const response = await apiGet({ action: "exams", classId, subjectId });
         const payload = (await response.json()) as { exams?: ExamOption[]; error?: string };
@@ -247,6 +246,7 @@ export default function TeacherExamCompare({ teacherId }: { teacherId?: string }
     setSubjectId(id);
     setExamAId("");
     setExamBId("");
+    setExams([]);
     clearResult();
   }
 

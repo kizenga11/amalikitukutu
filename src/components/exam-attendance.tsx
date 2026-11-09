@@ -48,6 +48,7 @@ function AttendanceSheetView({
     <article className="att-sheet">
       <header className="att-header">
         {schoolInfo?.unionLogo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- user-uploaded logo, may be a data URL
           <img className="att-logo" src={schoolInfo.unionLogo} alt="" />
         ) : (
           <span className="att-logo att-logo--placeholder" />
@@ -62,6 +63,7 @@ function AttendanceSheetView({
           <div className="att-exam">{exam.name.toUpperCase()}</div>
         </div>
         {schoolInfo?.schoolLogo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- user-uploaded logo, may be a data URL
           <img className="att-logo" src={schoolInfo.schoolLogo} alt="" />
         ) : (
           <span className="att-logo att-logo--placeholder" />

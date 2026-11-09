@@ -1,0 +1,399 @@
+You are a senior full-stack engineer. Build a "Timetable" module for an existing Next.js school exams system (Mufumbu Secondary School). The module automatically generates a clash-free weekly class timetable from settings the user controls.
+
+## 0. Ground rules
+- Do NOT change existing features. Reuse existing data: teachers, subjects, classes, streams and teacher-subject-class assignments already exist. Never ask the user to enter them again.
+- Use the project's existing database/ORM, auth and roles. Add tables and migrations only for new data.
+- UI: follow the app's design system (teal #0F5C50 top bar, white sidebar with dropdown groups, amber #F2A33A accent, Plus Jakarta Sans, white cards with #DCE6E3 borders, radius 14). Counts only on the Dashboard; keep descriptive text minimal; English labels.
+- Add a sidebar dropdown group "Timetable" with: Setup, Subject Periods, Rules, Generate, Timetables.
+- The solver is a small separate Python service (Google OR-Tools CP-SAT) called from a Next.js API route. Reference code is at the end. Start from it, fix any bugs you find, and keep it tested.
+
+## 1. Settings (nothing hard-coded; everything editable by the user)
+
+### 1.1 Day timeline
+- Each school day (Monday to Friday, Saturday optional) is an ORDERED LIST OF SLOTS: { start, end, kind, label, appliesTo }.
+- kind is "lesson", "break" or "special".
+- Slot lengths vary (for example 07:30-08:10, 08:10-08:40, 08:40-09:20). Never assume a fixed period length.
+- Provide a quick generator (start time, default lesson length, list of breaks and where they fall) that creates the slots, then let the user edit every slot (time, kind, add, delete, reorder) and copy one day to other days.
+- "Teaching periods per day" is DERIVED from the number of lesson slots. In this school: Mon 10, Tue 8, Wed 8, Thu 10, Fri 6 = 42 per class per week. These numbers exclude special periods.
+
+### 1.2 Special periods
+- Examples: Religious Studies on Wednesday 13:20-14:40, Subject Clubs on Tuesday, Friday prayers (Friday lessons end at 12:00), tea break and lunch.
+- Each special period is a slot with day, start, end, label and appliesTo: all classes, one stream (General or Vocational), or chosen classes.
+- They MUST be movable. If Religious Studies moves from Wednesday to Monday, the user edits the slot and regenerates. No special period may be constant in code.
+- A "special" slot applies only to the classes in appliesTo. Other classes treat it as a normal lesson slot.
+
+### 1.3 Classes and streams
+- A class is Form + Stream, for example IA, IB, IIA, IIB (streams are General and Vocational; labels configurable).
+- Currently Form 1 and Form 2. It must scale to Form 4 and any number of streams.
+- Every setting that concerns periods is per class (Form + Stream).
+
+### 1.4 Subject periods (page "Subject Periods")
+- Pick class, then show every subject already assigned to a teacher for that class.
+- Editable: periods per week and morning priority (None, Low, Normal, High).
+- Show the pattern for each subject, computed by the splitting rule in 2.1, for example "2 doubles + 1 single".
+- Show a capacity bar: periods used out of lesson slots available to that class.
+- Unfilled capacity is allowed. Leftover slots simply stay FREE. It is a warning only when assigned periods EXCEED capacity.
+- Teacher totals across all classes must be visible, so the user can compare with their teaching-load sheet.
+
+### 1.5 Teacher availability
+- Optional per teacher: slots or days they are unavailable, and optional maximum periods per day.
+
+### 1.6 Rules page
+- Toggles and numbers for the rules in sections 2 and 3, including the weights.
+
+## 2. Splitting rule (applies to every subject in every class)
+- Periods per week n is split into blocks of size 2 (double) and at most one block of size 1 (single).
+- Even n: all doubles. 6 = 3 doubles, 4 = 2 doubles, 2 = 1 double.
+- Odd n: exactly one single, the rest doubles. 5 = 2 doubles + 1 single, 3 = 1 double + 1 single, 1 = 1 single.
+- A double must sit on two ADJACENT lesson slots of the same day with no break or special slot between them. Slots may have different lengths.
+
+## 3. Constraints
+
+### 3.1 Hard constraints (never broken)
+1. A class has at most one lesson at any slot.
+2. A teacher is in at most one class at any slot.
+3. Nothing is placed in a slot that is not a lesson slot for that class.
+4. Teacher unavailability is respected.
+5. A teacher never has more than 2 consecutive lesson slots (no 3 in a row). A break or a free slot counts as rest. This also prevents "double in Form 1 followed directly by double in Form 2" because that would be 4 in a row.
+6. A teacher enters the same class at most once per day (a double counts as one entry). Make this a rule toggle (default on).
+7. Locked lessons stay exactly where the user locked them.
+
+### 3.2 Soft constraints (minimise a weighted penalty; each weight is editable)
+- Subjects with morning priority are placed before the "morning ends" time (default 12:40). Penalty = weight x priority per slot after that time.
+- Spread each teacher over the week. Penalise teachers working on adjacent days so a teacher does not teach only Monday and Tuesday and then nothing Wednesday to Friday. Prefer alternating days such as Monday, Wednesday, Friday.
+- Penalise single-slot gaps (a FREE slot between two lessons) in a class timetable and in a teacher timetable.
+- Free slots are allowed. The default preference is to keep them out of the middle of the day.
+
+## 4. Pre-checks (before solving) with clear messages
+- Class assigned periods greater than its lesson slots per week.
+- A teacher with more blocks in one class than there are days (rule 3.1.6).
+- A teacher's total periods greater than the available slots.
+- A block with no valid position (for example a double with no adjacent lesson slots).
+- If the solver reports infeasible, show the pre-check messages and a plain-language hint (relax a rule, add slots, or reduce periods).
+
+## 5. Generation flow
+- Button "Generate" starts a background job (time limit is a setting, default 60 seconds). Show running, feasible, optimal or infeasible.
+- Save each result as a DRAFT version with its penalty score. Allow several versions per term, compare them, and publish one.
+- Locking: the user can lock lessons; regenerating keeps locked lessons and re-plans the rest.
+- Manual edit: drag a lesson to another slot. Validate all hard rules immediately and show the exact reason when a move is refused. Doubles move as one block.
+- Write an independent validator function that checks every hard rule on any saved timetable. Run it after every generation and every manual edit.
+
+## 6. Output (must look exactly like this sample)
+- One table per day (tabs Monday to Friday, plus an "All days" print mode with one table per day).
+- Rows are classes in order IA, IB, IIA, IIB. Columns are the day's slots in time order with a header such as "07:30 - 08:10".
+- A cell shows SUBJECT bold and the teacher name below, for example "MATH, Kaiza". A double lesson is ONE cell merged across its two columns.
+- A lesson slot with no lesson shows FREE (light dashed cell).
+- A break column (TEA BREAK, LUNCH) is one cell merged across all class rows. A special period (RELIGION, CLUBS) is merged only across the classes it applies to; other classes show their normal lessons there.
+- Views: by class, by teacher (each teacher sees their own weekly timetable), and the whole-school day view above.
+- Export to PDF and Excel. Landscape print layout, one day per page.
+
+## 7. Data model (adapt to the existing schema)
+- timetable_day_slot(id, day, order, start, end, kind, label)
+- timetable_slot_scope(slot_id, class_id): used only when a special slot applies to specific classes (no rows means all classes)
+- timetable_subject_periods(class_id, subject_id, assignment_id, periods, morning_priority)
+- timetable_teacher_unavailable(teacher_id, slot_id)
+- timetable_rules(key, value_json)
+- timetable_version(id, term, status draft|published, score, solver_status, created_at)
+- timetable_lesson(version_id, class_id, subject_id, teacher_id, slot_id, size 1|2, locked)
+
+## 8. API
+- POST /api/timetable/generate: builds the solver input (section 9) from the database, calls the solver service (env SOLVER_URL), saves the draft version, returns the status and version id.
+- GET /api/timetable/versions/:id: lessons of a version.
+- PATCH /api/timetable/lessons/:id: move or lock a lesson (validated).
+- All routes require the same authentication and roles as the rest of the app.
+
+## 9. Solver input and output (JSON)
+Input: { days:[{id,slots:[{id,start,end,kind,label,appliesTo}]}], classes:[{id}], assignments:[{id,classId,subjectId,teacherId,periods}], subjectPriority:{subjectId:0..3}, teacherUnavailable:[{teacherId,slotIds}], locked:[{assignmentId,slotId,size}], rules:{...} }
+Output: { status:"optimal"|"feasible"|"infeasible", objective, lessons:[{classId,subjectId,teacherId,day,slotId,size}], diagnostics:[...] }
+
+## 10. Acceptance tests
+1. The sample input at the end solves with no clashes and the validator passes.
+2. Periods 6, 5, 4, 3, 2, 1 split into [2,2,2], [2,2,1], [2,2], [2,1], [2], [1].
+3. No teacher ever has 3 consecutive lesson slots; no teacher enters the same class twice in one day.
+4. Moving Religious Studies from Wednesday to Monday in Setup and regenerating works with no code change.
+5. Friday has 6 lesson slots and nothing is placed after the Friday prayer cut-off.
+6. Assigned periods above class capacity produce a clear pre-check message; below capacity produces FREE cells.
+7. Locked lessons never move after regeneration.
+
+## 11. Work plan
+Inspect the codebase and show me the plan first. Then: data model and Setup page, Subject Periods page, solver service and API, Generate and Timetables pages, validator, manual edit, export. Make sure build and lint pass after each step.
+
+## Reference code
+
+### solver.py
+```python
+from collections import defaultdict
+from ortools.sat.python import cp_model
+
+DEFAULT_RULES = {
+    "maxConsecutiveTeacher": 2,
+    "oneSessionPerTeacherClassPerDay": True,
+    "breaksCountAsRest": True,
+    "morningEnds": "12:40",
+    "weights": {"morning": 10, "adjacentDays": 3, "classGap": 6, "teacherGap": 4},
+}
+
+
+class InfeasibleError(Exception):
+    def __init__(self, issues):
+        super().__init__("; ".join(issues))
+        self.issues = issues
+
+
+def mins(t):
+    h, m = t.split(":")
+    return int(h) * 60 + int(m)
+
+
+def split_blocks(n):  # 6->[2,2,2]  5->[2,2,1]  3->[2,1]  1->[1]
+    return [2] * (n // 2) + ([1] if n % 2 else [])
+
+
+def precheck(data, starts, n_days):
+    issues = []
+    per_class, per_teacher, per_tc = defaultdict(int), defaultdict(int), defaultdict(int)
+    for a in data["assignments"]:
+        per_class[a["classId"]] += a["periods"]
+        per_teacher[a["teacherId"]] += a["periods"]
+        per_tc[a["teacherId"], a["classId"]] += len(split_blocks(a["periods"]))
+    for c, n in per_class.items():
+        cap = len(starts[c][1])
+        if n > cap:
+            issues.append(f"Class {c}: {n} periods assigned but only {cap} lesson slots per week.")
+    rules = data.get("rules", {})
+    if rules.get("oneSessionPerTeacherClassPerDay", True):
+        for (t, c), n in per_tc.items():
+            if n > n_days:
+                issues.append(f"Teacher {t} needs {n} separate sessions in class {c} but there are only {n_days} days.")
+    total_slots = len({g for c in starts for g in starts[c][1]})
+    for t, n in per_teacher.items():
+        if n > total_slots:
+            issues.append(f"Teacher {t}: {n} periods but only {total_slots} lesson slots exist.")
+    return issues
+
+
+def solve(data, time_limit=60):
+    rules = {**DEFAULT_RULES, **data.get("rules", {})}
+    W = {**DEFAULT_RULES["weights"], **rules.get("weights", {})}
+    days = data["days"]
+
+    slots = []
+    for d, day in enumerate(days):
+        for s in day["slots"]:
+            slots.append({**s, "day": d, "gid": len(slots)})
+    gid_of = {s["id"]: s["gid"] for s in slots}
+
+    def class_open(cid, s):
+        if s["kind"] == "lesson":
+            return True
+        if s["kind"] == "special":
+            ap = s.get("appliesTo", ["*"])
+            return "*" not in ap and cid not in ap
+        return False
+
+    def teacher_open(s):
+        return not (s["kind"] == "break" or (s["kind"] == "special" and "*" in s.get("appliesTo", ["*"])))
+
+    def runs(open_fn):
+        out = []
+        for d in range(len(days)):
+            cur = []
+            for s in (x for x in slots if x["day"] == d):
+                if open_fn(s):
+                    cur.append(s["gid"])
+                elif cur:
+                    out.append(cur)
+                    cur = []
+            if cur:
+                out.append(cur)
+        return out
+
+    class_ids = [c["id"] for c in data["classes"]]
+    class_runs = {c: runs(lambda s, c=c: class_open(c, s)) for c in class_ids}
+    starts = {c: {1: [g for r in rs for g in r], 2: [g for r in rs for g in r[:-1]]} for c, rs in class_runs.items()}
+    if rules["breaksCountAsRest"]:
+        t_runs = runs(teacher_open)
+    else:
+        t_runs = [[s["gid"] for s in slots if s["day"] == d and teacher_open(s)] for d in range(len(days))]
+
+    issues = precheck({**data, "rules": rules}, starts, len(days))
+    if issues:
+        raise InfeasibleError(issues)
+
+    blocks = []
+    for a in data["assignments"]:
+        for k, size in enumerate(split_blocks(a["periods"])):
+            blocks.append({"id": f'{a["id"]}#{k}', "cid": a["classId"], "sid": a["subjectId"],
+                           "tid": a["teacherId"], "size": size})
+
+    unavailable = {(u["teacherId"], gid_of[sid]) for u in data.get("teacherUnavailable", []) for sid in u["slotIds"]}
+
+    m = cp_model.CpModel()
+    x = {}
+    cover_c, cover_t = defaultdict(list), defaultdict(list)
+    per_tc_day, per_t_day = defaultdict(list), defaultdict(list)
+    for bi, b in enumerate(blocks):
+        options = []
+        for g in starts[b["cid"]][b["size"]]:
+            cells = list(range(g, g + b["size"]))
+            if any((b["tid"], c) in unavailable for c in cells):
+                continue
+            v = m.NewBoolVar(f"x_{bi}_{g}")
+            x[bi, g] = v
+            options.append(v)
+            for c in cells:
+                cover_c[b["cid"], c].append(v)
+                cover_t[b["tid"], c].append(v)
+            d = slots[g]["day"]
+            per_tc_day[b["tid"], b["cid"], d].append(v)
+            per_t_day[b["tid"], d].append(v)
+        if not options:
+            raise InfeasibleError([f'No valid position for {b["id"]} (class {b["cid"]}, teacher {b["tid"]}).'])
+        m.AddExactlyOne(options)
+
+    # locked lessons
+    used = set()
+    for L in data.get("locked", []):
+        g = gid_of[L["slotId"]]
+        for bi, b in enumerate(blocks):
+            if bi not in used and b["id"].startswith(L["assignmentId"] + "#") and b["size"] == L["size"] and (bi, g) in x:
+                m.Add(x[bi, g] == 1)
+                used.add(bi)
+                break
+
+    # hard constraints
+    for vs in cover_c.values():
+        m.AddAtMostOne(vs)
+    for vs in cover_t.values():
+        m.AddAtMostOne(vs)
+    if rules["oneSessionPerTeacherClassPerDay"]:
+        for vs in per_tc_day.values():
+            m.AddAtMostOne(vs)
+    maxc = rules["maxConsecutiveTeacher"]
+    teachers = {b["tid"] for b in blocks}
+    for t in teachers:
+        for run in t_runs:
+            for i in range(len(run) - maxc):
+                terms = [sum(cover_t[t, g]) for g in run[i:i + maxc + 1] if (t, g) in cover_t]
+                if len(terms) > maxc:
+                    m.Add(sum(terms) <= maxc)
+
+    # soft constraints
+    pen = []
+    cutoff = mins(rules["morningEnds"])
+    prio = data.get("subjectPriority", {})
+    for (bi, g), v in x.items():
+        b = blocks[bi]
+        p = prio.get(b["sid"], 0)
+        if p:
+            late = sum(1 for c in range(g, g + b["size"]) if mins(slots[c]["start"]) >= cutoff)
+            if late:
+                pen.append(W["morning"] * p * late * v)
+
+    works = {}
+    for (t, d), vs in per_t_day.items():
+        w = m.NewBoolVar(f"w_{t}_{d}")
+        m.AddMaxEquality(w, vs)
+        works[t, d] = w
+    for (t, d), w in works.items():
+        nxt = works.get((t, d + 1))
+        if nxt is not None:
+            adj = m.NewBoolVar("")
+            m.AddBoolOr([w.Not(), nxt.Not(), adj])
+            pen.append(W["adjacentDays"] * adj)
+
+    def gaps(cover, run, key, weight):
+        for a, mid, c in zip(run, run[1:], run[2:]):
+            ea, ec = cover.get((key, a)), cover.get((key, c))
+            if not ea or not ec:
+                continue
+            em = cover.get((key, mid)) or []
+            gp = m.NewBoolVar("")
+            m.Add(gp >= sum(ea) + sum(ec) - sum(em) - 1)
+            pen.append(weight * gp)
+
+    for c in class_ids:
+        for run in class_runs[c]:
+            gaps(cover_c, run, c, W["classGap"])
+    for t in teachers:
+        for run in t_runs:
+            gaps(cover_t, run, t, W["teacherGap"])
+
+    if pen:
+        m.Minimize(sum(pen))
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = time_limit
+    solver.parameters.num_workers = 8
+    status = solver.Solve(m)
+    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        return {"status": "infeasible", "objective": None, "lessons": [],
+                "diagnostics": ["No timetable satisfies all hard rules. Relax a rule, add slots, or reduce periods."]}
+
+    lessons = []
+    for (bi, g), v in x.items():
+        if solver.Value(v):
+            b, s = blocks[bi], slots[g]
+            lessons.append({"classId": b["cid"], "subjectId": b["sid"], "teacherId": b["tid"],
+                            "day": days[s["day"]]["id"], "slotId": s["id"], "size": b["size"]})
+    return {"status": "optimal" if status == cp_model.OPTIMAL else "feasible",
+            "objective": solver.ObjectiveValue() if pen else 0, "lessons": lessons, "diagnostics": []}
+```
+
+### main.py (FastAPI service)
+```python
+from fastapi import FastAPI
+from solver import solve, InfeasibleError
+
+app = FastAPI()
+
+
+@app.post("/generate")
+def generate(payload: dict, timeLimit: int = 60):
+    try:
+        return solve(payload, timeLimit)
+    except InfeasibleError as e:
+        return {"status": "infeasible", "objective": None, "lessons": [], "diagnostics": e.issues}
+
+# pip install ortools fastapi uvicorn
+# uvicorn main:app --port 8001
+```
+
+### app/api/timetable/generate/route.ts
+```ts
+import { NextResponse } from "next/server";
+
+export async function POST(req: Request) {
+  // TODO: check auth and role first, then build `input` from the database (section 9).
+  const input = await req.json();
+  const res = await fetch(`${process.env.SOLVER_URL}/generate?timeLimit=60`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const result = await res.json();
+  // TODO: save a draft timetable_version and its lessons, run the validator.
+  return NextResponse.json(result, { status: res.ok ? 200 : 502 });
+}
+```
+
+### sample-input.json (Monday only, from my sample)
+```json
+{
+  "days": [{"id": "MON", "slots": [
+    {"id": "MON-1", "start": "07:30", "end": "08:10", "kind": "lesson"},
+    {"id": "MON-2", "start": "08:10", "end": "08:40", "kind": "lesson"},
+    {"id": "MON-3", "start": "08:40", "end": "09:20", "kind": "lesson"},
+    {"id": "MON-4", "start": "09:30", "end": "10:10", "kind": "lesson"},
+    {"id": "MON-T", "start": "10:10", "end": "10:40", "kind": "break", "label": "TEA BREAK"}
+  ]}],
+  "classes": [{"id": "IA"}, {"id": "IB"}],
+  "assignments": [
+    {"id": "a1", "classId": "IA", "subjectId": "MATH", "teacherId": "Joyce", "periods": 2},
+    {"id": "a2", "classId": "IB", "subjectId": "MATH", "teacherId": "Kaiza", "periods": 2},
+    {"id": "a3", "classId": "IA", "subjectId": "ENG", "teacherId": "Makinda", "periods": 1},
+    {"id": "a4", "classId": "IB", "subjectId": "ENG", "teacherId": "Makinda", "periods": 1}
+  ],
+  "subjectPriority": {"MATH": 3, "ENG": 3},
+  "rules": {}
+}
+```

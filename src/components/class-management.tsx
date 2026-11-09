@@ -89,7 +89,8 @@ export default function ClassManagement() {
         setDbMode(false);
       })
       .finally(() => setLoading(false));
-    return () => { timersRef.current.forEach((t) => clearTimeout(t)); };
+    const timers = timersRef.current;
+    return () => { timers.forEach((t) => clearTimeout(t)); };
   }, []);
 
   function showToast(type: ToastType, message: string) {

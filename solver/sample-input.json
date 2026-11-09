@@ -1,0 +1,25 @@
+{
+  "days": [
+    {
+      "id": "MON",
+      "slots": [
+        { "id": "MON-1", "start": "07:30", "end": "08:10", "kind": "lesson" },
+        { "id": "MON-2", "start": "08:10", "end": "08:40", "kind": "lesson" },
+        { "id": "MON-3", "start": "08:40", "end": "09:20", "kind": "lesson" },
+        { "id": "MON-4", "start": "09:30", "end": "10:10", "kind": "lesson" },
+        { "id": "MON-T", "start": "10:10", "end": "10:40", "kind": "break", "label": "TEA BREAK" }
+      ]
+    }
+  ],
+  "classes": [{ "id": "IA" }, { "id": "IB" }],
+  "assignments": [
+    { "id": "a1", "classId": "IA", "subjectId": "MATH", "teacherId": "Joyce", "periods": 2 },
+    { "id": "a2", "classId": "IB", "subjectId": "MATH", "teacherId": "Kaiza", "periods": 2 },
+    { "id": "a3", "classId": "IA", "subjectId": "ENG", "teacherId": "Makinda", "periods": 1 },
+    { "id": "a4", "classId": "IB", "subjectId": "ENG", "teacherId": "Makinda", "periods": 1 }
+  ],
+  "subjectPriority": { "MATH": 3, "ENG": 3 },
+  "teacherUnavailable": [],
+  "locked": [],
+  "rules": {}
+}

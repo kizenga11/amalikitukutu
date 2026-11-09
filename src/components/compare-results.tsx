@@ -146,7 +146,7 @@ interface SubjectStudentCompareRow {
 export default function CompareResults({ role, teacherId }: { role?: string; teacherId?: string }) {
   const isTeacher = role === "Teacher" || Boolean(teacherId);
   if (isTeacher && teacherId) {
-    return <TeacherExamCompare teacherId={teacherId} />;
+    return <TeacherExamCompare />;
   }
   return <AdminCompareResults role={role} teacherId={teacherId} />;
 }
@@ -540,6 +540,7 @@ function AdminCompareResults({ role, teacherId }: { role?: string; teacherId?: s
           <div className="result-paper">
             <header className="result-header cmp-report-header">
               <div className="cmp-header-top">
+                {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset, sized by CSS */}
                 <img className="cmp-header-logo" src="/assets/logo.png" alt="School logo" />
                 <div className="cmp-header-school">
                   <div className="cmp-header-council">{schoolInfo?.council ? `${schoolInfo.council}${schoolInfo.district ? ` — ${schoolInfo.district}` : ""}` : schoolInfo?.district || "DISTRICT COUNCIL"}</div>
