@@ -15,6 +15,12 @@ import {
   type StudentReportRow,
 } from "@/lib/grading";
 import { normalizePhone, sendSmsBatch, smsConfigured, type SmsDispatchItem } from "@/lib/sms";
+import {
+  PARENTS_WHATSAPP_GROUP_KEY,
+  RESULTS_WHATSAPP_LINK_KEY,
+  whatsappLinksSmsSuffix,
+  type WhatsappLinks,
+} from "@/lib/whatsapp-links";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -213,7 +219,14 @@ async function buildResultsMessages(examId: string): Promise<{ messages: Map<str
     admin
       .from("academic_settings")
       .select("key, value")
-      .in("key", ["grade_boundaries", "division_ranges", "competency_thresholds", "school_name"]),
+      .in("key", [
+        "grade_boundaries",
+        "division_ranges",
+        "competency_thresholds",
+        "school_name",
+        RESULTS_WHATSAPP_LINK_KEY,
+        PARENTS_WHATSAPP_GROUP_KEY,
+      ]),
   ]);
   if (subjectRels.error) throw subjectRels.error;
   if (settingsRes.error) throw settingsRes.error;
@@ -232,6 +245,10 @@ async function buildResultsMessages(examId: string): Promise<{ messages: Map<str
   const divisionRanges = parseJson<DivisionRange[]>(settingsMap.get("division_ranges"), DEFAULT_DIVISION_RANGES);
   const competencyThresholds = parseJson<CompetencyThreshold[]>(settingsMap.get("competency_thresholds"), DEFAULT_COMPETENCY_THRESHOLDS);
   const schoolName = (settingsMap.get("school_name") ?? "").trim() || DEFAULT_SCHOOL_NAME;
+  const whatsappLinks: WhatsappLinks = {
+    results: settingsMap.get(RESULTS_WHATSAPP_LINK_KEY) ?? "",
+    parentsGroup: settingsMap.get(PARENTS_WHATSAPP_GROUP_KEY) ?? "",
+  };
 
   // Every student who sat the exam — the ranking population.
   const students: RawRecipient[] = [];
@@ -309,18 +326,27 @@ async function buildResultsMessages(examId: string): Promise<{ messages: Map<str
 
   const messages = new Map<string, string>();
   for (const row of report.students) {
-    messages.set(row.student.student_id, buildResultMessage(row, exam.name as string, schoolName, total));
+    messages.set(row.student.student_id, buildResultMessage(row, exam.name as string, schoolName, total, whatsappLinks));
   }
   return { messages, total, examName: (exam.name as string) ?? "" };
 }
 
-function buildResultMessage(row: StudentReportRow, examName: string, schoolName: string, totalStudents: number): string {
+function buildResultMessage(
+  row: StudentReportRow,
+  examName: string,
+  schoolName: string,
+  totalStudents: number,
+  whatsappLinks: WhatsappLinks,
+): string {
   const name = [row.student.first_name, row.student.middle_name, row.student.last_name].filter(Boolean).join(" ");
   const avg = row.avg === null ? "—" : `${formatScore(row.avg)}%`;
   const rank = row.rank > 0 ? String(row.rank) : "—";
   const division = row.divisionCode;
   const points = row.student.total_points === null ? "—" : String(row.student.total_points);
-  return `${schoolName}: Habari, Matokeo ya ${examName}: ${name} ameshika nafasi ya ${rank} kati ya wanafunzi ${totalStudents}, wastani wa ${avg}, DIV ${division}, Points ${points}, Asante`;
+  return (
+    `${schoolName}: Habari, Matokeo ya ${examName}: ${name} ameshika nafasi ya ${rank} kati ya wanafunzi ${totalStudents}, wastani wa ${avg}, DIV ${division}, Points ${points}, Asante` +
+    whatsappLinksSmsSuffix(whatsappLinks)
+  );
 }
 
 function renderCustomMessage(template: string, row: RawRecipient, className: string): string {

@@ -1176,6 +1176,7 @@ button:disabled, select:disabled { cursor: not-allowed; }
 .settings-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: .5rem; }
 .settings-field { display: grid; gap: .4rem; }
 .settings-field-label { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.settings-note { font-size: .75rem; color: var(--muted); }
 .settings-select {
 	width: 100%; padding: .6rem .9rem;
 	border: 1px solid var(--line); border-radius: .5rem;

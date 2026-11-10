@@ -39,8 +39,8 @@ const StreamTeacherAssignment = dynamic(() => import("@/components/stream-teache
 const MkondoWangu = dynamic(() => import("@/components/mkondo-wangu"), { ssr: false, loading: PageLoading });
 const TimetableView = dynamic(() => import("@/components/timetable/timetable-view"), { ssr: false, loading: PageLoading });
 import type { TimetableSection } from "@/components/timetable/timetable-view";
-import { fetchAcademicSettings, fetchDashboardData, fetchSchoolInfo, saveAcademicSettings, saveSchoolInfo, type DashboardData, type SchoolInfo } from "@/lib/school-api";
-import { DEFAULT_SCHOOL_INFO } from "@/lib/school-api";
+import { fetchAcademicSettings, fetchDashboardData, fetchSchoolInfo, fetchWhatsappLinks, saveAcademicSettings, saveSchoolInfo, saveWhatsappLinks, type DashboardData, type SchoolInfo, type WhatsappLinks } from "@/lib/school-api";
+import { DEFAULT_SCHOOL_INFO, DEFAULT_WHATSAPP_LINKS } from "@/lib/school-api";
 import { readStoredJson, readStoredPeriod, writeStoredJson, writeStoredPeriod, type StoredPeriod } from "@/lib/preferences";
 import { errorMessage } from "@/lib/errors";
 import Sidebar from "@/components/navigation/sidebar";
@@ -696,6 +696,52 @@ function SettingsPanel({ active, onSave }: { active: Period; onSave: (period: Pe
     reader.readAsDataURL(file);
   }
 
+  const [whatsapp, setWhatsapp] = useState<WhatsappLinks>(DEFAULT_WHATSAPP_LINKS);
+  const [savedWhatsapp, setSavedWhatsapp] = useState<WhatsappLinks>(DEFAULT_WHATSAPP_LINKS);
+  const [whatsappLoading, setWhatsappLoading] = useState(true);
+  const [whatsappSaved, setWhatsappSaved] = useState(false);
+  const [whatsappError, setWhatsappError] = useState("");
+
+  useEffect(() => {
+    let activePanel = true;
+    fetchWhatsappLinks()
+      .then((links) => {
+        if (!activePanel) return;
+        setWhatsapp(links);
+        setSavedWhatsapp(links);
+      })
+      .catch(() => {
+        if (activePanel) setWhatsappError("Could not load WhatsApp links.");
+      })
+      .finally(() => activePanel && setWhatsappLoading(false));
+    return () => {
+      activePanel = false;
+    };
+  }, []);
+
+  const whatsappDirty = whatsapp.results !== savedWhatsapp.results || whatsapp.parentsGroup !== savedWhatsapp.parentsGroup;
+
+  async function handleWhatsappSave() {
+    if (!whatsappDirty) return;
+    const trimmed = { results: whatsapp.results.trim(), parentsGroup: whatsapp.parentsGroup.trim() };
+    for (const link of [trimmed.results, trimmed.parentsGroup]) {
+      if (link && !/^https?:\/\//i.test(link)) {
+        setWhatsappError("Each link must start with http:// or https:// — or leave it empty to leave it out of the SMS.");
+        return;
+      }
+    }
+    setWhatsappError("");
+    try {
+      await saveWhatsappLinks(trimmed);
+      setWhatsapp(trimmed);
+      setSavedWhatsapp(trimmed);
+      setWhatsappSaved(true);
+      window.setTimeout(() => setWhatsappSaved(false), 2500);
+    } catch {
+      setWhatsappError("Could not save WhatsApp links.");
+    }
+  }
+
   function handleSave() {
     if (!dirty) return;
     onSave({ yearId, term });
@@ -804,6 +850,55 @@ function SettingsPanel({ active, onSave }: { active: Period; onSave: (period: Pe
                 {schoolSaved ? "Saved" : schoolDirty ? "Unsaved changes" : "Up to date"}
               </span>
               <button className="settings-save" onClick={handleSchoolSave} disabled={!schoolDirty}>
+                {icons.check}<span>Save changes</span>
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="settings-card">
+        <div className="panel-head">
+          <div>
+            <h3 className="panel-title">WhatsApp Links</h3>
+            <p className="panel-sub">
+              Added automatically to every results SMS sent to parents. Leave a link empty to leave that sentence out of the SMS.
+            </p>
+          </div>
+        </div>
+
+        {whatsappLoading ? (
+          <div className="me-loading-panel">Loading…</div>
+        ) : (
+          <>
+            <div className="settings-form settings-form--stack">
+              <label className="settings-field">
+                <span className="settings-field-label">Results WhatsApp Link</span>
+                <input
+                  className="settings-input"
+                  value={whatsapp.results}
+                  onChange={(event) => setWhatsapp({ ...whatsapp, results: event.target.value })}
+                  placeholder="e.g. https://chat.whatsapp.com/AbCdEfGhIjK"
+                />
+                <span className="settings-note">SMS ends with: Tazama matokeo kamili kwenye WhatsApp: {"<link>"}</span>
+              </label>
+              <label className="settings-field">
+                <span className="settings-field-label">Parents&rsquo; Group WhatsApp Link</span>
+                <input
+                  className="settings-input"
+                  value={whatsapp.parentsGroup}
+                  onChange={(event) => setWhatsapp({ ...whatsapp, parentsGroup: event.target.value })}
+                  placeholder="e.g. https://chat.whatsapp.com/AbCdEfGhIjK"
+                />
+                <span className="settings-note">SMS ends with: Bonyeza link ifuatayo kujiunga na kundi la wazazi la shule: {"<link>"}</span>
+              </label>
+            </div>
+            {whatsappError && <p className="error-message" role="alert">{whatsappError}</p>}
+            <div className="settings-actions">
+              <span className={`settings-status${whatsappSaved ? " settings-status--ok" : ""}`}>
+                {whatsappSaved ? "Saved" : whatsappDirty ? "Unsaved changes" : "Up to date"}
+              </span>
+              <button className="settings-save" onClick={handleWhatsappSave} disabled={!whatsappDirty}>
                 {icons.check}<span>Save changes</span>
               </button>
             </div>

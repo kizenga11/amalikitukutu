@@ -9,6 +9,15 @@ import {
   type CompetencyThreshold,
   type GradingSettings,
 } from "./grading";
+import {
+  DEFAULT_WHATSAPP_LINKS,
+  PARENTS_WHATSAPP_GROUP_KEY,
+  RESULTS_WHATSAPP_LINK_KEY,
+  type WhatsappLinks,
+} from "./whatsapp-links";
+
+export { DEFAULT_WHATSAPP_LINKS } from "./whatsapp-links";
+export type { WhatsappLinks } from "./whatsapp-links";
 
 export type AttendancePoint = { label: string; value: number };
 
@@ -1815,6 +1824,34 @@ export async function saveSchoolInfo(info: SchoolInfo): Promise<void> {
     { key: SCHOOL_ADDRESS_KEY, value: info.address },
     { key: UNION_LOGO_KEY, value: info.unionLogo },
     { key: SCHOOL_LOGO_KEY, value: info.schoolLogo },
+  ];
+  for (const row of rows) {
+    const { error } = await supabase.from("academic_settings").upsert(row, { onConflict: "key" });
+    if (error) throw error;
+  }
+}
+
+// ---------------------------------------------------------------
+// WhatsApp links appended to the results SMS (persisted in academic_settings)
+// ---------------------------------------------------------------
+export async function fetchWhatsappLinks(): Promise<WhatsappLinks> {
+  const { data, error } = await supabase
+    .from("academic_settings")
+    .select("key, value")
+    .in("key", [RESULTS_WHATSAPP_LINK_KEY, PARENTS_WHATSAPP_GROUP_KEY]);
+  if (error) throw error;
+  const map = new Map<string, string>();
+  for (const row of data ?? []) map.set(row.key, row.value);
+  return {
+    results: map.get(RESULTS_WHATSAPP_LINK_KEY) ?? DEFAULT_WHATSAPP_LINKS.results,
+    parentsGroup: map.get(PARENTS_WHATSAPP_GROUP_KEY) ?? DEFAULT_WHATSAPP_LINKS.parentsGroup,
+  };
+}
+
+export async function saveWhatsappLinks(links: WhatsappLinks): Promise<void> {
+  const rows = [
+    { key: RESULTS_WHATSAPP_LINK_KEY, value: links.results.trim() },
+    { key: PARENTS_WHATSAPP_GROUP_KEY, value: links.parentsGroup.trim() },
   ];
   for (const row of rows) {
     const { error } = await supabase.from("academic_settings").upsert(row, { onConflict: "key" });
