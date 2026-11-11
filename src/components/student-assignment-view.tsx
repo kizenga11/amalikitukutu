@@ -14,6 +14,7 @@ import {
   type StudentAssignmentDetail,
 } from "@/lib/student-portal-api";
 import RichTextEditor from "@/components/rich-text-editor";
+import StudentConfirmDialog from "@/components/student-confirm-dialog";
 import "./student-portal.css";
 
 type AnswerState = Record<string, { html: string; text: string }>;
@@ -66,6 +67,7 @@ export default function StudentAssignmentView({
   const [saveError, setSaveError] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false);
   const [banner, setBanner] = useState("");
 
   const stateRef = useRef<{
@@ -257,11 +259,14 @@ export default function StudentAssignmentView({
       return;
     }
 
-    const confirmed = window.confirm(
-      "Have you reviewed all your answers? You cannot edit this assignment after submitting.",
-    );
-    if (!confirmed) return;
+    setSaveError("");
+    setConfirmingSubmit(true);
+  }
 
+  async function submitAssignment() {
+    if (!detail || detail.locked || submitting) return;
+
+    setConfirmingSubmit(false);
     setSubmitting(true);
     setSaveError("");
     try {
@@ -526,6 +531,17 @@ export default function StudentAssignmentView({
           </button>
         </div>
       </div>
+
+      <StudentConfirmDialog
+        open={confirmingSubmit}
+        title="Submit this assignment?"
+        message="Have you reviewed all your answers? You cannot edit this assignment after submitting."
+        confirmLabel="Yes, submit"
+        cancelLabel="Keep editing"
+        busy={submitting}
+        onConfirm={() => void submitAssignment()}
+        onCancel={() => setConfirmingSubmit(false)}
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   type MarksCellInput,
 } from "@/lib/grading";
 import { studentAdmin, type StudentProfile } from "@/lib/student-auth";
+import { currentYearId } from "@/lib/calendar";
 
 interface ExamRow {
   id: string;
@@ -73,6 +74,8 @@ export interface StudentExamResult {
   classSize: number;
   streamPosition: number | null;
   streamSize: number;
+  /** False when no marks have been entered for this student yet. */
+  hasMarks: boolean;
   subjects: ResultSubject[];
 }
 
@@ -207,10 +210,24 @@ async function loadClassStudents(classId: string): Promise<{
   };
 }
 
+async function loadActiveAcademicYear(): Promise<string> {
+  const { data, error } = await studentAdmin
+    .from("academic_settings")
+    .select("value")
+    .eq("key", "active_year")
+    .maybeSingle();
+  if (error) return currentYearId;
+
+  const value = typeof data?.value === "string" ? data.value.trim() : "";
+  return /^\d{4}$/.test(value) ? value : currentYearId;
+}
+
 export async function loadStudentResults(
   student: StudentProfile,
 ): Promise<StudentExamResult[]> {
   if (!student.classId) return [];
+
+  const activeYear = await loadActiveAcademicYear();
 
   const { data: examData, error: examError } = await studentAdmin
     .from("exams")
@@ -222,18 +239,26 @@ export async function loadStudentResults(
   const publishedExams = (examData ?? []) as ExamRow[];
   if (publishedExams.length === 0) return [];
 
+  // Students should see every exam of the current academic year. If the year
+  // setting is ahead of the data, fall back to all published exams so results
+  // never disappear because of a configuration mismatch.
+  const yearExams = publishedExams.filter(
+    (exam) => exam.start_date.slice(0, 4) === activeYear,
+  );
+  const scopedExams = yearExams.length > 0 ? yearExams : publishedExams;
+
   const { data: classLinks, error: classLinkError } = await studentAdmin
     .from("exam_classes")
     .select("exam_id")
     .eq("class_id", student.classId)
     .in(
       "exam_id",
-      publishedExams.map((exam) => exam.id),
+      scopedExams.map((exam) => exam.id),
     );
   if (classLinkError) throw classLinkError;
 
   const participatingExamIds = new Set((classLinks ?? []).map((row) => row.exam_id));
-  const exams = publishedExams.filter((exam) => participatingExamIds.has(exam.id));
+  const exams = scopedExams.filter((exam) => participatingExamIds.has(exam.id));
   if (exams.length === 0) return [];
 
   const examIds = exams.map((exam) => exam.id);
@@ -242,6 +267,9 @@ export async function loadStudentResults(
     loadSubjectsByExam(examIds, student.classId),
     loadGradingSettings(),
   ]);
+
+  const studentInput = studentInputs.find((row) => row.student_id === student.id) ?? null;
+  const studentSubjectIds = new Set(studentInput?.subjects ?? []);
 
   const { data: markData, error: markError } = await studentAdmin
     .from("exam_marks")
@@ -293,7 +321,47 @@ export async function loadStudentResults(
     );
 
     const current = classResults.students.find((row) => row.student_id === student.id);
-    if (!current) continue;
+    if (!current) {
+      // The exam belongs to the student's class but no marks have been entered
+      // for this student yet. Keep the exam visible so the portal can show that
+      // results are still pending instead of hiding it.
+      const pendingSubjects = subjects
+        .filter(
+          (subject) =>
+            studentSubjectIds.size === 0 || studentSubjectIds.has(subject.id),
+        )
+        .map<ResultSubject>((subject) => ({
+          subjectId: subject.id,
+          code: subject.code,
+          name: subject.name,
+          theory: null,
+          practical: null,
+          score: null,
+          grade: "",
+          points: 0,
+          isAbsent: false,
+        }));
+
+      results.push({
+        id: exam.id,
+        name: exam.name,
+        startDate: exam.start_date,
+        endDate: exam.end_date,
+        year: exam.start_date.slice(0, 4),
+        term: termForExamDate(exam.start_date),
+        average: null,
+        division: "",
+        points: null,
+        incomplete: true,
+        classPosition: null,
+        classSize: 0,
+        streamPosition: null,
+        streamSize: 0,
+        hasMarks: false,
+        subjects: pendingSubjects,
+      });
+      continue;
+    }
 
     const ranked = rankResults(classResults.students);
     const classRank = ranked.find((row) => row.student.student_id === student.id);
@@ -303,8 +371,15 @@ export async function loadStudentResults(
     const rankedStream = rankResults(streamResults);
     const streamRank = rankedStream.find((row) => row.student.student_id === student.id);
 
+    let hasMarks = false;
     const subjectsOut: ResultSubject[] = current.subjects.map((subject) => {
       const cell = marks[`${student.id}|${subject.subject_id}`];
+      if (
+        cell &&
+        (cell.theory !== null || cell.practical !== null || cell.is_absent)
+      ) {
+        hasMarks = true;
+      }
       return {
         subjectId: subject.subject_id,
         code: subject.subject_code,
@@ -337,6 +412,7 @@ export async function loadStudentResults(
       classSize: ranked.length,
       streamPosition: streamRank?.rank ?? null,
       streamSize: rankedStream.length,
+      hasMarks,
       subjects: subjectsOut,
     });
   }

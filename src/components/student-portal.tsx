@@ -20,6 +20,7 @@ import {
 } from "@/lib/student-portal-api";
 import type { StudentExamResult } from "@/lib/student-results-server";
 import StudentAssignmentView from "@/components/student-assignment-view";
+import StudentConfirmDialog from "@/components/student-confirm-dialog";
 import "./student-portal.css";
 
 type Tab = "home" | "results" | "assignments";
@@ -58,6 +59,7 @@ export default function StudentPortal() {
   const [tab, setTab] = useState<Tab>("home");
   const [openAssignment, setOpenAssignment] = useState<string | null>(null);
   const [assignmentFilter, setAssignmentFilter] = useState<"all" | "pending" | "done">("all");
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   const loadAssignments = useCallback(async () => {
     try {
@@ -159,7 +161,9 @@ export default function StudentPortal() {
 
   const latestExam = useMemo(() => {
     if (exams.length === 0) return null;
-    return [...exams].sort(
+    const withResults = exams.filter((exam) => exam.hasMarks && exam.average !== null);
+    const pool = withResults.length > 0 ? withResults : exams;
+    return [...pool].sort(
       (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
     )[0];
   }, [exams]);
@@ -250,7 +254,11 @@ export default function StudentPortal() {
             <Link className="sp-link" href="/student/change-password">
               Change password
             </Link>
-            <button type="button" className="sp-link sp-link--danger" onClick={() => void handleLogout()}>
+            <button
+              type="button"
+              className="sp-link sp-link--danger"
+              onClick={() => setConfirmingLogout(true)}
+            >
               Log out
             </button>
           </div>
@@ -280,12 +288,32 @@ export default function StudentPortal() {
                       {me.student.streamName || "Stream"}
                     </p>
                   </div>
+                  <div className="sp-hero-actions">
+                    <button
+                      type="button"
+                      className="sp-btn sp-btn--hero"
+                      onClick={() => setTab("results")}
+                    >
+                      View results
+                    </button>
+                    <button
+                      type="button"
+                      className="sp-btn sp-btn--hero"
+                      onClick={() => setTab("assignments")}
+                    >
+                      Assignments
+                      {pendingAssignments.length > 0 && (
+                        <span className="sp-hero-badge">{pendingAssignments.length}</span>
+                      )}
+                    </button>
+                  </div>
                 </section>
 
                 <section className="sp-stats">
                   <article className="sp-stat">
                     <span>Published exams</span>
                     <strong>{exams.length}</strong>
+                    <small>{exams[0] ? `Year ${exams[0].year}` : "No exams yet"}</small>
                   </article>
                   <article className="sp-stat">
                     <span>Latest exam average</span>
@@ -307,39 +335,44 @@ export default function StudentPortal() {
                   </article>
                 </section>
 
-                <section className="sp-card">
-                  <div className="sp-section-head">
-                    <h2>Your profile</h2>
-                  </div>
-                  <dl className="sp-profile-grid">
-                    <div>
-                      <dt>Full name</dt>
-                      <dd>{fullName}</dd>
+                <div className="sp-home-grid">
+                  <section className="sp-card">
+                    <div className="sp-section-head">
+                      <h2>Your profile</h2>
                     </div>
-                    <div>
-                      <dt>Registration No.</dt>
-                      <dd>{me.student.registrationNo || "—"}</dd>
-                    </div>
-                    <div>
-                      <dt>Class / Form</dt>
-                      <dd>{me.student.className || "—"}</dd>
-                    </div>
-                    <div>
-                      <dt>Stream</dt>
-                      <dd>{me.student.streamName || "—"}</dd>
-                    </div>
-                    <div>
-                      <dt>Gender</dt>
-                      <dd>{me.student.gender === "Male" ? "Male" : me.student.gender === "Female" ? "Female" : me.student.gender || "—"}</dd>
-                    </div>
-                    <div>
-                      <dt>Phone</dt>
-                      <dd>{me.student.phone || "—"}</dd>
-                    </div>
-                  </dl>
+                    <dl className="sp-profile-grid">
+                      <div>
+                        <dt>Full name</dt>
+                        <dd>{fullName}</dd>
+                      </div>
+                      <div>
+                        <dt>Registration No.</dt>
+                        <dd>{me.student.registrationNo || "—"}</dd>
+                      </div>
+                      <div>
+                        <dt>Class / Form</dt>
+                        <dd>{me.student.className || "—"}</dd>
+                      </div>
+                      <div>
+                        <dt>Stream</dt>
+                        <dd>{me.student.streamName || "—"}</dd>
+                      </div>
+                      <div>
+                        <dt>Gender</dt>
+                        <dd>{me.student.gender === "Male" ? "Male" : me.student.gender === "Female" ? "Female" : me.student.gender || "—"}</dd>
+                      </div>
+                      <div>
+                        <dt>Phone</dt>
+                        <dd>{me.student.phone || "—"}</dd>
+                      </div>
+                    </dl>
+                  </section>
 
-                  <div className="sp-subjects">
-                    <h3>Your subjects</h3>
+                  <section className="sp-card">
+                    <div className="sp-section-head">
+                      <h2>Your subjects</h2>
+                      <span className="sp-chip">{me.subjects.length} subjects</span>
+                    </div>
                     {me.subjects.length === 0 ? (
                       <p className="sp-muted">No subjects have been set for you yet.</p>
                     ) : (
@@ -373,8 +406,8 @@ export default function StudentPortal() {
                         ))}
                       </ul>
                     )}
-                  </div>
-                </section>
+                  </section>
+                </div>
 
                 <section className="sp-card">
                   <div className="sp-section-head">
@@ -475,6 +508,20 @@ export default function StudentPortal() {
           </>
         )}
       </main>
+
+      <StudentConfirmDialog
+        open={confirmingLogout}
+        title="Log out of the portal?"
+        message="You will need your registration number and password to sign in again."
+        confirmLabel="Log out"
+        cancelLabel="Stay signed in"
+        tone="danger"
+        onConfirm={() => {
+          setConfirmingLogout(false);
+          void handleLogout();
+        }}
+        onCancel={() => setConfirmingLogout(false)}
+      />
     </div>
   );
 }
@@ -588,23 +635,39 @@ function ResultsTab({
         <div>
           <h1 className="sp-page-title">Results</h1>
           <p className="sp-muted">
-            All exams published for your class. Choose an exam to view its results.
+            All {sortedExams.length} published exams for {sortedExams[0]?.year ?? "this year"}.
+            Choose an exam to view its results.
           </p>
         </div>
-        <label className="sp-inline-field">
-          <span>Exam</span>
-          <select
-            className="sp-select"
-            value={activeExamId}
-            onChange={(event) => setSelectedExamId(event.target.value)}
+      </div>
+
+      <div className="sp-exam-picker" role="tablist" aria-label="Published exams">
+        {sortedExams.map((exam) => (
+          <button
+            key={exam.id}
+            type="button"
+            role="tab"
+            aria-selected={exam.id === activeExamId}
+            className={
+              exam.id === activeExamId
+                ? "sp-exam-option sp-exam-option--active"
+                : "sp-exam-option"
+            }
+            onClick={() => setSelectedExamId(exam.id)}
           >
-            {sortedExams.map((exam) => (
-              <option key={exam.id} value={exam.id}>
-                {exam.name} · {formatDate(exam.startDate)} · Term {exam.term} · {exam.year}
-              </option>
-            ))}
-          </select>
-        </label>
+            <strong>{exam.name}</strong>
+            <span>
+              {formatDate(exam.startDate)} · Term {exam.term}
+            </span>
+            <span className="sp-exam-option-meta">
+              {exam.hasMarks
+                ? exam.average === null
+                  ? "Marks recorded"
+                  : `${exam.average}% average`
+                : "Results pending"}
+            </span>
+          </button>
+        ))}
       </div>
 
       {activeExam && (
@@ -651,13 +714,20 @@ function ResultsTab({
             </div>
           </header>
 
-          {activeExam.incomplete && (
+          {activeExam.hasMarks && activeExam.incomplete && (
             <div className="sp-alert sp-alert--warn">
               Results are incomplete — some subjects have no marks.
             </div>
           )}
 
-          <div className="sp-table-wrap">
+          {!activeExam.hasMarks && (
+            <div className="sp-alert sp-alert--warn">
+              Marks for this exam have not been entered yet. Please check again later.
+            </div>
+          )}
+
+          {activeExam.hasMarks && (
+            <div className="sp-table-wrap">
             <table className="sp-table">
               <thead>
                 <tr>
@@ -716,7 +786,8 @@ function ResultsTab({
                 })}
               </tbody>
             </table>
-          </div>
+            </div>
+          )}
         </article>
       )}
 
