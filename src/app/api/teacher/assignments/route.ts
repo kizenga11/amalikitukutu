@@ -64,7 +64,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    if (!(await canTeach(auth.staff.id, subjectId, classId, streamId))) {
+    const unrestricted = auth.role === "Academic";
+    if (!unrestricted && !(await canTeach(auth.staff.id, subjectId, classId, streamId))) {
       return NextResponse.json(
         { error: "You are not allowed to create assignments for this subject, class or stream." },
         { status: 403 },

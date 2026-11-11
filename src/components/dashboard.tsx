@@ -338,7 +338,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "certificates" && <AwardCertificates />}
           {effectiveActive === "sms" && <SmsMessaging />}
           {effectiveActive === "lessonplans" && <LessonPlansView />}
-          {effectiveActive === "assignments" && role === "Teacher" && <TeacherAssignments />}
+          {effectiveActive === "assignments" && (role === "Teacher" || role === "Academic") && <TeacherAssignments />}
           {timetableSection && (
             <TimetableView
               section={timetableSection}

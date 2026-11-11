@@ -127,6 +127,7 @@ async function pickAttachment(event: ChangeEvent<HTMLInputElement>): Promise<Att
 export default function TeacherAssignments() {
   const [view, setView] = useState<View>({ kind: "list" });
   const [options, setOptions] = useState<TeacherOption[]>([]);
+  const [unrestricted, setUnrestricted] = useState(false);
   const [assignments, setAssignments] = useState<TeacherAssignmentSummary[]>([]);
   const [period, setPeriod] = useState<Period | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,6 +141,7 @@ export default function TeacherAssignments() {
         fetchTeacherAssignments(),
       ]);
       setOptions(optionsResult.options);
+      setUnrestricted(Boolean(optionsResult.unrestricted));
       setAssignments(assignmentsResult.assignments);
       setPeriod(assignmentsResult.period);
       setError("");
@@ -186,7 +188,9 @@ export default function TeacherAssignments() {
             <div>
               <h1>Assignments</h1>
               <p>
-                Create assignments for the subject, class and stream assigned to you.
+                {unrestricted
+                  ? "Create assignments for any subject, class and stream in the school."
+                  : "Create assignments for the subject, class and stream assigned to you."}
                 {period ? ` Academic year ${period.academicYearId} · Term ${period.term}.` : ""}
               </p>
             </div>
@@ -214,8 +218,9 @@ export default function TeacherAssignments() {
               <p>Click “New Assignment” to create the first assignment for your students.</p>
               {options.length === 0 && (
                 <p className="ta-warn">
-                  You are not assigned to any subject, class or stream. Contact the academic
-                  office.
+                  {unrestricted
+                    ? "No subject, class or stream options are available yet. Set up classes, streams and subjects first."
+                    : "You are not assigned to any subject, class or stream. Contact the academic office."}
                 </p>
               )}
             </div>
@@ -292,6 +297,7 @@ export default function TeacherAssignments() {
       {view.kind === "create" && (
         <AssignmentForm
           options={options}
+          unrestricted={unrestricted}
           onCancel={() => setView({ kind: "list" })}
           onSaved={(id) => {
             afterMutation();
@@ -303,6 +309,7 @@ export default function TeacherAssignments() {
       {view.kind === "edit" && (
         <AssignmentForm
           options={options}
+          unrestricted={unrestricted}
           editId={view.id}
           onCancel={() => setView({ kind: "detail", id: view.id })}
           onSaved={(id) => {
@@ -352,11 +359,13 @@ export default function TeacherAssignments() {
 
 function AssignmentForm({
   options,
+  unrestricted,
   editId,
   onCancel,
   onSaved,
 }: {
   options: TeacherOption[];
+  unrestricted: boolean;
   editId?: string;
   onCancel: () => void;
   onSaved: (id: string) => void;
@@ -678,7 +687,9 @@ function AssignmentForm({
 
       {options.length === 0 && (
         <div className="ta-alert ta-alert--warn">
-          You are not assigned to any subject, class or stream. Contact the academic office.
+          {unrestricted
+            ? "No subject, class or stream options are available yet. Set up classes, streams and subjects first."
+            : "You are not assigned to any subject, class or stream. Contact the academic office."}
         </div>
       )}
 

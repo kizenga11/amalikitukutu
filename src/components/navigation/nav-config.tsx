@@ -180,7 +180,7 @@ export const menuConfig: MenuEntry[] = [
       { kind: "link", key: "exams", label: "Exams", icon: navIcons.exams, roles: ["Headmaster", "Academic", "Teacher"] },
       { kind: "link", key: "attendance", label: "Attendance", icon: navIcons.attendance, roles: ["Headmaster", "Academic"] },
       { kind: "link", key: "lessonplans", label: "Lesson Plans", icon: navIcons.lessonPlans, roles: ["Headmaster", "Academic", "Teacher"] },
-      { kind: "link", key: "assignments", label: "Assignments", icon: navIcons.assignments, roles: ["Teacher"] },
+      { kind: "link", key: "assignments", label: "Assignments", icon: navIcons.assignments, roles: ["Teacher", "Academic"] },
     ],
   },
   {

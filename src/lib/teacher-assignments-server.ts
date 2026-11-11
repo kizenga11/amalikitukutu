@@ -214,7 +214,14 @@ function fullName(row: StudentRow): string {
   return [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(" ").trim();
 }
 
-export async function loadTeacherOptions(staffId: string): Promise<TeacherOption[]> {
+export async function loadTeacherOptions(
+  staffId: string,
+  unrestricted = false,
+): Promise<TeacherOption[]> {
+  if (unrestricted) {
+    return loadAllTeacherOptions();
+  }
+
   const { data, error } = await studentAdmin
     .from("teaching_assignments")
     .select(
@@ -244,6 +251,100 @@ export async function loadTeacherOptions(staffId: string): Promise<TeacherOption
     });
   }
 
+  return sortTeacherOptions(options);
+}
+
+interface OptionSubjectRow {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface OptionClassRow {
+  id: string;
+  name: string;
+  form_level: number;
+}
+
+interface OptionStreamRow {
+  id: string;
+  class_id: string;
+  name: string;
+}
+
+interface OptionStudentSubjectRow {
+  subject_id: string;
+  student:
+    | { class_id: string | null; stream_id: string | null }
+    | { class_id: string | null; stream_id: string | null }[]
+    | null;
+}
+
+async function loadAllTeacherOptions(): Promise<TeacherOption[]> {
+  const [subjectsResult, classesResult, streamsResult, linksResult, teachingResult] =
+    await Promise.all([
+      studentAdmin.from("subjects").select("id, code, name"),
+      studentAdmin.from("school_classes").select("id, name, form_level"),
+      studentAdmin.from("streams").select("id, class_id, name"),
+      studentAdmin
+        .from("student_subjects")
+        .select("subject_id, student:students(class_id, stream_id)"),
+      studentAdmin.from("teaching_assignments").select("subject_id, class_id, stream_id"),
+    ]);
+
+  if (subjectsResult.error) throw subjectsResult.error;
+  if (classesResult.error) throw classesResult.error;
+  if (streamsResult.error) throw streamsResult.error;
+  if (linksResult.error) throw linksResult.error;
+  if (teachingResult.error) throw teachingResult.error;
+
+  const subjects = new Map(
+    ((subjectsResult.data ?? []) as OptionSubjectRow[]).map((row) => [row.id, row]),
+  );
+  const classes = new Map(
+    ((classesResult.data ?? []) as OptionClassRow[]).map((row) => [row.id, row]),
+  );
+  const streams = new Map(
+    ((streamsResult.data ?? []) as OptionStreamRow[]).map((row) => [row.id, row]),
+  );
+
+  const seen = new Set<string>();
+  const options: TeacherOption[] = [];
+
+  function add(subjectId: string, classId: string, streamId: string) {
+    const key = `${subjectId}|${classId}|${streamId}`;
+    if (seen.has(key)) return;
+    const subject = subjects.get(subjectId);
+    const cls = classes.get(classId);
+    const stream = streams.get(streamId);
+    if (!subject || !cls || !stream || stream.class_id !== classId) return;
+    seen.add(key);
+    options.push({
+      subjectId,
+      subjectCode: subject.code,
+      subjectName: subject.name,
+      classId,
+      className: cls.name,
+      formLevel: cls.form_level,
+      streamId,
+      streamName: stream.name,
+    });
+  }
+
+  for (const row of teachingResult.data ?? []) {
+    add(row.subject_id, row.class_id, row.stream_id);
+  }
+
+  for (const row of (linksResult.data ?? []) as unknown as OptionStudentSubjectRow[]) {
+    const student = firstRelation(row.student);
+    if (!student?.class_id || !student.stream_id) continue;
+    add(row.subject_id, student.class_id, student.stream_id);
+  }
+
+  return sortTeacherOptions(options);
+}
+
+function sortTeacherOptions(options: TeacherOption[]): TeacherOption[] {
   return options.sort(
     (a, b) =>
       a.formLevel - b.formLevel ||

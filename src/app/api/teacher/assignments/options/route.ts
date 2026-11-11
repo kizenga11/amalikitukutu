@@ -17,8 +17,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const options = await loadTeacherOptions(auth.staff.id);
-    return NextResponse.json({ options });
+    const unrestricted = auth.role === "Academic";
+    const options = await loadTeacherOptions(auth.staff.id, unrestricted);
+    return NextResponse.json({ options, unrestricted });
   } catch (error) {
     return NextResponse.json(
       { error: errorMessage(error, "Could not load your assigned subjects.") },

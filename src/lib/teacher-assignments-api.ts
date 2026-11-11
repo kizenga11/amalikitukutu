@@ -159,8 +159,13 @@ async function requestJson<T>(input: string, init: RequestInit = {}): Promise<T>
   return payload as T;
 }
 
-export function fetchTeacherOptions(): Promise<{ options: TeacherOption[] }> {
-  return requestJson<{ options: TeacherOption[] }>("/api/teacher/assignments/options");
+export function fetchTeacherOptions(): Promise<{
+  options: TeacherOption[];
+  unrestricted: boolean;
+}> {
+  return requestJson<{ options: TeacherOption[]; unrestricted: boolean }>(
+    "/api/teacher/assignments/options",
+  );
 }
 
 export function fetchTeacherAssignments(): Promise<{
