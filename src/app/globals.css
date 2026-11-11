@@ -73,6 +73,11 @@ button:disabled, select:disabled { cursor: not-allowed; }
 .site-landing .btn-gold:hover { background: var(--lp-accent-dark); color: #fff; }
 .site-landing .btn-sm { padding: 8px 18px; font-size: .86rem; }
 .site-landing .btn svg { width: 1rem; height: 1rem; }
+.site-landing .btn--student {
+	background: transparent; color: #fff; border: 2px solid #fff;
+	box-shadow: none;
+}
+.site-landing .btn--student:hover { background: #fff; color: var(--lp-primary); border-color: #fff; }
 
 /* Top bar */
 .site-landing .top-bar {
@@ -113,6 +118,11 @@ button:disabled, select:disabled { cursor: not-allowed; }
 	color: #fff !important; box-shadow: 0 3px 8px rgba(27, 67, 50, .28);
 }
 .site-landing .login-btn:hover { background: var(--lp-primary-dark) !important; color: #fff !important; }
+.site-landing .login-btn--student {
+	background: #fff !important; color: var(--lp-primary) !important;
+	border: 1.5px solid var(--lp-primary); box-shadow: none;
+}
+.site-landing .login-btn--student:hover { background: var(--lp-primary) !important; color: #fff !important; }
 
 .site-landing .hamburger {
 	display: none; background: none; border: 1.5px solid #d4d4d8;
@@ -132,6 +142,10 @@ button:disabled, select:disabled { cursor: not-allowed; }
 .site-landing .mobile-nav a svg { width: 1rem; height: 1rem; flex: 0 0 auto; }
 .site-landing .mobile-nav a:hover { background: rgba(27, 67, 50, .08); color: var(--lp-primary); }
 .site-landing .mobile-nav .m-login { background: var(--lp-primary); color: #fff !important; justify-content: center; margin-top: 4px; }
+.site-landing .mobile-nav .m-login--student {
+	background: #fff; color: var(--lp-primary) !important;
+	border: 1.5px solid var(--lp-primary);
+}
 
 /* Hero slider */
 .site-landing .hero-slider {

@@ -171,6 +171,7 @@ function ResultsView() {
               <li><Link href="/">Home</Link></li>
               <li><Link href="/#results">Results</Link></li>
               <li><Link href="/login" className="login-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg> Staff Login</Link></li>
+              <li><Link href="/student/login" className="login-btn login-btn--student"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg> Student Login</Link></li>
             </ul>
           </nav>
         </div>

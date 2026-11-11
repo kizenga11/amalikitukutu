@@ -55,6 +55,7 @@ export type NavKey =
   | "streamteachers"
   | "attendance"
   | "lessonplans"
+  | "assignments"
   | "sms"
   | "settings"
   | "ttsetup"
@@ -70,7 +71,7 @@ export function isNavKey(value: unknown): value is NavKey {
       "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment",
       "reportcard", "compare", "combined", "beststudent", "certificates", "analysis", "exams",
       "streamstudents", "streamsubjects", "streamresults", "streamreports",
-      "streambeststudent", "streamcertificates", "streamteachers", "attendance", "lessonplans", "sms", "settings",
+      "streambeststudent", "streamcertificates", "streamteachers", "attendance", "lessonplans", "assignments", "sms", "settings",
       "ttsetup", "ttperiods", "ttrules", "ttgenerate", "tttimetables",
     ].includes(value)
   );
@@ -108,6 +109,7 @@ export const navIcons = {
   attendance: <Icon paths={<><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /><path d="m9 16 2 2 4-4" /></>} />,
   lessonPlans: <Icon paths={<><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="M12 11h4" /><path d="M12 16h4" /><path d="M8 11h.01" /><path d="M8 16h.01" /></>} />,
   timetable: <Icon paths={<><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /><path d="M7 14h3" /><path d="M14 14h3" /><path d="M7 18h3" /><path d="M14 18h3" /></>} />,
+  assignments: <Icon paths={<><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="m9 15 2 2 4-4" /></>} />,
   result: <Icon paths={<><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526" /><circle cx="12" cy="8" r="6" /></>} />,
   combined: <Icon paths={<><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></>} />,
   reportCard: <Icon paths={<><path d="M12 22h6a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v3.072" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="m6.69 16.479 1.29 4.88a.5.5 0 0 1-.698.591l-1.843-.849a1 1 0 0 0-.88.001l-1.846.85a.5.5 0 0 1-.693-.593l1.29-4.88" /><circle cx="5" cy="14" r="3" /></>} />,
@@ -178,6 +180,7 @@ export const menuConfig: MenuEntry[] = [
       { kind: "link", key: "exams", label: "Exams", icon: navIcons.exams, roles: ["Headmaster", "Academic", "Teacher"] },
       { kind: "link", key: "attendance", label: "Attendance", icon: navIcons.attendance, roles: ["Headmaster", "Academic"] },
       { kind: "link", key: "lessonplans", label: "Lesson Plans", icon: navIcons.lessonPlans, roles: ["Headmaster", "Academic", "Teacher"] },
+      { kind: "link", key: "assignments", label: "Assignments", icon: navIcons.assignments, roles: ["Teacher"] },
     ],
   },
   {

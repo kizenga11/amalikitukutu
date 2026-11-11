@@ -38,6 +38,7 @@ const StudentEnrollmentStatistics = dynamic(() => import("@/components/student-e
 const StreamTeacherAssignment = dynamic(() => import("@/components/stream-teacher-assignment"), { ssr: false, loading: PageLoading });
 const MkondoWangu = dynamic(() => import("@/components/mkondo-wangu"), { ssr: false, loading: PageLoading });
 const TimetableView = dynamic(() => import("@/components/timetable/timetable-view"), { ssr: false, loading: PageLoading });
+const TeacherAssignments = dynamic(() => import("@/components/teacher-assignments"), { ssr: false, loading: PageLoading });
 import type { TimetableSection } from "@/components/timetable/timetable-view";
 import { fetchAcademicSettings, fetchDashboardData, fetchSchoolInfo, fetchWhatsappLinks, saveAcademicSettings, saveSchoolInfo, saveWhatsappLinks, type DashboardData, type SchoolInfo, type WhatsappLinks } from "@/lib/school-api";
 import { DEFAULT_SCHOOL_INFO, DEFAULT_WHATSAPP_LINKS } from "@/lib/school-api";
@@ -337,6 +338,7 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "certificates" && <AwardCertificates />}
           {effectiveActive === "sms" && <SmsMessaging />}
           {effectiveActive === "lessonplans" && <LessonPlansView />}
+          {effectiveActive === "assignments" && role === "Teacher" && <TeacherAssignments />}
           {timetableSection && (
             <TimetableView
               section={timetableSection}
