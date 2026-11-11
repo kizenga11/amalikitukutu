@@ -179,6 +179,7 @@ export interface StreamReportSettings {
   openingDate: string;
   examId: string;
   behavior: Record<string, (number | null)[]>;
+  requirements?: string[];
 }
 
 export interface StreamReportSettingsResponse {

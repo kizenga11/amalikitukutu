@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/errors";
+import { sanitizeRequirementList } from "@/lib/report-requirements";
 import {
   authenticate,
   isAcademicYear,
@@ -16,7 +17,7 @@ type Ratings = (number | null)[];
 interface SettingsRow {
   teacher_id?: string | null;
   stream_id: string;
-  settings: { behavior?: unknown } | null;
+  settings: { behavior?: unknown; requirements?: unknown } | null;
   updated_at: string | null;
 }
 
@@ -95,7 +96,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     if (streamIds.length === 0) {
-      return NextResponse.json({ behavior: {} });
+      return NextResponse.json({ behavior: {}, requirements: {} });
     }
 
     const { data, error } = await streamTeacherAdmin
@@ -109,27 +110,33 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const rows = (data ?? []) as unknown as SettingsRow[];
     if (rows.length === 0) {
-      return NextResponse.json({ behavior: {} });
+      return NextResponse.json({ behavior: {}, requirements: {} });
     }
 
     const behavior: Record<string, Ratings> = {};
+    const requirements: Record<string, string[]> = {};
 
     for (const row of rows) {
       const rawBehavior = row.settings?.behavior;
-      if (!rawBehavior || typeof rawBehavior !== "object" || Array.isArray(rawBehavior)) continue;
-
-      for (const [studentId, rawRatings] of Object.entries(rawBehavior as Record<string, unknown>)) {
-        if (!isUuid(studentId)) continue;
-        const ratings = sanitizeRatings(rawRatings);
-        if (!ratings || filledCount(ratings) === 0) {
-          delete behavior[studentId];
-          continue;
+      if (rawBehavior && typeof rawBehavior === "object" && !Array.isArray(rawBehavior)) {
+        for (const [studentId, rawRatings] of Object.entries(rawBehavior as Record<string, unknown>)) {
+          if (!isUuid(studentId)) continue;
+          const ratings = sanitizeRatings(rawRatings);
+          if (!ratings || filledCount(ratings) === 0) {
+            delete behavior[studentId];
+            continue;
+          }
+          behavior[studentId] = ratings;
         }
-        behavior[studentId] = ratings;
+      }
+
+      const streamRequirements = sanitizeRequirementList(row.settings?.requirements);
+      if (streamRequirements && streamRequirements.length > 0 && isUuid(row.stream_id)) {
+        requirements[row.stream_id] = streamRequirements;
       }
     }
 
-    return NextResponse.json({ behavior });
+    return NextResponse.json({ behavior, requirements });
   } catch (error) {
     return NextResponse.json(
       { error: errorMessage(error, "Could not load behaviour records.") },
