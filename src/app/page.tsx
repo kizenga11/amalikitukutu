@@ -292,7 +292,7 @@ export default function Home() {
               <li><a href="#results">Results</a></li>
               <li><a href="#contact">Contact</a></li>
               <li><a href="/login" className="login-btn"><UserIcon /> Staff Login</a></li>
-              <li><a href="/student/login" className="login-btn"><UserIcon /> Student Login</a></li>
+              <li><a href="/student/login" className="login-btn login-btn--student"><UserIcon /> Student Login</a></li>
             </ul>
           </nav>
           <button className="hamburger" onClick={() => setMobileNavOpen((prev) => !prev)} aria-label="Menu">
@@ -306,7 +306,7 @@ export default function Home() {
           <a href="#results" onClick={() => setMobileNavOpen(false)}>Results</a>
           <a href="#contact" onClick={() => setMobileNavOpen(false)}>Contact</a>
           <a className="m-login" href="/login"><UserIcon /> Staff Login</a>
-          <a className="m-login" href="/student/login"><UserIcon /> Student Login</a>
+          <a className="m-login m-login--student" href="/student/login"><UserIcon /> Student Login</a>
         </div>
       </header>
 
@@ -335,7 +335,7 @@ export default function Home() {
             <h1>Amali Kitukutu – Kitukutu Technical Secondary School</h1>
             <div className="hero-actions">
               <a className="btn" href="/login"><UserIcon /> Staff Login</a>
-              <a className="btn" href="/student/login"><UserIcon /> Student Login</a>
+              <a className="btn btn--student" href="/student/login"><UserIcon /> Student Login</a>
               <a className="btn btn-gold" href="#results">Angalia Matokeo</a>
             </div>
           </div>

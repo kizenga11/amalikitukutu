@@ -137,6 +137,7 @@ export default function BestStudentYearly({ scope = null }: Props = {}) {
   const [sortField, setSortField] = useState<SortField>("pos");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [certificateWinnerId, setCertificateWinnerId] = useState<string | null>(null);
+  const [orientation, setOrientation] = useState<"portrait" | "landscape">("portrait");
 
   const apiGet = useCallback(
     async (params: Record<string, string>): Promise<Response> => {
@@ -410,13 +411,12 @@ export default function BestStudentYearly({ scope = null }: Props = {}) {
   const lowExams = selectedExamIds.length > 0 && selectedExamIds.length < MIN_EXAMS_PER_SUBJECT;
   const canRun = Boolean(year && classId && selectedExamIds.length > 0 && !running && (!lowExams || confirmLowExams));
   const report = payload?.report ?? null;
-  const wideReport = subjectColumns.length > 6;
   const certificateWinners = report?.podium.filter((entry) => entry.position === 1) ?? [];
   const certificateWinner = certificateWinnerId ? certificateWinners.find((entry) => entry.student_id === certificateWinnerId) ?? null : null;
   const certificateForm = formLabelFromValue(selectedForm?.form_level ?? payload?.formLevel ?? payload?.className ?? "Form Four");
 
   return (
-    <div className={`result-page bs-page${wideReport ? " print-landscape" : ""}`}>
+    <div className={`result-page bs-page${orientation === "landscape" ? " print-landscape" : ""}`}>
       <div className="page-head result-controls no-print">
         <div>
           <h2 className="page-title">Best Student of the Year</h2>
@@ -428,6 +428,24 @@ export default function BestStudentYearly({ scope = null }: Props = {}) {
         </div>
         {payload ? (
           <div className="print-tools">
+            <div className="result-mode-tabs print-orientation" role="group" aria-label="Print orientation">
+              <button
+                className={`ex-tab${orientation === "portrait" ? " ex-tab--active" : ""}`}
+                type="button"
+                aria-pressed={orientation === "portrait"}
+                onClick={() => setOrientation("portrait")}
+              >
+                Portrait
+              </button>
+              <button
+                className={`ex-tab${orientation === "landscape" ? " ex-tab--active" : ""}`}
+                type="button"
+                aria-pressed={orientation === "landscape"}
+                onClick={() => setOrientation("landscape")}
+              >
+                Landscape
+              </button>
+            </div>
             <button className="cm-btn cm-btn--primary" type="button" onClick={() => window.print()}>Print</button>
             <button className="cm-btn cm-btn--ghost" type="button" onClick={exportCsv}>Export CSV</button>
           </div>
@@ -562,7 +580,7 @@ export default function BestStudentYearly({ scope = null }: Props = {}) {
                       {report.podium[0].average !== null ? `${displayNumber(report.podium[0].average)}%` : "—"} · {report.podium[0].grade} · Division {divisionCode(report.podium[0].division)}
                     </div>
                     {certificateWinners.length > 0 ? (
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 14 }}>
+                      <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 14 }}>
                         {certificateWinners.map((entry) => (
                           <button
                             key={entry.student_id}

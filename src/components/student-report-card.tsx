@@ -36,7 +36,8 @@ import {
   type ReportSignature,
   type ReportSignerRole,
 } from "@/lib/report-signatures-api";
-import { fetchReportBehaviour } from "@/lib/report-behaviour-api";
+import { fetchReportBehaviour, saveReportRequirements } from "@/lib/report-behaviour-api";
+import { parseRequirementText } from "@/lib/report-requirements";
 import SignaturePad from "@/components/signature-pad";
 import type { Role } from "@/components/navigation/nav-config";
 
@@ -251,6 +252,7 @@ interface CardSheetProps {
   behaviorRatings: (number | null)[];
   behaviorEditable?: boolean;
   onBehaviorRatingsChange: (ratings: (number | null)[]) => void;
+  requirements: string[];
   signatures: ReportSignatureBundle;
   signerRole: ReportSignerRole | null;
   onSign: (role: ReportSignerRole) => void;
@@ -270,6 +272,7 @@ function CardSheet({
   behaviorRatings,
   behaviorEditable = false,
   onBehaviorRatingsChange,
+  requirements,
   signatures,
   signerRole,
   onSign,
@@ -491,10 +494,28 @@ function CardSheet({
         </div>
       ) : null}
 
+      <section className="rc-section">
+        <h3>5. Wanafunzi wanatakiwa kuripoti shuleni wakiwa na mahitaji yafuatayo:</h3>
+        <div className="rc-requirements">
+          {requirements.length > 0 ? (
+            <ul className="rc-requirements-list">
+              {requirements.map((item, index) => (
+                <li key={`${item}-${index}`}>{item}</li>
+              ))}
+            </ul>
+          ) : (
+            <>
+              <span className="rc-requirements-line" />
+              <span className="rc-requirements-line" />
+            </>
+          )}
+        </div>
+      </section>
+
       <section className="rc-section rc-parent-section">
         <div className="rc-cut"><span>✂ KATA HAPA — MZAZI/MLEZI ARUDISHE SEHEMU HII SHULENI ✂</span></div>
         <div className="rc-parent-msg">
-          <h3>5. Maoni ya Mzazi / Mlezi</h3>
+          <h3>6. Maoni ya Mzazi / Mlezi</h3>
           <div className="rc-parent-writing" aria-label="Nafasi ya maoni ya mzazi/mlezi">
             <span /><span /><span />
           </div>
@@ -534,6 +555,9 @@ export default function StudentReportCard({ scope, role }: StudentReportCardProp
   const [closingDate, setClosingDate] = useState("");
   const [openingDate, setOpeningDate] = useState("");
   const [behaviorByStudent, setBehaviorByStudent] = useState<Record<string, (number | null)[]>>({});
+  const [requirements, setRequirements] = useState<string[]>([]);
+  const [requirementsByStream, setRequirementsByStream] = useState<Record<string, string[]>>({});
+  const [requirementDraft, setRequirementDraft] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
@@ -576,11 +600,13 @@ export default function StudentReportCard({ scope, role }: StudentReportCardProp
         setClosingDate(restored.closingDate);
         setOpeningDate(restored.openingDate);
         setBehaviorByStudent(restored.behavior ?? {});
+        setRequirementDraft(null);
       } else {
         setSchoolClosed(false);
         setClosingDate("");
         setOpeningDate("");
         setBehaviorByStudent({});
+        setRequirementDraft(null);
       }
       setSaveState("idle");
       setSaveError("");
@@ -652,6 +678,14 @@ export default function StudentReportCard({ scope, role }: StudentReportCardProp
     [currentClass, participants],
   );
   const currentStudent = classStudents.find((item) => item.student_id === selectedStudentId) ?? classStudents[0];
+  const canEditRequirements = Boolean(scope) || role === "Headmaster" || role === "Academic";
+  const requirementsForStudent = (student: DbExamMarkStudent): string[] =>
+    canEditRequirements
+      ? requirements
+      : student.stream_id
+        ? requirementsByStream[student.stream_id] ?? []
+        : [];
+  const currentRequirements = currentStudent ? requirementsForStudent(currentStudent) : [];
   const signatureClassId = currentClass?.class_id ?? "";
   const signatureStreamId = scopedStreamId;
   const signatureYear = scopedYear || (currentExam ? yearOf(currentExam.start_date) : "");
@@ -726,30 +760,42 @@ export default function StudentReportCard({ scope, role }: StudentReportCardProp
 
   useEffect(() => {
     let active = true;
-    if (scope || signerRole === "StreamTeacher") return;
     (async () => {
       if (!signatureClassId || !signatureYear || !signatureTerm) {
-        if (active) setBehaviorByStudent({});
+        if (active) {
+          setBehaviorByStudent({});
+          setRequirementsByStream({});
+          setRequirementDraft(null);
+        }
         return;
       }
-      setBehaviorByStudent({});
+      setRequirementDraft(null);
       try {
         const result = await fetchReportBehaviour({
           classId: signatureClassId,
+          streamId: scope ? scopedStreamId : null,
           year: signatureYear,
           term: signatureTerm,
         });
         if (!active) return;
+        const nextRequirements = result.requirements ?? {};
         setBehaviorByStudent(result.behavior);
+        setRequirementsByStream(nextRequirements);
+        if (scope) {
+          setRequirements(nextRequirements[scopedStreamId] ?? []);
+        } else if (role === "Headmaster" || role === "Academic") {
+          setRequirements(Object.values(nextRequirements).find((items) => items.length > 0) ?? []);
+        }
       } catch {
         if (!active) return;
         setBehaviorByStudent({});
+        setRequirementsByStream({});
       }
     })();
     return () => {
       active = false;
     };
-  }, [scope, signerRole, signatureClassId, signatureYear, signatureTerm]);
+  }, [scope, scopedStreamId, role, signatureClassId, signatureYear, signatureTerm]);
 
   const ownSignature = signerRole === "StreamTeacher"
     ? signatureBundle.streamTeachers[scopedStreamId || currentStudent?.stream_id || ""] ?? null
@@ -776,17 +822,36 @@ export default function StudentReportCard({ scope, role }: StudentReportCardProp
   }
 
   async function saveReportSettings() {
-    if (!scope) return;
+    if (!canEditRequirements) return;
     setSaveState("saving");
     setSaveError("");
     try {
-      await saveStreamReportSettings(scope.streamId, scope.year, scope.term, {
-        schoolClosed,
-        closingDate,
-        openingDate,
-        examId: selectedExamId,
-        behavior: behaviorByStudent,
-      });
+      if (scope) {
+        await saveStreamReportSettings(scope.streamId, scope.year, scope.term, {
+          schoolClosed,
+          closingDate,
+          openingDate,
+          examId: selectedExamId,
+          behavior: behaviorByStudent,
+          requirements,
+        });
+        setRequirementsByStream((current) => ({ ...current, [scope.streamId]: requirements }));
+      } else {
+        if (!signatureClassId || !signatureYear || !signatureTerm) {
+          throw new Error("Chagua mtihani na darasa kwanza kabla ya kuhifadhi mahitaji.");
+        }
+        await saveReportRequirements({
+          classId: signatureClassId,
+          year: signatureYear,
+          term: signatureTerm,
+          requirements,
+        });
+        setRequirementsByStream((current) => {
+          const next: Record<string, string[]> = { ...current };
+          for (const streamId of Object.keys(next)) next[streamId] = requirements;
+          return next;
+        });
+      }
       setSaveState("saved");
     } catch (saveFailure) {
       setSaveState("error");
@@ -899,18 +964,52 @@ export default function StudentReportCard({ scope, role }: StudentReportCardProp
             {classStudents.map((item) => <option key={item.student_id} value={item.student_id}>{item.first_name} {item.last_name}</option>)}
           </select>
         </label>
+        {canEditRequirements && (
+          <div className="res-field rc-requirements-field">
+            <span className="res-field-label">Mahitaji ya Wanafunzi — yanaonekana kwenye ripoti zote</span>
+            <textarea
+              className="res-select rc-requirements-input"
+              rows={3}
+              placeholder={"Sabuni ya Dex\nJembe\nKopo la maji"}
+              value={requirementDraft ?? requirements.join("\n")}
+              onChange={(event) => {
+                const text = event.target.value;
+                setRequirementDraft(text);
+                setRequirements(parseRequirementText(text));
+                setSaveState("idle");
+              }}
+              onBlur={() => setRequirementDraft(null)}
+            />
+            <div className="rc-requirements-foot">
+              <span className="rc-requirements-hint">
+                Kila kipengele kimoja kwenye mstari wake, kisha bofya{" "}
+                {scope ? "“Hifadhi Mipangilio”" : "“Hifadhi Mahitaji”"}.
+              </span>
+            </div>
+          </div>
+        )}
         <div className="rc-report-actions">
           <button className="cm-btn cm-btn--ghost" onClick={printSingle}>Chapisha Moja / PDF</button>
           <button className="cm-btn cm-btn--primary" onClick={printWholeClass}>Chapisha Darasa Zima</button>
           {scope && (
+            <button className="cm-btn cm-btn--ghost rc-auto-btn" onClick={autoAssignBehaviourAll}>
+              Auto-assign Tabia (Wote)
+            </button>
+          )}
+          {canEditRequirements && (
             <>
-              <button className="cm-btn cm-btn--ghost rc-auto-btn" onClick={autoAssignBehaviourAll}>
-                Auto-assign Tabia (Wote)
-              </button>
               <button className="cm-btn cm-btn--primary" onClick={saveReportSettings} disabled={saveState === "saving"}>
-                {saveState === "saving" ? "Inahifadhi..." : "Hifadhi Mipangilio"}
+                {saveState === "saving"
+                  ? "Inahifadhi..."
+                  : scope
+                    ? "Hifadhi Mipangilio"
+                    : "Hifadhi Mahitaji"}
               </button>
-              {saveState === "saved" && <span className="rc-save-status rc-save-status--ok">Mipangilio imehifadhiwa.</span>}
+              {saveState === "saved" && (
+                <span className="rc-save-status rc-save-status--ok">
+                  {scope ? "Mipangilio imehifadhiwa." : "Mahitaji yamehifadhiwa."}
+                </span>
+              )}
               {saveState === "error" && <span className="rc-save-status rc-save-status--error">{saveError}</span>}
             </>
           )}
@@ -939,6 +1038,7 @@ export default function StudentReportCard({ scope, role }: StudentReportCardProp
                 setBehaviorByStudent((current) => ({ ...current, [currentStudent.student_id]: ratings }));
                 setSaveState("idle");
               }}
+              requirements={currentRequirements}
               signatures={signatureBundle}
               signerRole={signerRole}
               onSign={setSignPadRole}
@@ -968,6 +1068,7 @@ export default function StudentReportCard({ scope, role }: StudentReportCardProp
                       setBehaviorByStudent((current) => ({ ...current, [student.student_id]: ratings }));
                       setSaveState("idle");
                     }}
+                    requirements={requirementsForStudent(student)}
                     signatures={signatureBundle}
                     signerRole={signerRole}
                     onSign={setSignPadRole}
