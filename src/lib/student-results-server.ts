@@ -130,6 +130,27 @@ function mean(values: number[]): number | null {
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
 }
 
+// PostgREST caps every response at 1,000 rows by default. An exam season has
+// thousands of mark rows, so fetch every page or older exams silently look as
+// if their marks were never entered.
+const PAGE_SIZE = 1000;
+
+async function fetchAllRows<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await build(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    const batch = data ?? [];
+    rows.push(...batch);
+    if (batch.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return rows;
+}
+
 export function termForExamDate(date: string): 1 | 2 {
   const month = Number(date.slice(5, 7));
   return month >= 1 && month <= 6 ? 1 : 2;
@@ -161,12 +182,17 @@ async function loadStudentSubjectLinks(studentIds: string[]): Promise<Map<string
   const map = new Map<string, string[]>();
   for (let i = 0; i < studentIds.length; i += 100) {
     const batch = studentIds.slice(i, i + 100);
-    const { data, error } = await studentAdmin
-      .from("student_subjects")
-      .select("student_id, subject_id")
-      .in("student_id", batch);
-    if (error) throw error;
-    for (const row of data ?? []) {
+    const rows = await fetchAllRows<{ student_id: string; subject_id: string }>(
+      (from, to) =>
+        studentAdmin
+          .from("student_subjects")
+          .select("student_id, subject_id")
+          .in("student_id", batch)
+          .order("student_id")
+          .order("subject_id")
+          .range(from, to),
+    );
+    for (const row of rows) {
       const list = map.get(row.student_id) ?? [];
       list.push(row.subject_id);
       map.set(row.student_id, list);
@@ -271,15 +297,20 @@ export async function loadStudentResults(
   const studentInput = studentInputs.find((row) => row.student_id === student.id) ?? null;
   const studentSubjectIds = new Set(studentInput?.subjects ?? []);
 
-  const { data: markData, error: markError } = await studentAdmin
-    .from("exam_marks")
-    .select("exam_id, student_id, subject_id, theory_score, practical_score, is_absent")
-    .eq("class_id", student.classId)
-    .in("exam_id", examIds);
-  if (markError) throw markError;
+  const markRows = await fetchAllRows<MarkRow>((from, to) =>
+    studentAdmin
+      .from("exam_marks")
+      .select("exam_id, student_id, subject_id, theory_score, practical_score, is_absent")
+      .eq("class_id", student.classId)
+      .in("exam_id", examIds)
+      .order("exam_id")
+      .order("student_id")
+      .order("subject_id")
+      .range(from, to),
+  );
 
   const marksByExam = new Map<string, Record<string, MarksCellInput>>();
-  for (const row of (markData ?? []) as MarkRow[]) {
+  for (const row of markRows) {
     const marks = marksByExam.get(row.exam_id) ?? {};
     marks[`${row.student_id}|${row.subject_id}`] = {
       theory: row.theory_score === null ? null : Number(row.theory_score),
