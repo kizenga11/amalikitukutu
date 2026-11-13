@@ -11,8 +11,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const session = await requireStudent(request);
     if (!session.ok) return session.response;
 
-    const exams = await loadStudentResults(session.student);
-    return NextResponse.json({ exams });
+    const year = request.nextUrl.searchParams.get("year") ?? undefined;
+    const payload = await loadStudentResults(session.student, year);
+    return NextResponse.json(payload);
   } catch (error) {
     return NextResponse.json(
       { error: errorMessage(error, "Could not load your results.") },

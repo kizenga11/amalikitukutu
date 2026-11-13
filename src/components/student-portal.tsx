@@ -18,6 +18,7 @@ import {
   logoutStudent,
   StudentApiError,
   type StudentMe,
+  type StudentResultsResponse,
   type StudentTopicViewItem,
 } from "@/lib/student-portal-api";
 import type { StudentExamResult } from "@/lib/student-results-server";
@@ -30,9 +31,9 @@ import "./student-portal.css";
 type Tab = "home" | "results" | "assignments" | "notes";
 
 function formatDate(value: string | null | undefined, withTime = false): string {
-  if (!value) return "—";
+  if (!value) return "â€”";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "â€”";
   return date.toLocaleString("en-GB", {
     day: "2-digit",
     month: "short",
@@ -57,6 +58,11 @@ export default function StudentPortal() {
   const router = useRouter();
   const [me, setMe] = useState<StudentMe | null>(null);
   const [exams, setExams] = useState<StudentExamResult[]>([]);
+  const [activeYearExams, setActiveYearExams] = useState<StudentExamResult[]>([]);
+  const [resultsYear, setResultsYear] = useState("");
+  const [resultsActiveYear, setResultsActiveYear] = useState("");
+  const [resultsYears, setResultsYears] = useState<string[]>([]);
+  const [resultsLoading, setResultsLoading] = useState(false);
   const [assignments, setAssignments] = useState<AssignmentSummary[]>([]);
   const [noteTopics, setNoteTopics] = useState<StudentTopicViewItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +89,32 @@ export default function StudentPortal() {
     }
   }, [router]);
 
+  const loadResultsYear = useCallback(
+    async (year: string) => {
+      setResultsLoading(true);
+      try {
+        const data: StudentResultsResponse = await fetchStudentResults(year);
+        setExams(data.exams);
+        setResultsYear(data.year);
+        setResultsActiveYear(data.activeYear);
+        setResultsYears(data.years);
+      } catch (err) {
+        if (err instanceof StudentApiError && err.status === 401) {
+          router.replace("/student/login");
+          return;
+        }
+        setError(
+          err instanceof StudentApiError
+            ? err.message
+            : "Could not load results for that year.",
+        );
+      } finally {
+        setResultsLoading(false);
+      }
+    },
+    [router],
+  );
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -104,6 +136,10 @@ export default function StudentPortal() {
 
         if (resultsResult.status === "fulfilled") {
           setExams(resultsResult.value.exams);
+          setActiveYearExams(resultsResult.value.exams);
+          setResultsYear(resultsResult.value.year);
+          setResultsActiveYear(resultsResult.value.activeYear);
+          setResultsYears(resultsResult.value.years);
         } else if (
           resultsResult.reason instanceof StudentApiError &&
           resultsResult.reason.status === 401
@@ -171,13 +207,15 @@ export default function StudentPortal() {
   const initials = (me?.student.firstName?.[0] ?? "") + (me?.student.lastName?.[0] ?? "");
 
   const latestExam = useMemo(() => {
-    if (exams.length === 0) return null;
-    const withResults = exams.filter((exam) => exam.hasMarks && exam.average !== null);
-    const pool = withResults.length > 0 ? withResults : exams;
+    if (activeYearExams.length === 0) return null;
+    const withResults = activeYearExams.filter(
+      (exam) => exam.hasMarks && exam.average !== null,
+    );
+    const pool = withResults.length > 0 ? withResults : activeYearExams;
     return [...pool].sort(
       (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
     )[0];
-  }, [exams]);
+  }, [activeYearExams]);
 
   const pendingAssignments = assignments.filter(
     (assignment) => assignment.submissionStatus === "not_done",
@@ -187,7 +225,7 @@ export default function StudentPortal() {
     return (
       <div className="sp-standalone">
         <div className="sp-card sp-card--narrow">
-          <p className="sp-muted">Loading your portal…</p>
+          <p className="sp-muted">Loading your portalâ€¦</p>
         </div>
       </div>
     );
@@ -311,7 +349,7 @@ export default function StudentPortal() {
                     <span className="sp-eyebrow">Welcome back</span>
                     <h1>{fullName}</h1>
                     <p>
-                      {me.student.registrationNo} · {me.student.className || "Class"} ·{" "}
+                      {me.student.registrationNo} Â· {me.student.className || "Class"} Â·{" "}
                       {me.student.streamName || "Stream"}
                     </p>
                   </div>
@@ -339,14 +377,20 @@ export default function StudentPortal() {
                 <section className="sp-stats">
                   <article className="sp-stat">
                     <span>Published exams</span>
-                    <strong>{exams.length}</strong>
-                    <small>{exams[0] ? `Year ${exams[0].year}` : "No exams yet"}</small>
+                    <strong>{activeYearExams.length}</strong>
+                    <small>
+                      {activeYearExams[0]
+                        ? `Year ${activeYearExams[0].year}`
+                        : resultsActiveYear
+                          ? `No exams for ${resultsActiveYear} yet`
+                          : "No exams yet"}
+                    </small>
                   </article>
                   <article className="sp-stat">
                     <span>Latest exam average</span>
                     <strong>
                       {latestExam?.average === null || latestExam?.average === undefined
-                        ? "—"
+                        ? "â€”"
                         : `${latestExam.average}%`}
                     </strong>
                     <small>{latestExam ? latestExam.name : "No results yet"}</small>
@@ -374,23 +418,23 @@ export default function StudentPortal() {
                       </div>
                       <div>
                         <dt>Registration No.</dt>
-                        <dd>{me.student.registrationNo || "—"}</dd>
+                        <dd>{me.student.registrationNo || "â€”"}</dd>
                       </div>
                       <div>
                         <dt>Class / Form</dt>
-                        <dd>{me.student.className || "—"}</dd>
+                        <dd>{me.student.className || "â€”"}</dd>
                       </div>
                       <div>
                         <dt>Stream</dt>
-                        <dd>{me.student.streamName || "—"}</dd>
+                        <dd>{me.student.streamName || "â€”"}</dd>
                       </div>
                       <div>
                         <dt>Gender</dt>
-                        <dd>{me.student.gender === "Male" ? "Male" : me.student.gender === "Female" ? "Female" : me.student.gender || "—"}</dd>
+                        <dd>{me.student.gender === "Male" ? "Male" : me.student.gender === "Female" ? "Female" : me.student.gender || "â€”"}</dd>
                       </div>
                       <div>
                         <dt>Phone</dt>
-                        <dd>{me.student.phone || "—"}</dd>
+                        <dd>{me.student.phone || "â€”"}</dd>
                       </div>
                     </dl>
                   </section>
@@ -419,7 +463,7 @@ export default function StudentPortal() {
                                     {teacher.name}
                                     {teacher.phone ? (
                                       <>
-                                        {" · "}
+                                        {" Â· "}
                                         <a href={`tel:${teacher.phone.replace(/\s+/g, "")}`}>
                                           {teacher.phone}
                                         </a>
@@ -468,7 +512,16 @@ export default function StudentPortal() {
             )}
 
             {tab === "results" && (
-              <ResultsTab exams={exams} subjectsInfo={me.subjects} />
+              <ResultsTab
+                exams={exams}
+                subjectsInfo={me.subjects}
+                year={resultsYear}
+                activeYear={resultsActiveYear}
+                years={resultsYears}
+                loading={resultsLoading}
+                className={me.student.className}
+                onYearChange={(year) => void loadResultsYear(year)}
+              />
             )}
 
             {tab === "assignments" && (
@@ -568,7 +621,7 @@ function AssignmentRow({
         <span className="sp-assignment-subject">
           {assignment.subjectName}
           <span>
-            {assignment.className} {assignment.streamName} · Term {assignment.term} ·{" "}
+            {assignment.className} {assignment.streamName} Â· Term {assignment.term} Â·{" "}
             {assignment.academicYearId}
           </span>
         </span>
@@ -595,9 +648,21 @@ function AssignmentRow({
 function ResultsTab({
   exams,
   subjectsInfo,
+  year,
+  activeYear,
+  years,
+  loading,
+  className,
+  onYearChange,
 }: {
   exams: StudentExamResult[];
   subjectsInfo: StudentMe["subjects"];
+  year: string;
+  activeYear: string;
+  years: string[];
+  loading: boolean;
+  className: string;
+  onYearChange: (year: string) => void;
 }) {
   const sortedExams = useMemo(
     () =>
@@ -608,8 +673,9 @@ function ResultsTab({
   );
 
   const [selectedExamId, setSelectedExamId] = useState("");
-  const activeExamId = selectedExamId || sortedExams[0]?.id || "";
-  const activeExam = sortedExams.find((exam) => exam.id === activeExamId) ?? null;
+  const activeExam =
+    sortedExams.find((exam) => exam.id === selectedExamId) ?? sortedExams[0] ?? null;
+  const activeExamId = activeExam?.id ?? "";
 
   const subjects = useMemo(() => {
     const map = new Map<string, string>();
@@ -647,213 +713,246 @@ function ResultsTab({
       .filter((point): point is { label: string; value: number } => point !== null);
   }, [exams, activeSubjectId]);
 
-  if (exams.length === 0) {
-    return (
-      <div className="sp-card">
-        <h1 className="sp-page-title">Results</h1>
-        <p className="sp-muted">
-          No published results yet. Results will appear here once the school publishes them.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="sp-stack">
       <div className="sp-section-head">
         <div>
           <h1 className="sp-page-title">Results</h1>
           <p className="sp-muted">
-            All {sortedExams.length} published exams for {sortedExams[0]?.year ?? "this year"}.
-            Choose an exam to view its results.
+            {sortedExams.length > 0
+              ? `${sortedExams.length} published exam${
+                  sortedExams.length === 1 ? "" : "s"
+                } for ${year || "this year"}. Choose an exam to view its results.`
+              : `Academic year ${year || activeYear}.`}
           </p>
         </div>
-      </div>
-
-      <div className="sp-exam-picker" role="tablist" aria-label="Published exams">
-        {sortedExams.map((exam) => (
-          <button
-            key={exam.id}
-            type="button"
-            role="tab"
-            aria-selected={exam.id === activeExamId}
-            className={
-              exam.id === activeExamId
-                ? "sp-exam-option sp-exam-option--active"
-                : "sp-exam-option"
-            }
-            onClick={() => setSelectedExamId(exam.id)}
+        <label className="sp-inline-field">
+          <span>Academic year</span>
+          <select
+            className="sp-select"
+            value={year}
+            onChange={(event) => onYearChange(event.target.value)}
+            disabled={loading}
           >
-            <strong>{exam.name}</strong>
-            <span>
-              {formatDate(exam.startDate)} · Term {exam.term}
-            </span>
-            <span className="sp-exam-option-meta">
-              {exam.hasMarks
-                ? exam.average === null
-                  ? "Marks recorded"
-                  : `${exam.average}% average`
-                : "Results pending"}
-            </span>
-          </button>
-        ))}
+            {(years.length > 0 ? years : [year].filter(Boolean)).map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
-      {activeExam && (
-        <article className="sp-result-card">
-          <header className="sp-result-head">
-            <div>
-              <h2>{activeExam.name}</h2>
-              <p className="sp-muted">
-                {formatDate(activeExam.startDate)} – {formatDate(activeExam.endDate)} · Term{" "}
-                {activeExam.term} · {activeExam.year}
-              </p>
-            </div>
-            <div className="sp-result-summary">
-              <div>
-                <span>Average</span>
-                <strong>
-                  {activeExam.average === null ? "—" : `${activeExam.average}%`}
-                </strong>
-              </div>
-              <div>
-                <span>Division</span>
-                <strong>{activeExam.incomplete ? "—" : activeExam.division || "—"}</strong>
-              </div>
-              <div>
-                <span>Points</span>
-                <strong>{activeExam.points ?? "—"}</strong>
-              </div>
-              <div>
-                <span>Class position</span>
-                <strong>
-                  {activeExam.classPosition
-                    ? `${activeExam.classPosition} / ${activeExam.classSize}`
-                    : "—"}
-                </strong>
-              </div>
-              <div>
-                <span>Stream position</span>
-                <strong>
-                  {activeExam.streamPosition
-                    ? `${activeExam.streamPosition} / ${activeExam.streamSize}`
-                    : "—"}
-                </strong>
-              </div>
-            </div>
-          </header>
+      {sortedExams.length === 0 ? (
+        <div className="sp-card">
+          <p className="sp-muted">
+            {loading
+              ? "Loading resultsâ€¦"
+              : year === activeYear
+                ? `No exams have been set for ${
+                    className || "your class"
+                  } in ${year} yet. Choose a previous academic year above to see earlier results.`
+                : `No published results for ${year}.`}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="sp-exam-picker" role="tablist" aria-label="Published exams">
+            {sortedExams.map((exam) => (
+              <button
+                key={exam.id}
+                type="button"
+                role="tab"
+                aria-selected={exam.id === activeExamId}
+                className={
+                  exam.id === activeExamId
+                    ? "sp-exam-option sp-exam-option--active"
+                    : "sp-exam-option"
+                }
+                onClick={() => setSelectedExamId(exam.id)}
+              >
+                <strong>{exam.name}</strong>
+                <span>
+                  {formatDate(exam.startDate)} Â· Term {exam.term}
+                </span>
+                <span className="sp-exam-option-meta">
+                  {exam.hasMarks
+                    ? exam.average === null
+                      ? "Marks recorded"
+                      : `${exam.average}% average`
+                    : "Results pending"}
+                </span>
+              </button>
+            ))}
+          </div>
 
-          {activeExam.hasMarks && activeExam.incomplete && (
-            <div className="sp-alert sp-alert--warn">
-              Results are incomplete — some subjects have no marks.
-            </div>
-          )}
+          {activeExam && (
+            <article className="sp-result-card">
+              <header className="sp-result-head">
+                <div>
+                  <h2>{activeExam.name}</h2>
+                  <p className="sp-muted">
+                    {formatDate(activeExam.startDate)} â€“ {formatDate(activeExam.endDate)} Â· Term{" "}
+                    {activeExam.term} Â· {activeExam.year}
+                  </p>
+                </div>
+                <div className="sp-result-summary">
+                  <div>
+                    <span>Average</span>
+                    <strong>
+                      {activeExam.average === null ? "â€”" : `${activeExam.average}%`}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Division</span>
+                    <strong>{activeExam.incomplete ? "â€”" : activeExam.division || "â€”"}</strong>
+                  </div>
+                  <div>
+                    <span>Points</span>
+                    <strong>{activeExam.points ?? "â€”"}</strong>
+                  </div>
+                  <div>
+                    <span>Class position</span>
+                    <strong>
+                      {activeExam.classPosition
+                        ? `${activeExam.classPosition} / ${activeExam.classSize}`
+                        : "â€”"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Stream position</span>
+                    <strong>
+                      {activeExam.streamPosition
+                        ? `${activeExam.streamPosition} / ${activeExam.streamSize}`
+                        : "â€”"}
+                    </strong>
+                  </div>
+                </div>
+              </header>
 
-          {!activeExam.hasMarks && (
-            <div className="sp-alert sp-alert--warn">
-              Marks for this exam have not been entered yet. Please check again later.
-            </div>
-          )}
+              {activeExam.hasMarks && activeExam.incomplete && (
+                <div className="sp-alert sp-alert--warn">
+                  Results are incomplete â€” some subjects have no marks.
+                </div>
+              )}
 
-          {activeExam.hasMarks && (
-            <div className="sp-table-wrap">
-            <table className="sp-table">
-              <thead>
-                <tr>
-                  <th>Subject</th>
-                  <th>Teacher</th>
-                  <th>Theory</th>
-                  <th>Practical</th>
-                  <th>Total</th>
-                  <th>Grade</th>
-                  <th>Points</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeExam.subjects.map((subject) => {
-                  const teachers = teachersBySubject.get(subject.subjectId) ?? [];
-                  return (
-                    <tr key={subject.subjectId}>
-                      <td>
-                        <strong>{subject.name}</strong>
-                        <span className="sp-muted"> {subject.code}</span>
-                      </td>
-                      <td>
-                        {teachers.length === 0 ? (
-                          <span className="sp-muted">Not assigned</span>
-                        ) : (
-                          <span className="sp-teacher-cell">
-                            {teachers.map((teacher, index) => (
-                              <span key={`${teacher.name}-${index}`}>
-                                {teacher.name}
-                                {teacher.phone ? (
-                                  <>
-                                    {" · "}
-                                    <a href={`tel:${teacher.phone.replace(/\s+/g, "")}`}>
-                                      {teacher.phone}
-                                    </a>
-                                  </>
-                                ) : null}
+              {!activeExam.hasMarks && (
+                <div className="sp-alert sp-alert--warn">
+                  Marks for this exam have not been entered yet. Please check again later.
+                </div>
+              )}
+
+              {activeExam.hasMarks && (
+                <div className="sp-table-wrap">
+                  <table className="sp-table">
+                    <thead>
+                      <tr>
+                        <th>Subject</th>
+                        <th>Teacher</th>
+                        <th>Theory</th>
+                        <th>Practical</th>
+                        <th>Total</th>
+                        <th>Grade</th>
+                        <th>Points</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeExam.subjects.map((subject) => {
+                        const teachers = teachersBySubject.get(subject.subjectId) ?? [];
+                        return (
+                          <tr key={subject.subjectId}>
+                            <td>
+                              <strong>{subject.name}</strong>
+                              <span className="sp-muted"> {subject.code}</span>
+                            </td>
+                            <td>
+                              {teachers.length === 0 ? (
+                                <span className="sp-muted">Not assigned</span>
+                              ) : (
+                                <span className="sp-teacher-cell">
+                                  {teachers.map((teacher, index) => (
+                                    <span key={`${teacher.name}-${index}`}>
+                                      {teacher.name}
+                                      {teacher.phone ? (
+                                        <>
+                                          {" Â· "}
+                                          <a href={`tel:${teacher.phone.replace(/\s+/g, "")}`}>
+                                            {teacher.phone}
+                                          </a>
+                                        </>
+                                      ) : null}
+                                    </span>
+                                  ))}
+                                </span>
+                              )}
+                            </td>
+                            <td>{subject.isAbsent ? "Absent" : subject.theory ?? "â€”"}</td>
+                            <td>{subject.isAbsent ? "â€”" : subject.practical ?? "â€”"}</td>
+                            <td>
+                              {subject.isAbsent
+                                ? "Absent"
+                                : subject.score === null
+                                  ? "â€”"
+                                  : subject.score}
+                            </td>
+                            <td>
+                              <span
+                                className={`sp-grade sp-grade--${(
+                                  subject.grade || "F"
+                                ).toLowerCase()}`}
+                              >
+                                {subject.grade || "â€”"}
                               </span>
-                            ))}
-                          </span>
-                        )}
-                      </td>
-                      <td>{subject.isAbsent ? "Absent" : subject.theory ?? "—"}</td>
-                      <td>{subject.isAbsent ? "—" : subject.practical ?? "—"}</td>
-                      <td>
-                        {subject.isAbsent ? "Absent" : subject.score === null ? "—" : subject.score}
-                      </td>
-                      <td>
-                        <span className={`sp-grade sp-grade--${(subject.grade || "F").toLowerCase()}`}>
-                          {subject.grade || "—"}
-                        </span>
-                      </td>
-                      <td>{subject.points ?? "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            </div>
+                            </td>
+                            <td>{subject.points ?? "â€”"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </article>
           )}
-        </article>
+        </>
       )}
 
-      <section className="sp-card">
-        <div className="sp-section-head">
-          <div>
-            <h2>Progress by subject</h2>
-            <p className="sp-muted">Your score in each exam for the selected subject.</p>
+      {sortedExams.length > 0 && (
+        <section className="sp-card">
+          <div className="sp-section-head">
+            <div>
+              <h2>Progress by subject</h2>
+              <p className="sp-muted">Your score in each exam for the selected subject.</p>
+            </div>
+            <label className="sp-inline-field">
+              <span>Subject</span>
+              <select
+                className="sp-select"
+                value={activeSubjectId}
+                onChange={(event) => setProgressSubject(event.target.value)}
+              >
+                {subjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-          <label className="sp-inline-field">
-            <span>Subject</span>
-            <select
-              className="sp-select"
-              value={activeSubjectId}
-              onChange={(event) => setProgressSubject(event.target.value)}
-            >
-              {subjects.map((subject) => (
-                <option key={subject.id} value={subject.id}>
-                  {subject.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
 
-        {progressPoints.length >= 2 ? (
-          <div className="sp-chart">
-            <LineChart points={progressPoints} unit="%" />
-          </div>
-        ) : (
-          <p className="sp-muted">
-            {activeSubject
-              ? `At least two exams with ${activeSubject.name} marks are needed to draw a chart.`
-              : "Not enough data to draw a chart."}
-          </p>
-        )}
-      </section>
+          {progressPoints.length >= 2 ? (
+            <div className="sp-chart">
+              <LineChart points={progressPoints} unit="%" />
+            </div>
+          ) : (
+            <p className="sp-muted">
+              {activeSubject
+                ? `At least two exams with ${activeSubject.name} marks are needed to draw a chart.`
+                : "Not enough data to draw a chart."}
+            </p>
+          )}
+        </section>
+      )}
     </div>
   );
 }

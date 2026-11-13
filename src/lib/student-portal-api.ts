@@ -115,8 +115,19 @@ export async function changeStudentPassword(
   });
 }
 
-export async function fetchStudentResults() {
-  return studentRequest<{ exams: StudentExamResult[] }>("/api/student/results");
+export interface StudentResultsResponse {
+  /** Academic year being viewed (defaults to the active year). */
+  year: string;
+  /** Academic year the school is running right now. */
+  activeYear: string;
+  /** Years the student has results in, plus the active year. */
+  years: string[];
+  exams: StudentExamResult[];
+}
+
+export async function fetchStudentResults(year?: string) {
+  const query = year ? `?year=${encodeURIComponent(year)}` : "";
+  return studentRequest<StudentResultsResponse>(`/api/student/results${query}`);
 }
 
 export async function fetchStudentAssignments() {
