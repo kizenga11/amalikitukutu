@@ -278,6 +278,18 @@ describe("rankResults", () => {
     expect(ranked[1].rank).toBe(1);
     expect(ranked[2].rank).toBe(3);
   });
+
+  it("breaks equal division points with the average score", () => {
+    const ranked = rankResults([
+      studentResult("u1", "Asha", "Ali", "Female", [80, 80, 80, 80, 80, 80, 80]),
+      studentResult("u2", "Babu", "Bakari", "Male", [90, 90, 90, 90, 90, 90, 90]),
+      studentResult("u3", "Chausiku", "Chambo", "Female", [85, 85, 85, 85, 85, 85, 85]),
+      studentResult("u4", "Doto", "Daudi", "Male", [90, 90, 90, 90, 90, 90, 76]),
+    ]);
+    // Every student has 7 points; the averages decide the order.
+    expect(ranked.map((row) => row.student.student_id)).toEqual(["u2", "u4", "u3", "u1"]);
+    expect(ranked.map((row) => row.rank)).toEqual([1, 2, 3, 4]);
+  });
 });
 
 describe("buildSchoolReport", () => {

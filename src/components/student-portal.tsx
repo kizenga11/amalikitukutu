@@ -31,9 +31,9 @@ import "./student-portal.css";
 type Tab = "home" | "results" | "assignments" | "notes";
 
 function formatDate(value: string | null | undefined, withTime = false): string {
-  if (!value) return "â€”";
+  if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "â€”";
+  if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleString("en-GB", {
     day: "2-digit",
     month: "short",
@@ -225,7 +225,7 @@ export default function StudentPortal() {
     return (
       <div className="sp-standalone">
         <div className="sp-card sp-card--narrow">
-          <p className="sp-muted">Loading your portalâ€¦</p>
+          <p className="sp-muted">Loading your portal…</p>
         </div>
       </div>
     );
@@ -349,7 +349,7 @@ export default function StudentPortal() {
                     <span className="sp-eyebrow">Welcome back</span>
                     <h1>{fullName}</h1>
                     <p>
-                      {me.student.registrationNo} Â· {me.student.className || "Class"} Â·{" "}
+                      {me.student.registrationNo} · {me.student.className || "Class"} ·{" "}
                       {me.student.streamName || "Stream"}
                     </p>
                   </div>
@@ -390,7 +390,7 @@ export default function StudentPortal() {
                     <span>Latest exam average</span>
                     <strong>
                       {latestExam?.average === null || latestExam?.average === undefined
-                        ? "â€”"
+                        ? "—"
                         : `${latestExam.average}%`}
                     </strong>
                     <small>{latestExam ? latestExam.name : "No results yet"}</small>
@@ -418,23 +418,23 @@ export default function StudentPortal() {
                       </div>
                       <div>
                         <dt>Registration No.</dt>
-                        <dd>{me.student.registrationNo || "â€”"}</dd>
+                        <dd>{me.student.registrationNo || "—"}</dd>
                       </div>
                       <div>
                         <dt>Class / Form</dt>
-                        <dd>{me.student.className || "â€”"}</dd>
+                        <dd>{me.student.className || "—"}</dd>
                       </div>
                       <div>
                         <dt>Stream</dt>
-                        <dd>{me.student.streamName || "â€”"}</dd>
+                        <dd>{me.student.streamName || "—"}</dd>
                       </div>
                       <div>
                         <dt>Gender</dt>
-                        <dd>{me.student.gender === "Male" ? "Male" : me.student.gender === "Female" ? "Female" : me.student.gender || "â€”"}</dd>
+                        <dd>{me.student.gender === "Male" ? "Male" : me.student.gender === "Female" ? "Female" : me.student.gender || "—"}</dd>
                       </div>
                       <div>
                         <dt>Phone</dt>
-                        <dd>{me.student.phone || "â€”"}</dd>
+                        <dd>{me.student.phone || "—"}</dd>
                       </div>
                     </dl>
                   </section>
@@ -463,7 +463,7 @@ export default function StudentPortal() {
                                     {teacher.name}
                                     {teacher.phone ? (
                                       <>
-                                        {" Â· "}
+                                        {" · "}
                                         <a href={`tel:${teacher.phone.replace(/\s+/g, "")}`}>
                                           {teacher.phone}
                                         </a>
@@ -621,7 +621,7 @@ function AssignmentRow({
         <span className="sp-assignment-subject">
           {assignment.subjectName}
           <span>
-            {assignment.className} {assignment.streamName} Â· Term {assignment.term} Â·{" "}
+            {assignment.className} {assignment.streamName} · Term {assignment.term} ·{" "}
             {assignment.academicYearId}
           </span>
         </span>
@@ -747,7 +747,7 @@ function ResultsTab({
         <div className="sp-card">
           <p className="sp-muted">
             {loading
-              ? "Loading resultsâ€¦"
+              ? "Loading results…"
               : year === activeYear
                 ? `No exams have been set for ${
                     className || "your class"
@@ -773,7 +773,7 @@ function ResultsTab({
               >
                 <strong>{exam.name}</strong>
                 <span>
-                  {formatDate(exam.startDate)} Â· Term {exam.term}
+                  {formatDate(exam.startDate)} · Term {exam.term}
                 </span>
                 <span className="sp-exam-option-meta">
                   {exam.hasMarks
@@ -792,31 +792,31 @@ function ResultsTab({
                 <div>
                   <h2>{activeExam.name}</h2>
                   <p className="sp-muted">
-                    {formatDate(activeExam.startDate)} â€“ {formatDate(activeExam.endDate)} Â· Term{" "}
-                    {activeExam.term} Â· {activeExam.year}
+                    {formatDate(activeExam.startDate)} – {formatDate(activeExam.endDate)} · Term{" "}
+                    {activeExam.term} · {activeExam.year}
                   </p>
                 </div>
                 <div className="sp-result-summary">
                   <div>
                     <span>Average</span>
                     <strong>
-                      {activeExam.average === null ? "â€”" : `${activeExam.average}%`}
+                      {activeExam.average === null ? "—" : `${activeExam.average}%`}
                     </strong>
                   </div>
                   <div>
                     <span>Division</span>
-                    <strong>{activeExam.incomplete ? "â€”" : activeExam.division || "â€”"}</strong>
+                    <strong>{activeExam.incomplete ? "—" : activeExam.division || "—"}</strong>
                   </div>
                   <div>
                     <span>Points</span>
-                    <strong>{activeExam.points ?? "â€”"}</strong>
+                    <strong>{activeExam.points ?? "—"}</strong>
                   </div>
                   <div>
                     <span>Class position</span>
                     <strong>
                       {activeExam.classPosition
                         ? `${activeExam.classPosition} / ${activeExam.classSize}`
-                        : "â€”"}
+                        : "—"}
                     </strong>
                   </div>
                   <div>
@@ -824,7 +824,7 @@ function ResultsTab({
                     <strong>
                       {activeExam.streamPosition
                         ? `${activeExam.streamPosition} / ${activeExam.streamSize}`
-                        : "â€”"}
+                        : "—"}
                     </strong>
                   </div>
                 </div>
@@ -832,7 +832,7 @@ function ResultsTab({
 
               {activeExam.hasMarks && activeExam.incomplete && (
                 <div className="sp-alert sp-alert--warn">
-                  Results are incomplete â€” some subjects have no marks.
+                  Results are incomplete — some subjects have no marks.
                 </div>
               )}
 
@@ -875,7 +875,7 @@ function ResultsTab({
                                       {teacher.name}
                                       {teacher.phone ? (
                                         <>
-                                          {" Â· "}
+                                          {" · "}
                                           <a href={`tel:${teacher.phone.replace(/\s+/g, "")}`}>
                                             {teacher.phone}
                                           </a>
@@ -886,13 +886,13 @@ function ResultsTab({
                                 </span>
                               )}
                             </td>
-                            <td>{subject.isAbsent ? "Absent" : subject.theory ?? "â€”"}</td>
-                            <td>{subject.isAbsent ? "â€”" : subject.practical ?? "â€”"}</td>
+                            <td>{subject.isAbsent ? "Absent" : subject.theory ?? "—"}</td>
+                            <td>{subject.isAbsent ? "—" : subject.practical ?? "—"}</td>
                             <td>
                               {subject.isAbsent
                                 ? "Absent"
                                 : subject.score === null
-                                  ? "â€”"
+                                  ? "—"
                                   : subject.score}
                             </td>
                             <td>
@@ -901,10 +901,10 @@ function ResultsTab({
                                   subject.grade || "F"
                                 ).toLowerCase()}`}
                               >
-                                {subject.grade || "â€”"}
+                                {subject.grade || "—"}
                               </span>
                             </td>
-                            <td>{subject.points ?? "â€”"}</td>
+                            <td>{subject.points ?? "—"}</td>
                           </tr>
                         );
                       })}

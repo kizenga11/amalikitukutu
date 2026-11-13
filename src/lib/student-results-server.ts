@@ -499,7 +499,7 @@ function buildExamResult(params: {
  * Results for one academic year. The active year shows the student's current
  * class (pending exams included); any earlier year is rebuilt from the mark
  * snapshots so promoted students can still open last year's results. This only
- * changes what the portal displays â€” the school's active year is untouched.
+ * changes what the portal displays — the school's active year is untouched.
  */
 export async function loadStudentResults(
   student: StudentProfile,

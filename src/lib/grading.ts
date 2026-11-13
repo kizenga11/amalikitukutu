@@ -480,27 +480,45 @@ export interface RankedStudent {
   rank: number;
 }
 
-// Standard competition ranking: students on equal total points
-// share the same rank. Incomplete (disqualified) students are
-// not ranked.
+// Mean score across the subjects counted for this result. Division points
+// only have a handful of possible values, so without a tie-breaker a whole
+// block of students can end up sharing position 1. Ranking on the actual
+// average score keeps the order meaningful.
+function meanSubjectScore(student: StudentResult): number | null {
+  const scores = student.subjects
+    .map((subject) => subject.total_score)
+    .filter((score): score is number => score !== null);
+  if (scores.length === 0) return null;
+  return Math.round((scores.reduce((sum, score) => sum + score, 0) / scores.length) * 100) / 100;
+}
+
+// Standard competition ranking: students on equal total points AND equal
+// average share the same rank. Incomplete (disqualified) students are not
+// ranked.
 export function rankResults(students: StudentResult[]): RankedStudent[] {
   const eligible = students
     .filter((s) => !s.incomplete)
+    .map((student) => ({ student, average: meanSubjectScore(student) }))
     .sort(
       (a, b) =>
-        (a.total_points ?? 0) - (b.total_points ?? 0) ||
-        a.last_name.localeCompare(b.last_name) ||
-        a.first_name.localeCompare(b.first_name),
+        (a.student.total_points ?? 0) - (b.student.total_points ?? 0) ||
+        (b.average ?? -1) - (a.average ?? -1) ||
+        a.student.last_name.localeCompare(b.student.last_name) ||
+        a.student.first_name.localeCompare(b.student.first_name),
     );
 
   const ranked: RankedStudent[] = [];
   let lastPoints: number | null = null;
+  let lastAverage: number | null = null;
   let lastRank = 0;
-  eligible.forEach((student, index) => {
-    const rank = student.total_points === lastPoints ? lastRank : index + 1;
-    lastPoints = student.total_points;
+  eligible.forEach((entry, index) => {
+    const same =
+      entry.student.total_points === lastPoints && entry.average === lastAverage;
+    const rank = same ? lastRank : index + 1;
+    lastPoints = entry.student.total_points;
+    lastAverage = entry.average;
     lastRank = rank;
-    ranked.push({ student, rank });
+    ranked.push({ student: entry.student, rank });
   });
   return ranked;
 }
