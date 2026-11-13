@@ -34,6 +34,12 @@ yarn-error.log*
 diag-*.mjs
 .apply-one.mjs
 
+# local scratch notes and the old nested copy of this project
+/amalikitukutu-main/
+notes.txt
+scripts/fix-*.mjs
+scripts/patch-ta-confirms.mjs
+
 # local scripts with credentials
 scripts/register-admin-accounts.mjs
 

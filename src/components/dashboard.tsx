@@ -38,6 +38,8 @@ const StudentEnrollmentStatistics = dynamic(() => import("@/components/student-e
 const StreamTeacherAssignment = dynamic(() => import("@/components/stream-teacher-assignment"), { ssr: false, loading: PageLoading });
 const MkondoWangu = dynamic(() => import("@/components/mkondo-wangu"), { ssr: false, loading: PageLoading });
 const TimetableView = dynamic(() => import("@/components/timetable/timetable-view"), { ssr: false, loading: PageLoading });
+const TeacherAssignments = dynamic(() => import("@/components/teacher-assignments"), { ssr: false, loading: PageLoading });
+const TeacherStudyNotes = dynamic(() => import("@/components/teacher-study-notes"), { ssr: false, loading: PageLoading });
 import type { TimetableSection } from "@/components/timetable/timetable-view";
 import { fetchAcademicSettings, fetchDashboardData, fetchSchoolInfo, saveAcademicSettings, saveSchoolInfo, type DashboardData, type SchoolInfo } from "@/lib/school-api";
 import { DEFAULT_SCHOOL_INFO } from "@/lib/school-api";
@@ -102,7 +104,15 @@ function persistPeriod(period: Period) {
   writeStoredPeriod(period);
 }
 
-export default function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
+export default function Dashboard({
+  user,
+  onLogout,
+  loggingOut = false,
+}: {
+  user: User;
+  onLogout: () => void;
+  loggingOut?: boolean;
+}) {
   const role = resolveRole(user.user_metadata?.role);
   const navigationKey = `active-nav:${user.id}`;
   const [active, setActive] = useState<NavKey>(() =>
@@ -256,7 +266,10 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
 
           <div className="topbar-right">
             <button className="icon-btn" aria-label="Notifications">{icons.bell}</button>
-            <button className="logout-btn" onClick={onLogout}>{icons.logout}<span>Log out</span></button>
+            <button className="logout-btn" onClick={onLogout} disabled={loggingOut}>
+              {loggingOut ? <span className="spinner" aria-hidden="true" /> : icons.logout}
+              <span>{loggingOut ? "Signing out…" : "Log out"}</span>
+            </button>
             <div className="profile-wrap">
               <button className="profile-btn" onClick={() => setProfileOpen((v) => !v)} aria-haspopup="menu" aria-expanded={profileOpen}>
                 <div className="avatar">{initials}</div>
@@ -283,7 +296,10 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
                     {allowedKeys.includes("settings") && (
                       <button className="dropdown-item" onClick={() => pickNav("settings")}>Settings</button>
                     )}
-                    <button className="dropdown-item dropdown-item--danger" onClick={onLogout}>{icons.logout}<span>Log out</span></button>
+                    <button className="dropdown-item dropdown-item--danger" onClick={onLogout} disabled={loggingOut}>
+                      {loggingOut ? <span className="spinner" aria-hidden="true" /> : icons.logout}
+                      <span>{loggingOut ? "Signing out…" : "Log out"}</span>
+                    </button>
                   </div>
                 </>
               )}
@@ -337,6 +353,8 @@ export default function Dashboard({ user, onLogout }: { user: User; onLogout: ()
           {effectiveActive === "certificates" && <AwardCertificates />}
           {effectiveActive === "sms" && <SmsMessaging />}
           {effectiveActive === "lessonplans" && <LessonPlansView />}
+          {effectiveActive === "assignments" && (role === "Teacher" || role === "Academic") && <TeacherAssignments />}
+          {effectiveActive === "notes" && (role === "Teacher" || role === "Academic") && <TeacherStudyNotes />}
           {timetableSection && (
             <TimetableView
               section={timetableSection}

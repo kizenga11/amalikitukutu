@@ -1104,6 +1104,9 @@ button:disabled, select:disabled { cursor: not-allowed; }
 }
 .logout-btn:hover { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
 .logout-btn .icon { width: 1.05rem; }
+.logout-btn:disabled { cursor: progress; opacity: .7; }
+.logout-btn .spinner,
+.dropdown-item .spinner { width: .95rem; height: .95rem; border-width: 2px; }
 
 .profile-wrap { position: relative; }
 .profile-btn {

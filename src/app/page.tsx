@@ -138,6 +138,35 @@ function formatDateRange(start: string, end: string): string {
 }
 
 const ANNOUNCEMENT_DAYS = 7;
+const LOGOUT_TIMEOUT_MS = 2000;
+
+// Only one navigation to the login page at a time. Without this guard both the
+// SIGNED_OUT listener and the logout button trigger a full page reload.
+let redirectingToLogin = false;
+
+function goToLogin() {
+  if (redirectingToLogin) return;
+  redirectingToLogin = true;
+  window.location.replace("/login");
+}
+
+// supabase.auth.signOut() always makes a server request, which can hang for a
+// long time on a slow or unstable connection. Clearing the cached session
+// locally guarantees logout finishes even when that request never resolves.
+function clearStoredSession() {
+  try {
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      for (let i = storage.length - 1; i >= 0; i -= 1) {
+        const key = storage.key(i);
+        if (key && key.startsWith("sb-") && key.includes("-auth-token")) {
+          storage.removeItem(key);
+        }
+      }
+    }
+  } catch {
+    /* storage blocked — the redirect still takes the user to the login page */
+  }
+}
 
 function latestExamAnnouncement(exams: PublicExam[]): PublicExam | null {
   if (exams.length === 0) return null;
@@ -151,6 +180,7 @@ function latestExamAnnouncement(exams: PublicExam[]): PublicExam | null {
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -163,7 +193,8 @@ export default function Home() {
     });
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
-        window.location.replace("/login");
+        setUser(null);
+        goToLogin();
         return;
       }
       setUser(session?.user ?? null);
@@ -195,13 +226,17 @@ export default function Home() {
   }, []);
 
   async function handleLogout() {
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      /* ignore — redirect to login regardless */
-    } finally {
-      window.location.replace("/login");
-    }
+    if (loggingOut) return;
+    setLoggingOut(true);
+
+    // Never block the button on the network: race the sign-out request against
+    // a short timeout, then clear the local session and redirect regardless.
+    const signOut = supabase.auth.signOut().catch(() => {});
+    const timeout = new Promise<void>((resolve) => window.setTimeout(resolve, LOGOUT_TIMEOUT_MS));
+    await Promise.race([signOut, timeout]);
+
+    clearStoredSession();
+    goToLogin();
   }
 
   const announcement = latestExamAnnouncement(exams);
@@ -220,7 +255,7 @@ export default function Home() {
     );
   }
 
-  if (user) return <Dashboard user={user} onLogout={handleLogout} />;
+  if (user) return <Dashboard user={user} onLogout={handleLogout} loggingOut={loggingOut} />;
 
   return (
     <div className="site-landing">
@@ -257,6 +292,7 @@ export default function Home() {
               <li><a href="#results">Results</a></li>
               <li><a href="#contact">Contact</a></li>
               <li><a href="/login" className="login-btn"><UserIcon /> Staff Login</a></li>
+              <li><a href="/student/login" className="login-btn"><UserIcon /> Student Login</a></li>
             </ul>
           </nav>
           <button className="hamburger" onClick={() => setMobileNavOpen((prev) => !prev)} aria-label="Menu">
@@ -270,6 +306,7 @@ export default function Home() {
           <a href="#results" onClick={() => setMobileNavOpen(false)}>Results</a>
           <a href="#contact" onClick={() => setMobileNavOpen(false)}>Contact</a>
           <a className="m-login" href="/login"><UserIcon /> Staff Login</a>
+          <a className="m-login" href="/student/login"><UserIcon /> Student Login</a>
         </div>
       </header>
 
@@ -298,6 +335,7 @@ export default function Home() {
             <h1>Amali Kitukutu – Kitukutu Technical Secondary School</h1>
             <div className="hero-actions">
               <a className="btn" href="/login"><UserIcon /> Staff Login</a>
+              <a className="btn" href="/student/login"><UserIcon /> Student Login</a>
               <a className="btn btn-gold" href="#results">Angalia Matokeo</a>
             </div>
           </div>
