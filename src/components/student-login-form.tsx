@@ -236,7 +236,8 @@ export default function StudentLoginForm() {
             Teacher or staff? <Link href="/login">Sign in here</Link>
           </p>
           <p className="auth-foot" style={{ marginTop: ".6rem" }}>
-            Forgot your password? Contact the school office.
+            Can&apos;t sign in? Contact the academic office:{" "}
+            <a href="tel:+255712978722">0712 978 722</a>
           </p>
         </div>
       </main>
