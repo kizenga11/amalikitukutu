@@ -494,10 +494,12 @@ async function studentsForSubject(
 export async function loadTeacherAssignments(
   staffId: string,
 ): Promise<TeacherAssignmentSummary[]> {
+  const year = await loadActiveYearId(studentAdmin);
   const { data, error } = await studentAdmin
     .from("assignments")
     .select(ASSIGNMENT_SELECT)
     .eq("teacher_id", staffId)
+    .eq("academic_year_id", year)
     .order("created_at", { ascending: false });
   if (error) throw error;
 
@@ -585,6 +587,8 @@ export async function loadTeacherAssignment(
   if (!data) return null;
 
   const row = data as unknown as AssignmentRow;
+  const activeYear = await loadActiveYearId(studentAdmin);
+  if (row.academic_year_id !== activeYear) return null;
   const subject = firstRelation(row.subject);
   const cls = firstRelation(row.class);
   const stream = firstRelation(row.stream);

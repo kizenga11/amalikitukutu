@@ -1,4 +1,5 @@
 import { studentAdmin, type StudentProfile, loadStudentSubjects } from "@/lib/student-auth";
+import { loadActiveYearId } from "@/lib/active-year";
 import {
   cleanLine,
   richTextToPlain,
@@ -110,11 +111,13 @@ export async function loadVisibleAssignments(
   const subjectIds = await visibleSubjectIds(student);
   if (subjectIds.length === 0) return [];
 
+  const year = await loadActiveYearId(studentAdmin);
   const { data, error } = await studentAdmin
     .from("assignments")
     .select(ASSIGNMENT_SELECT)
     .eq("class_id", student.classId)
     .eq("stream_id", student.streamId)
+    .eq("academic_year_id", year)
     .eq("status", "published")
     .in("subject_id", subjectIds)
     .order("deadline", { ascending: true, nullsFirst: false })
@@ -160,6 +163,8 @@ export async function loadAccessibleAssignment(
 
   const row = data as unknown as AssignmentRow;
   if (row.status !== "published") return null;
+  const activeYear = await loadActiveYearId(studentAdmin);
+  if (row.academic_year_id !== activeYear) return null;
   if (row.class_id !== student.classId || row.stream_id !== student.streamId) return null;
 
   const subjectIds = await visibleSubjectIds(student);
