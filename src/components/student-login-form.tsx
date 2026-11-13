@@ -46,6 +46,15 @@ function EyeOffIcon() {
   );
 }
 
+function ArrowLeftIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m12 19-7-7 7-7" />
+      <path d="M19 12H5" />
+    </svg>
+  );
+}
+
 export default function StudentLoginForm() {
   const router = useRouter();
   const [registrationNo, setRegistrationNo] = useState("");
@@ -216,6 +225,11 @@ export default function StudentLoginForm() {
             <button className="auth-submit" type="submit" disabled={submitting}>
               {submitting ? "Signing in…" : "Sign in"}
             </button>
+
+            <Link className="auth-back" href="/">
+              <ArrowLeftIcon />
+              Back to home
+            </Link>
           </form>
 
           <p className="auth-foot" style={{ marginTop: "1.4rem" }}>
