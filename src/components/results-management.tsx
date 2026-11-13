@@ -65,7 +65,7 @@ export default function ResultsManagement({ role }: { role?: string }) {
       setDbError(false);
       try {
         const [examRes, grading] = await Promise.all([
-          fetchExams({ search: "", page: 1, pageSize: 100 }),
+          fetchExams({ search: "", page: 1, pageSize: 100, scopeToActiveYear: true }),
           fetchGradingSettings(),
         ]);
         if (!active) return;

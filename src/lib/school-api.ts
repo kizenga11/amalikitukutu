@@ -15,6 +15,11 @@ import {
   RESULTS_WHATSAPP_LINK_KEY,
   type WhatsappLinks,
 } from "./whatsapp-links";
+import {
+  examYearOf,
+  loadActiveYearId,
+  studentsForExamYearFilter,
+} from "./active-year";
 
 export { DEFAULT_WHATSAPP_LINKS } from "./whatsapp-links";
 export type { WhatsappLinks } from "./whatsapp-links";
@@ -223,7 +228,7 @@ export async function fetchDashboardData(yearId: string, term: number): Promise<
   const yearEnd = `${Number(yearId) + 1}-01-01`;
 
   const [totalStudents, teachingStaff, activeClasses, totalSubjects] = await Promise.all([
-    count("students"),
+    countWhere("students", "status", "Active"),
     countWhere("staff", "role", "Teacher"),
     count("school_classes"),
     count("subjects"),
@@ -234,8 +239,8 @@ export async function fetchDashboardData(yearId: string, term: number): Promise<
     supabase.from("exams").select("id, name, start_date").gte("start_date", yearStart).lt("start_date", yearEnd),
     supabase.from("subjects").select("id, name"),
     supabase.from("school_classes").select("id, name"),
-    supabase.from("students").select("id", { count: "exact", head: true }).eq("gender", "Male"),
-    supabase.from("students").select("id", { count: "exact", head: true }).eq("gender", "Female"),
+    supabase.from("students").select("id", { count: "exact", head: true }).eq("gender", "Male").eq("status", "Active"),
+    supabase.from("students").select("id", { count: "exact", head: true }).eq("gender", "Female").eq("status", "Active"),
   ]);
   if (examResult.error) throw examResult.error;
   if (subjectResult.error) throw subjectResult.error;
@@ -384,7 +389,8 @@ export interface StudentListParams {
 export async function fetchStudents(params: StudentListParams): Promise<StudentListResult> {
   let query = supabase
     .from("students")
-    .select("*, school_classes(name), streams(name)", { count: "exact" });
+    .select("*, school_classes(name), streams(name)", { count: "exact" })
+    .eq("status", "Active");
 
   if (params.classId) query = query.eq("class_id", params.classId);
   if (params.streamId) query = query.eq("stream_id", params.streamId);
@@ -453,13 +459,18 @@ export async function renumberStudentRegistrations(classIds: (string | null)[]):
 // ---------------------------------------------------------------
 // Students — Subject assignments
 // ---------------------------------------------------------------
-export async function fetchStudentSubjects(studentId: string): Promise<string[]> {
+export async function fetchStudentSubjects(
+  studentId: string,
+  academicYear?: string,
+): Promise<string[]> {
+  const year = academicYear ?? (await loadActiveYearId(supabase));
   const { data, error } = await supabase
     .from("student_subjects")
     .select("subject_id")
-    .eq("student_id", studentId);
+    .eq("student_id", studentId)
+    .eq("academic_year", year);
   if (error) throw error;
-  return (data ?? []).map((row) => row.subject_id);
+  return Array.from(new Set((data ?? []).map((row) => row.subject_id)));
 }
 
 export interface EnrollmentStreamStat {
@@ -491,11 +502,12 @@ export interface EnrollmentStatistics {
 }
 
 export async function fetchEnrollmentStatistics(): Promise<EnrollmentStatistics> {
+  const activeYear = await loadActiveYearId(supabase);
   const [classes, studentsResult, subjectsResult, assignmentsResult] = await Promise.all([
     fetchClassesWithStreams(),
-    supabase.from("students").select("id, gender, class_id, stream_id"),
+    supabase.from("students").select("id, gender, class_id, stream_id").eq("status", "Active"),
     supabase.from("subjects").select("id, name").order("name"),
-    supabase.from("student_subjects").select("student_id, subject_id"),
+    supabase.from("student_subjects").select("student_id, subject_id").eq("academic_year", activeYear),
   ]);
 
   if (studentsResult.error) throw studentsResult.error;
@@ -614,11 +626,17 @@ export async function fetchEnrollmentStatistics(): Promise<EnrollmentStatistics>
   return { streams, subjects, male, female, total: male + female };
 }
 
-export async function saveStudentSubjects(studentId: string, subjectIds: string[]): Promise<void> {
+export async function saveStudentSubjects(
+  studentId: string,
+  subjectIds: string[],
+  academicYear?: string,
+): Promise<void> {
+  const year = academicYear ?? (await loadActiveYearId(supabase));
   const { data: currentRows, error: currentError } = await supabase
     .from("student_subjects")
     .select("subject_id, subjects(subject_type)")
-    .eq("student_id", studentId);
+    .eq("student_id", studentId)
+    .eq("academic_year", year);
   if (currentError) throw currentError;
 
   const currentIds = (currentRows ?? []).map((row) => row.subject_id);
@@ -638,6 +656,7 @@ export async function saveStudentSubjects(studentId: string, subjectIds: string[
       .from("student_subjects")
       .delete()
       .eq("student_id", studentId)
+      .eq("academic_year", year)
       .in("subject_id", optionalIdsToRemove);
     if (deleteError) throw deleteError;
   }
@@ -647,8 +666,8 @@ export async function saveStudentSubjects(studentId: string, subjectIds: string[
   const { error: insertError } = await supabase
     .from("student_subjects")
     .upsert(
-      idsToAdd.map((subject_id) => ({ student_id: studentId, subject_id })),
-      { onConflict: "student_id,subject_id", ignoreDuplicates: true },
+      idsToAdd.map((subject_id) => ({ student_id: studentId, subject_id, academic_year: year })),
+      { onConflict: "student_id,subject_id,academic_year", ignoreDuplicates: true },
     );
   if (insertError) throw insertError;
 }
@@ -780,21 +799,31 @@ export interface TeachingAssignment {
 
 export type TeachingScope = "General" | "Vocational" | "Both";
 
-export async function fetchTeachingAssignments(teacherId: string): Promise<TeachingAssignment[]> {
+export async function fetchTeachingAssignments(
+  teacherId: string,
+  academicYear?: string,
+): Promise<TeachingAssignment[]> {
+  const year = academicYear ?? (await loadActiveYearId(supabase));
   const { data, error } = await supabase
     .from("teaching_assignments")
     .select("id, teacher_id, subject_id, class_id, stream_id")
-    .eq("teacher_id", teacherId);
+    .eq("teacher_id", teacherId)
+    .eq("academic_year", year);
   if (error) throw error;
   return (data ?? []) as TeachingAssignment[];
 }
 
-export async function fetchTeachingAssignmentCounts(teacherIds: string[]): Promise<Record<string, number>> {
+export async function fetchTeachingAssignmentCounts(
+  teacherIds: string[],
+  academicYear?: string,
+): Promise<Record<string, number>> {
   if (teacherIds.length === 0) return {};
+  const year = academicYear ?? (await loadActiveYearId(supabase));
   const { data, error } = await supabase
     .from("teaching_assignments")
     .select("teacher_id")
-    .in("teacher_id", teacherIds);
+    .in("teacher_id", teacherIds)
+    .eq("academic_year", year);
   if (error) throw error;
   const counts: Record<string, number> = Object.fromEntries(teacherIds.map((id) => [id, 0]));
   for (const row of data ?? []) {
@@ -806,16 +835,19 @@ export async function fetchTeachingAssignmentCounts(teacherIds: string[]): Promi
 export async function saveTeachingAssignments(
   teacherId: string,
   assignments: { subject_id: string; class_id: string; stream_id: string }[],
+  academicYear?: string,
 ): Promise<void> {
+  const year = academicYear ?? (await loadActiveYearId(supabase));
   const { error: deleteError } = await supabase
     .from("teaching_assignments")
     .delete()
-    .eq("teacher_id", teacherId);
+    .eq("teacher_id", teacherId)
+    .eq("academic_year", year);
   if (deleteError) throw deleteError;
   if (assignments.length === 0) return;
   const { error: insertError } = await supabase
     .from("teaching_assignments")
-    .insert(assignments.map((a) => ({ ...a, teacher_id: teacherId })));
+    .insert(assignments.map((a) => ({ ...a, teacher_id: teacherId, academic_year: year })));
   if (insertError) throw insertError;
 }
 
@@ -890,7 +922,8 @@ export async function fetchTeacherDashboard(teacherId: string, yearId: string, t
   const { data: assignmentRows, error: taError } = await supabase
     .from("teaching_assignments")
     .select("id, subject_id, class_id, stream_id, subject:subjects(code, name), class:school_classes(name), stream:streams(name)")
-    .eq("teacher_id", teacherId);
+    .eq("teacher_id", teacherId)
+    .eq("academic_year", yearId);
   if (taError) throw taError;
 
   interface RawTa {
@@ -930,10 +963,12 @@ export async function fetchTeacherDashboard(teacherId: string, yearId: string, t
     supabase
       .from("students")
       .select("id, first_name, middle_name, last_name, gender, phone, stream_id")
+      .eq("status", "Active")
       .in("stream_id", streamIds),
     supabase
       .from("student_subjects")
       .select("student_id, subject_id")
+      .eq("academic_year", yearId)
       .in("subject_id", subjectIds),
   ]);
   if (studentsError) throw studentsError;
@@ -1128,6 +1163,8 @@ export interface ExamListParams {
   search?: string;
   page: number;
   pageSize: number;
+  /** When true, only exams of the active academic year are returned. */
+  scopeToActiveYear?: boolean;
 }
 
 export async function fetchExams(params: ExamListParams): Promise<{ rows: DbExamRow[]; total: number }> {
@@ -1135,6 +1172,13 @@ export async function fetchExams(params: ExamListParams): Promise<{ rows: DbExam
     .from("exams")
     .select("*", { count: "exact" })
     .order("created_at", { ascending: false });
+
+  if (params.scopeToActiveYear) {
+    const year = await loadActiveYearId(supabase);
+    query = query
+      .gte("start_date", `${year}-01-01`)
+      .lt("start_date", `${Number(year) + 1}-01-01`);
+  }
 
   const keyword = params.search?.trim().toLowerCase();
   if (keyword) query = query.ilike("name", `%${keyword}%`);
@@ -1360,6 +1404,7 @@ function byRegistrationNo(a: DbExamMarkStudent, b: DbExamMarkStudent): number {
 export async function fetchExamMarks(examId: string): Promise<ExamMarksData> {
   const detail = await fetchExamDetail(examId);
   const classIds = detail.classes.map((c) => c.id);
+  const examYear = examYearOf(detail.start_date);
 
   const { data: studentData, error: studentErr } =
     classIds.length > 0
@@ -1367,6 +1412,7 @@ export async function fetchExamMarks(examId: string): Promise<ExamMarksData> {
           .from("students")
           .select("id, registration_no, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name)")
           .in("class_id", classIds)
+          .or(studentsForExamYearFilter(examYear))
       : { data: null, error: null };
   if (studentErr) throw studentErr;
 
@@ -1386,6 +1432,7 @@ export async function fetchExamMarks(examId: string): Promise<ExamMarksData> {
           supabase
             .from("student_subjects")
             .select("student_id, subject_id")
+            .eq("academic_year", examYear)
             .in("student_id", batch),
         ),
       ),
@@ -1572,12 +1619,14 @@ export interface ExamAttendanceData {
 export async function fetchExamAttendance(examId: string): Promise<ExamAttendanceData> {
   const detail = await fetchExamDetail(examId);
   const classIds = detail.classes.map((c) => c.id);
+  const examYear = examYearOf(detail.start_date);
   if (classIds.length === 0) return { classes: [] };
 
   const { data: studentData, error: studentErr } = await supabase
     .from("students")
     .select("id, registration_no, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name)")
-    .in("class_id", classIds);
+    .in("class_id", classIds)
+    .or(studentsForExamYearFilter(examYear));
   if (studentErr) throw studentErr;
 
   interface StudentRaw {
@@ -1604,6 +1653,7 @@ export async function fetchExamAttendance(examId: string): Promise<ExamAttendanc
     const { data, error } = await supabase
       .from("student_subjects")
       .select("student_id, subject_id")
+      .eq("academic_year", examYear)
       .in("student_id", batch);
     if (error) throw error;
     for (const row of data ?? []) {
@@ -1661,12 +1711,18 @@ export interface IsalStudent {
 }
 
 export async function fetchIsalRoster(examId: string, subjectId: string): Promise<IsalStudent[]> {
-  const { data: classRels, error: classErr } = await supabase
-    .from("exam_class_subjects")
-    .select("class_id")
-    .eq("exam_id", examId)
-    .eq("subject_id", subjectId);
-  if (classErr) throw classErr;
+  const [classRelResult, examResult] = await Promise.all([
+    supabase
+      .from("exam_class_subjects")
+      .select("class_id")
+      .eq("exam_id", examId)
+      .eq("subject_id", subjectId),
+    supabase.from("exams").select("start_date").eq("id", examId).maybeSingle(),
+  ]);
+  const classRels = classRelResult.data;
+  if (classRelResult.error) throw classRelResult.error;
+  if (examResult.error) throw examResult.error;
+  const examYear = examYearOf(examResult.data?.start_date ?? null);
 
   const classIds = Array.from(new Set((classRels ?? []).map((row) => row.class_id as string)));
   if (classIds.length === 0) return [];
@@ -1694,7 +1750,9 @@ export async function fetchIsalRoster(examId: string, subjectId: string): Promis
         "id, registration_no, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name), student_subjects!inner(subject_id)",
       )
       .eq("student_subjects.subject_id", subjectId)
+      .eq("student_subjects.academic_year", examYear)
       .in("class_id", classIds)
+      .or(studentsForExamYearFilter(examYear))
       .order("registration_no", { ascending: true, nullsFirst: false })
       .order("last_name", { ascending: true })
       .order("first_name", { ascending: true })

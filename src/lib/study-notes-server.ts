@@ -1,5 +1,6 @@
 import { studentAdmin } from "@/lib/student-auth";
 import { isUuid } from "@/lib/stream-teacher-server";
+import { loadActiveYearId } from "@/lib/active-year";
 import type { StudentProfile } from "@/lib/student-auth";
 import type {
   NoteAudienceRow,
@@ -77,7 +78,11 @@ export async function loadStaffNoteContexts(
   staffId: string,
   unrestricted: boolean,
 ): Promise<NoteContext[]> {
-  let query = studentAdmin.from("teaching_assignments").select(TEACHING_SELECT);
+  const year = await loadActiveYearId(studentAdmin);
+  let query = studentAdmin
+    .from("teaching_assignments")
+    .select(TEACHING_SELECT)
+    .eq("academic_year", year);
   if (!unrestricted) query = query.eq("teacher_id", staffId);
   const { data, error } = await query;
   if (error) throw error;
@@ -284,11 +289,13 @@ export async function studentCanViewNote(student: StudentProfile, noteId: string
   if (!student.classId || !student.streamId) return false;
   if (info.context.classId !== student.classId || info.context.streamId !== student.streamId) return false;
   // must take subject
+  const year = await loadActiveYearId(studentAdmin);
   const { data, error } = await studentAdmin
     .from("student_subjects")
     .select("student_id")
     .eq("student_id", student.id)
     .eq("subject_id", info.context.subjectId)
+    .eq("academic_year", year)
     .maybeSingle();
   if (error) throw error;
   return Boolean(data);
@@ -296,11 +303,13 @@ export async function studentCanViewNote(student: StudentProfile, noteId: string
 
 export async function loadStudentPublishedNotes(student: StudentProfile): Promise<StudentTopicView[]> {
   if (!student.classId || !student.streamId) return [];
+  const year = await loadActiveYearId(studentAdmin);
   // student's subjects
   const { data: subs, error: subErr } = await studentAdmin
     .from("student_subjects")
     .select("subject_id")
-    .eq("student_id", student.id);
+    .eq("student_id", student.id)
+    .eq("academic_year", year);
   if (subErr) throw subErr;
   const subjectIds = (subs ?? []).map((s: any) => s.subject_id);
   if (subjectIds.length === 0) return [];
@@ -311,6 +320,7 @@ export async function loadStudentPublishedNotes(student: StudentProfile): Promis
     .select(TEACHING_SELECT)
     .eq("class_id", student.classId)
     .eq("stream_id", student.streamId)
+    .eq("academic_year", year)
     .in("subject_id", subjectIds);
   if (taErr) throw taErr;
   const contexts = ((tas ?? []) as unknown as TeachingRow[]).map(toContext);

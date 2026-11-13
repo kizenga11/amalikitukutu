@@ -45,7 +45,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         .from("teaching_assignments")
         .select("subject_id, teacher:staff!teaching_assignments_teacher_id_fkey(id, first_name, last_name, name)")
         .eq("class_id", access.assignment.class_id)
-        .eq("stream_id", streamId),
+        .eq("stream_id", streamId)
+        .eq("academic_year", year),
     ]);
 
     if (subjectsRes.error) throw subjectsRes.error;

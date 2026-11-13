@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/errors";
+import { studentsForExamYearFilter } from "@/lib/active-year";
 import {
   cleanText,
   isAcademicYear,
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .select("id, registration_no, first_name, middle_name, last_name, gender")
       .eq("class_id", access.assignment.class_id)
       .eq("stream_id", streamId)
+      .or(studentsForExamYearFilter(year))
       .order("last_name")
       .order("first_name");
     if (studentError) throw studentError;

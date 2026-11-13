@@ -16,6 +16,11 @@ import {
 } from "@/lib/grading";
 import { normalizePhone, sendSmsBatch, smsConfigured, type SmsDispatchItem } from "@/lib/sms";
 import {
+  examYearOf,
+  loadActiveYearId,
+  studentsForExamYearFilter,
+} from "@/lib/active-year";
+import {
   PARENTS_WHATSAPP_GROUP_KEY,
   RESULTS_WHATSAPP_LINK_KEY,
   whatsappLinksSmsSuffix,
@@ -168,7 +173,7 @@ async function loadRecipients(body: SmsRequestBody): Promise<RawRecipient[]> {
     return rows;
   }
 
-  let query = admin.from("students").select(columns);
+  let query = admin.from("students").select(columns).eq("status", "Active");
   if (body.classId) query = query.eq("class_id", body.classId);
   if (body.streamId) query = query.eq("stream_id", body.streamId);
   const { data, error } = await query.order("last_name").order("first_name");
@@ -189,12 +194,18 @@ async function loadClassNames(): Promise<Map<string, string>> {
 async function buildResultsMessages(examId: string): Promise<{ messages: Map<string, string>; total: number; examName: string }> {
   const { data: exam, error: examError } = await admin
     .from("exams")
-    .select("id, name, status")
+    .select("id, name, status, start_date")
     .eq("id", examId)
     .maybeSingle();
   if (examError) throw examError;
   if (!exam) throw new Error("Mtihani haupo.");
   if (exam.status === "draft") throw new Error("Matokeo ya mtihani huu bado hayajakamilika.");
+
+  const activeYear = await loadActiveYearId(admin);
+  const examYear = examYearOf(exam.start_date);
+  if (examYear !== activeYear) {
+    throw new Error("Matokeo ya mtihani huu hayapatikani kwa mwaka wa masomo uliopo.");
+  }
 
   const classRels = await admin
     .from("exam_classes")
@@ -257,6 +268,7 @@ async function buildResultsMessages(examId: string): Promise<{ messages: Map<str
       .from("students")
       .select("id, first_name, middle_name, last_name, gender, phone, registration_no, class_id, stream_id")
       .in("class_id", batch)
+      .or(studentsForExamYearFilter(examYear))
       .order("last_name");
     if (error) throw error;
     students.push(...((data ?? []) as RawRecipient[]));
@@ -267,7 +279,11 @@ async function buildResultsMessages(examId: string): Promise<{ messages: Map<str
     (async () => {
       const links: { student_id: string; subject_id: string }[] = [];
       for (const batch of chunk(studentIds, 100)) {
-        const { data, error } = await admin.from("student_subjects").select("student_id, subject_id").in("student_id", batch);
+        const { data, error } = await admin
+          .from("student_subjects")
+          .select("student_id, subject_id")
+          .eq("academic_year", examYear)
+          .in("student_id", batch);
         if (error) throw error;
         links.push(...((data ?? []) as { student_id: string; subject_id: string }[]));
       }

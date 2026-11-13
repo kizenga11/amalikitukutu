@@ -13,6 +13,7 @@ import {
 } from "@/lib/calendar";
 import TeacherDashboard from "@/components/teacher-dashboard";
 import ProfilePanel from "@/components/profile-panel";
+import PromotionPanel from "@/components/promotion-panel";
 import LessonPlansView from "@/components/lesson-plans-view";
 import { StatCardSkeleton, PanelSkeleton, Spinner } from "@/components/loading";
 
@@ -649,6 +650,11 @@ function SettingsPanel({ active, onSave }: { active: Period; onSave: (period: Pe
   const dirty = yearId !== active.yearId || term !== active.term;
   const terms = getYear(yearId).terms;
 
+  useEffect(() => {
+    setYearId(active.yearId);
+    setTerm(active.term);
+  }, [active.yearId, active.term]);
+
   const [school, setSchool] = useState<SchoolInfo>(DEFAULT_SCHOOL_INFO);
   const [savedSchool, setSavedSchool] = useState<SchoolInfo>(DEFAULT_SCHOOL_INFO);
   const [schoolLoading, setSchoolLoading] = useState(true);
@@ -813,6 +819,11 @@ function SettingsPanel({ active, onSave }: { active: Period; onSave: (period: Pe
           </button>
         </div>
       </div>
+
+      <PromotionPanel
+        activeYear={active.yearId}
+        onPromoted={(year) => onSave({ yearId: year, term: 1 })}
+      />
 
       <div className="settings-card">
         <div className="panel-head">

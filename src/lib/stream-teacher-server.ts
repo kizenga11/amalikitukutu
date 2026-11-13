@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { examYearOf, studentsForExamYearFilter, yearRange } from "@/lib/active-year";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -306,11 +307,18 @@ export interface ScopedExamMarks {
   };
 }
 
-export async function loadScopedExams(classId: string): Promise<ScopedExam[]> {
-  const { data, error } = await streamTeacherAdmin
+export async function loadScopedExams(classId: string, yearId?: string): Promise<ScopedExam[]> {
+  let query = streamTeacherAdmin
     .from("exam_classes")
     .select("exam:exams!inner(id, name, start_date, end_date, has_practical, status)")
     .eq("class_id", classId);
+
+  if (yearId) {
+    const { start, end } = yearRange(yearId);
+    query = query.gte("exam.start_date", start).lt("exam.start_date", end);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
 
@@ -334,6 +342,7 @@ export async function loadScopedExamMarks(
     .maybeSingle();
   if (examError) throw examError;
   if (!examRow || examRow.status === "draft") return null;
+  const examYear = examYearOf(examRow.start_date);
 
   const { data: classLink, error: classError } = await streamTeacherAdmin
     .from("exam_classes")
@@ -360,6 +369,7 @@ export async function loadScopedExamMarks(
       .select("id, registration_no, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name)")
       .eq("class_id", assignment.class_id)
       .eq("stream_id", assignment.stream_id)
+      .or(studentsForExamYearFilter(examYear))
       .order("registration_no", { ascending: true, nullsFirst: false })
       .order("last_name")
       .order("first_name"),
@@ -420,6 +430,7 @@ export async function loadScopedExamMarks(
     const { data: linkRows, error: linkError } = await streamTeacherAdmin
       .from("student_subjects")
       .select("student_id, subject_id")
+      .eq("academic_year", examYear)
       .in("student_id", studentIds);
     if (linkError) throw linkError;
     for (const row of (linkRows ?? []) as { student_id: string; subject_id: string }[]) {

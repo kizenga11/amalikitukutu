@@ -37,7 +37,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const access = await requireStreamTeacher(request, streamId, year);
     if (!access.ok) return access.response;
 
-    const exams = await loadScopedExams(access.assignment.class_id);
+    const exams = await loadScopedExams(access.assignment.class_id, year);
     const data = examId && isUuid(examId) ? await loadScopedExamMarks(access.assignment, examId) : null;
 
     const studentIds = data?.classRow.students.map((student) => student.student_id) ?? [];

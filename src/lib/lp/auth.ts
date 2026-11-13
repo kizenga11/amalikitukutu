@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import type { User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { loadActiveYearId } from "@/lib/active-year";
 import { lpDb } from "./db";
 
 export const SCHOOL_NAME = "Kitukutu Technical Secondary School";
@@ -73,10 +74,12 @@ export async function getLpUser(accessToken?: string): Promise<LpUser | null> {
     .maybeSingle();
   if (!staff) return null;
 
+  const activeYear = await loadActiveYearId(db);
   const { data: rows } = await db
     .from("teaching_assignments")
     .select("subject:subjects(name)")
-    .eq("teacher_id", staff.id);
+    .eq("teacher_id", staff.id)
+    .eq("academic_year", activeYear);
 
   type SubLink = { subject: { name: string } | { name: string }[] | null };
   const subjects = [

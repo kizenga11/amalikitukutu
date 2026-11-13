@@ -10,6 +10,7 @@ import {
   type StructuredPart,
 } from "@/lib/assignments-shared";
 import { currentTerm, currentYearId } from "@/lib/calendar";
+import { loadActiveYearId } from "@/lib/active-year";
 import { studentAdmin } from "@/lib/student-auth";
 import { ASSIGNMENT_SELECT, firstRelation, type AssignmentRow } from "@/lib/student-assignments-server";
 
@@ -297,12 +298,14 @@ export async function loadTeacherOptions(
     return loadAllTeacherOptions();
   }
 
+  const year = await loadActiveYearId(studentAdmin);
   const { data, error } = await studentAdmin
     .from("teaching_assignments")
     .select(
       "subject_id, class_id, stream_id, subject:subjects(code, name), class:school_classes(name, form_level), stream:streams(name)",
     )
-    .eq("teacher_id", staffId);
+    .eq("teacher_id", staffId)
+    .eq("academic_year", year);
   if (error) throw error;
 
   const seen = new Set<string>();
@@ -356,6 +359,7 @@ interface OptionStudentSubjectRow {
 }
 
 async function loadAllTeacherOptions(): Promise<TeacherOption[]> {
+  const year = await loadActiveYearId(studentAdmin);
   const [subjectsResult, classesResult, streamsResult, linksResult, teachingResult] =
     await Promise.all([
       studentAdmin.from("subjects").select("id, code, name"),
@@ -363,8 +367,12 @@ async function loadAllTeacherOptions(): Promise<TeacherOption[]> {
       studentAdmin.from("streams").select("id, class_id, name"),
       studentAdmin
         .from("student_subjects")
-        .select("subject_id, student:students(class_id, stream_id)"),
-      studentAdmin.from("teaching_assignments").select("subject_id, class_id, stream_id"),
+        .select("subject_id, student:students(class_id, stream_id)")
+        .eq("academic_year", year),
+      studentAdmin
+        .from("teaching_assignments")
+        .select("subject_id, class_id, stream_id")
+        .eq("academic_year", year),
     ]);
 
   if (subjectsResult.error) throw subjectsResult.error;
@@ -435,6 +443,7 @@ export async function canTeach(
   classId: string,
   streamId: string,
 ): Promise<boolean> {
+  const year = await loadActiveYearId(studentAdmin);
   const { data, error } = await studentAdmin
     .from("teaching_assignments")
     .select("id")
@@ -442,6 +451,7 @@ export async function canTeach(
     .eq("subject_id", subjectId)
     .eq("class_id", classId)
     .eq("stream_id", streamId)
+    .eq("academic_year", year)
     .maybeSingle();
   if (error) throw error;
   return Boolean(data);
@@ -452,11 +462,13 @@ async function studentsForSubject(
   streamId: string,
   subjectId: string,
 ): Promise<StudentRow[]> {
+  const year = await loadActiveYearId(studentAdmin);
   const { data: studentData, error: studentError } = await studentAdmin
     .from("students")
     .select("id, registration_no, first_name, middle_name, last_name")
     .eq("class_id", classId)
     .eq("stream_id", streamId)
+    .eq("status", "Active")
     .order("last_name")
     .order("first_name");
   if (studentError) throw studentError;
@@ -468,6 +480,7 @@ async function studentsForSubject(
     .from("student_subjects")
     .select("student_id")
     .eq("subject_id", subjectId)
+    .eq("academic_year", year)
     .in(
       "student_id",
       rows.map((row) => row.id),

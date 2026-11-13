@@ -1228,6 +1228,32 @@ button:disabled, select:disabled { cursor: not-allowed; }
 .settings-save .icon { width: 1rem; }
 .settings-save:hover:not(:disabled) { background: var(--primary-hover); }
 .settings-save:disabled { opacity: .45; cursor: not-allowed; }
+.settings-card--wide { max-width: 720px; }
+.settings-save--danger { background: #b91c1c; border-color: #b91c1c; }
+.settings-save--danger:hover:not(:disabled) { background: #991b1b; }
+.settings-secondary {
+  padding: .6rem 1rem;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--line); border-radius: .5rem;
+  font-size: .8125rem; font-weight: 600; cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.settings-secondary:hover:not(:disabled) { color: var(--ink); border-color: var(--muted); }
+.settings-secondary:disabled { opacity: .45; cursor: not-allowed; }
+.promotion-lead { margin: .25rem 0 .75rem; font-size: .85rem; color: var(--ink); }
+.promotion-note { margin: .5rem 0 0; font-size: .85rem; line-height: 1.55; color: var(--muted); }
+.promotion-table-wrap { overflow-x: auto; margin: .5rem 0 1rem; }
+.promotion-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.promotion-table th,
+.promotion-table td { padding: .5rem .65rem; text-align: left; border-bottom: 1px solid var(--line); }
+.promotion-table th { font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.promotion-table td:nth-child(2) { font-variant-numeric: tabular-nums; }
+.promotion-list,
+.promotion-warnings { margin: .5rem 0 0; padding-left: 1.1rem; font-size: .82rem; line-height: 1.6; color: var(--ink); }
+.promotion-warnings { color: #b45309; }
+.promotion-check { display: flex; align-items: flex-start; gap: .55rem; margin-top: 1rem; font-size: .82rem; line-height: 1.5; color: var(--ink); }
+.promotion-check input { margin-top: .15rem; }
+.promotion-result-title { margin: 0 0 .35rem; font-size: .95rem; font-weight: 600; color: #059669; }
 
 /* ---------- Stats ---------- */
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }

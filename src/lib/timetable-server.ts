@@ -7,6 +7,7 @@
    ============================================================ */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { loadActiveYearId } from "./active-year";
 import {
   DEFAULT_RULES,
   normalizeRules,
@@ -127,6 +128,7 @@ export function classLabelFor(formLevel: number, streamIndex: number, streamName
 
 export async function loadTimetableData(sourceVersionId?: string): Promise<TimetableData> {
   const db = timetableDb();
+  const activeYear = await loadActiveYearId(db);
 
   const [
     formsResult,
@@ -145,7 +147,7 @@ export async function loadTimetableData(sourceVersionId?: string): Promise<Timet
     db.from("streams").select("id, class_id, name"),
     db.from("subjects").select("id, code, name"),
     db.from("staff").select("id, name, first_name, middle_name, last_name"),
-    db.from("teaching_assignments").select("id, teacher_id, subject_id, class_id, stream_id"),
+    db.from("teaching_assignments").select("id, teacher_id, subject_id, class_id, stream_id").eq("academic_year", activeYear),
     db.from("timetable_day_slot").select("id, day, position, start_time, end_time, kind, label").order("day").order("position"),
     db.from("timetable_slot_scope").select("slot_id, class_id"),
     db.from("timetable_subject_periods").select("class_id, subject_id, assignment_id, periods, morning_priority"),

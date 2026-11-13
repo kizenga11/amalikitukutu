@@ -85,7 +85,7 @@ export default function SubjectAnalysis({ authUserId }: { authUserId: string }) 
         }
         const [teacherAssignments, examResult, grading, info] = await Promise.all([
           fetchTeachingAssignments(teacher.id),
-          fetchExams({ search: "", page: 1, pageSize: 100 }),
+          fetchExams({ search: "", page: 1, pageSize: 100, scopeToActiveYear: true }),
           fetchGradingSettings(),
           fetchSchoolInfo(),
         ]);

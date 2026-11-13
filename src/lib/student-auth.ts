@@ -1,6 +1,7 @@
 import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { loadActiveYearId } from "@/lib/active-year";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -398,11 +399,16 @@ function firstRelation<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null;
 }
 
-export async function loadStudentSubjects(studentId: string): Promise<StudentSubject[]> {
+export async function loadStudentSubjects(
+  studentId: string,
+  academicYear?: string,
+): Promise<StudentSubject[]> {
+  const year = academicYear ?? (await loadActiveYearId(studentAdmin));
   const { data, error } = await studentAdmin
     .from("student_subjects")
     .select("subject:subjects(id, code, name)")
-    .eq("student_id", studentId);
+    .eq("student_id", studentId)
+    .eq("academic_year", year);
   if (error) throw error;
 
   return ((data ?? []) as unknown as {
@@ -417,8 +423,10 @@ export async function loadStudentSubjectsWithTeachers(
   studentId: string,
   classId: string | null,
   streamId: string | null,
+  academicYear?: string,
 ): Promise<StudentSubjectWithTeacher[]> {
-  const subjects = await loadStudentSubjects(studentId);
+  const year = academicYear ?? (await loadActiveYearId(studentAdmin));
+  const subjects = await loadStudentSubjects(studentId, year);
   if (subjects.length === 0) return [];
   if (!classId) return subjects.map((subject) => ({ ...subject, teachers: [] }));
 
@@ -426,6 +434,7 @@ export async function loadStudentSubjectsWithTeachers(
     .from("teaching_assignments")
     .select("subject_id, teacher:staff(first_name, middle_name, last_name, name, phone)")
     .eq("class_id", classId)
+    .eq("academic_year", year)
     .in(
       "subject_id",
       subjects.map((subject) => subject.id),

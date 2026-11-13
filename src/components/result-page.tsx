@@ -69,7 +69,7 @@ export default function ResultPage({ role }: { role?: string }) {
   useEffect(() => {
     let active = true;
     Promise.all([
-      fetchExams({ search: "", page: 1, pageSize: 100 }),
+      fetchExams({ search: "", page: 1, pageSize: 100, scopeToActiveYear: true }),
       fetchGradingSettings(),
       fetchSchoolInfo(),
     ])

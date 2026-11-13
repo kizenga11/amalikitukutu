@@ -22,7 +22,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const access = await requireStreamTeacher(request, streamId, year);
     if (!access.ok) return access.response;
 
-    const exams = await loadScopedExams(access.assignment.class_id);
+    const exams = await loadScopedExams(access.assignment.class_id, year);
     if (!examId) {
       return NextResponse.json({
         stream: {

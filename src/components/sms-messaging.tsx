@@ -129,7 +129,7 @@ export default function SmsMessaging() {
 
   useEffect(() => {
     fetchClassesWithStreams().then(setClasses).catch(() => setClasses([]));
-    fetchExams({ search: "", page: 1, pageSize: 100 })
+    fetchExams({ search: "", page: 1, pageSize: 100, scopeToActiveYear: true })
       .then((res) => {
         setExams(res.rows);
         const first = res.rows.find((exam) => ELIGIBLE_EXAM_STATUSES.includes(exam.status));

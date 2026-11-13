@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { loadActiveYearId, yearRange } from "@/lib/active-year";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -15,12 +16,16 @@ const admin: SupabaseClient = createClient(supabaseUrl, serviceRoleKey, {
 export async function GET() {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 7000);
+  const year = await loadActiveYearId(admin);
+  const { start, end } = yearRange(year);
   let result;
   try {
     result = await admin
       .from("exams")
       .select("id, name, start_date, end_date")
       .eq("status", "published")
+      .gte("start_date", start)
+      .lt("start_date", end)
       .order("start_date", { ascending: false })
       .abortSignal(controller.signal);
   } catch {

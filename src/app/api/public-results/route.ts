@@ -11,6 +11,11 @@ import {
   type CompetencyThreshold,
   type ClassStudentsInput,
 } from "@/lib/grading";
+import {
+  examYearOf,
+  loadActiveYearId,
+  studentsForExamYearFilter,
+} from "@/lib/active-year";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -84,6 +89,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Results are not published yet" }, { status: 404 });
   }
 
+  const activeYear = await loadActiveYearId(admin);
+  const examYear = examYearOf(exam.start_date);
+  if (examYear !== activeYear) {
+    return NextResponse.json(
+      { error: "Results for this exam are not available in the current academic year." },
+      { status: 404 },
+    );
+  }
+
   const [classRels, subjectRels] = await Promise.all([
     admin.from("exam_classes").select("class_id, class:school_classes(name)").eq("exam_id", examId),
     admin.from("exam_class_subjects").select("class_id, subject_id, subject:subjects(code, name, has_practical)").eq("exam_id", examId),
@@ -116,6 +130,7 @@ export async function GET(request: Request) {
     .from("students")
     .select("id, registration_no, first_name, middle_name, last_name, gender, class_id, stream_id, stream:streams(name)")
     .in("class_id", classIds)
+    .or(studentsForExamYearFilter(examYear))
     .ilike("registration_no", registrationNo ? `%${registrationNo}%` : "%");
   if (studentErr) return NextResponse.json({ error: "Could not load students" }, { status: 500 });
 
@@ -125,7 +140,11 @@ export async function GET(request: Request) {
   if (studentIds.length > 0) {
     for (let i = 0; i < studentIds.length; i += 100) {
       const batch = studentIds.slice(i, i + 100);
-      const { data, error } = await admin.from("student_subjects").select("student_id, subject_id").in("student_id", batch);
+      const { data, error } = await admin
+        .from("student_subjects")
+        .select("student_id, subject_id")
+        .eq("academic_year", examYear)
+        .in("student_id", batch);
       if (error) return NextResponse.json({ error: "Could not load student subjects" }, { status: 500 });
       subjectLinks.push(...(data ?? []));
     }

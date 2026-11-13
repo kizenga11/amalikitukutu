@@ -11,7 +11,7 @@ import {
   type MarksCellInput,
 } from "@/lib/grading";
 import { studentAdmin, type StudentProfile } from "@/lib/student-auth";
-import { currentYearId } from "@/lib/calendar";
+import { loadActiveYearId, studentsForExamYearFilter } from "@/lib/active-year";
 
 interface ExamRow {
   id: string;
@@ -178,7 +178,10 @@ async function loadSubjectsByExam(
   return map;
 }
 
-async function loadStudentSubjectLinks(studentIds: string[]): Promise<Map<string, string[]>> {
+async function loadStudentSubjectLinks(
+  studentIds: string[],
+  academicYear: string,
+): Promise<Map<string, string[]>> {
   const map = new Map<string, string[]>();
   for (let i = 0; i < studentIds.length; i += 100) {
     const batch = studentIds.slice(i, i + 100);
@@ -187,6 +190,7 @@ async function loadStudentSubjectLinks(studentIds: string[]): Promise<Map<string
         studentAdmin
           .from("student_subjects")
           .select("student_id, subject_id")
+          .eq("academic_year", academicYear)
           .in("student_id", batch)
           .order("student_id")
           .order("subject_id")
@@ -201,7 +205,7 @@ async function loadStudentSubjectLinks(studentIds: string[]): Promise<Map<string
   return map;
 }
 
-async function loadClassStudents(classId: string): Promise<{
+async function loadClassStudents(classId: string, academicYear: string): Promise<{
   rows: RawStudentRow[];
   inputs: ClassStudentsInput[];
 }> {
@@ -211,12 +215,13 @@ async function loadClassStudents(classId: string): Promise<{
       "id, first_name, middle_name, last_name, gender, stream_id, stream:streams(name)",
     )
     .eq("class_id", classId)
+    .or(studentsForExamYearFilter(academicYear))
     .order("last_name")
     .order("first_name");
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as RawStudentRow[];
-  const links = await loadStudentSubjectLinks(rows.map((row) => row.id));
+  const links = await loadStudentSubjectLinks(rows.map((row) => row.id), academicYear);
 
   return {
     rows,
@@ -237,15 +242,7 @@ async function loadClassStudents(classId: string): Promise<{
 }
 
 async function loadActiveAcademicYear(): Promise<string> {
-  const { data, error } = await studentAdmin
-    .from("academic_settings")
-    .select("value")
-    .eq("key", "active_year")
-    .maybeSingle();
-  if (error) return currentYearId;
-
-  const value = typeof data?.value === "string" ? data.value.trim() : "";
-  return /^\d{4}$/.test(value) ? value : currentYearId;
+  return loadActiveYearId(studentAdmin);
 }
 
 export async function loadStudentResults(
@@ -265,13 +262,13 @@ export async function loadStudentResults(
   const publishedExams = (examData ?? []) as ExamRow[];
   if (publishedExams.length === 0) return [];
 
-  // Students should see every exam of the current academic year. If the year
-  // setting is ahead of the data, fall back to all published exams so results
-  // never disappear because of a configuration mismatch.
-  const yearExams = publishedExams.filter(
+  // Students only see exams that belong to the active academic year. When a
+  // new year is set, the previous year's results stay in the database but are
+  // hidden until the school switches the active year back.
+  const scopedExams = publishedExams.filter(
     (exam) => exam.start_date.slice(0, 4) === activeYear,
   );
-  const scopedExams = yearExams.length > 0 ? yearExams : publishedExams;
+  if (scopedExams.length === 0) return [];
 
   const { data: classLinks, error: classLinkError } = await studentAdmin
     .from("exam_classes")
@@ -289,7 +286,7 @@ export async function loadStudentResults(
 
   const examIds = exams.map((exam) => exam.id);
   const [{ inputs: studentInputs }, subjectsByExam, settings] = await Promise.all([
-    loadClassStudents(student.classId),
+    loadClassStudents(student.classId, activeYear),
     loadSubjectsByExam(examIds, student.classId),
     loadGradingSettings(),
   ]);

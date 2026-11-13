@@ -138,7 +138,7 @@ export default function ExamAttendance({ teacherId }: { teacherId?: string }) {
 
   useEffect(() => {
     let active = true;
-    Promise.all([fetchExams({ search: "", page: 1, pageSize: 100 }), fetchSchoolInfo()])
+    Promise.all([fetchExams({ search: "", page: 1, pageSize: 100, scopeToActiveYear: true }), fetchSchoolInfo()])
       .then(([examResult, info]) => {
         if (!active) return;
         const eligible = isTeacher ? examResult.rows.filter((exam) => exam.status !== "draft") : examResult.rows;

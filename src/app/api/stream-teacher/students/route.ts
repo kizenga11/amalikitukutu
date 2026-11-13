@@ -60,6 +60,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .select("id, registration_no, first_name, middle_name, last_name, gender, phone, class_id, stream_id, stream:streams(name)")
       .eq("class_id", access.assignment.class_id)
       .eq("stream_id", streamId)
+      .eq("status", "Active")
       .order("last_name")
       .order("first_name");
     if (error) throw error;

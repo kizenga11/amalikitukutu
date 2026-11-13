@@ -10,6 +10,12 @@ import {
   type CompetencyThreshold,
   type GradeBoundary,
 } from "@/lib/grading";
+import {
+  examYearOf,
+  loadActiveYearId,
+  studentsForExamYearFilter,
+  yearRange,
+} from "@/lib/active-year";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -88,10 +94,12 @@ async function authorize(request: NextRequest): Promise<AuthorizeResult> {
     return { error: NextResponse.json({ error: "This account is not a teacher account." }, { status: 403 }) };
   }
 
+  const activeYear = await loadActiveYearId(admin);
   const { data: assignmentRows, error: assignmentError } = await admin
     .from("teaching_assignments")
     .select("subject_id, class_id, subject:subjects(id, code, name, has_practical), class:school_classes(id, name, form_level)")
-    .eq("teacher_id", staff.id);
+    .eq("teacher_id", staff.id)
+    .eq("academic_year", activeYear);
   if (assignmentError) {
     return { error: NextResponse.json({ error: "Could not load your subjects." }, { status: 500 }) };
   }
@@ -160,11 +168,15 @@ async function examsResponse(ctx: TeacherContext, url: URL): Promise<NextRespons
   if ("error" in allowed) return allowed.error;
   if (allowed.ids.size === 0) return NextResponse.json({ exams: [] });
 
+  const activeYear = await loadActiveYearId(admin);
+  const { start, end } = yearRange(activeYear);
   const { data, error } = await admin
     .from("exams")
     .select("id, name, start_date, end_date, status")
     .in("id", Array.from(allowed.ids))
     .neq("status", "draft")
+    .gte("start_date", start)
+    .lt("start_date", end)
     .order("start_date", { ascending: true });
   if (error) {
     return NextResponse.json({ error: "Could not load exams." }, { status: 500 });
@@ -263,19 +275,32 @@ async function compareResponse(ctx: TeacherContext, url: URL): Promise<NextRespo
     return NextResponse.json({ error: "The selected exam has no results for this form and subject." }, { status: 400 });
   }
 
+  const activeYear = await loadActiveYearId(admin);
   const [marksA, marksB, studentsRes, subjectRes, settingsRes, examARes, examBRes, enrolRes] = await Promise.all([
     admin.from("exam_marks").select("student_id, theory_score, practical_score, is_absent").eq("exam_id", examAId).eq("class_id", classId).eq("subject_id", subjectId),
     admin.from("exam_marks").select("student_id, theory_score, practical_score, is_absent").eq("exam_id", examBId).eq("class_id", classId).eq("subject_id", subjectId),
-    admin.from("students").select("id, first_name, middle_name, last_name, gender, stream_id, stream:streams(name)").eq("class_id", classId),
+    admin.from("students").select("id, first_name, middle_name, last_name, gender, stream_id, stream:streams(name)").eq("class_id", classId).or(studentsForExamYearFilter(activeYear)),
     admin.from("subjects").select("id, code, name, has_practical").eq("id", subjectId).maybeSingle(),
     admin.from("academic_settings").select("key, value").in("key", ["grade_boundaries", "competency_thresholds"]),
     admin.from("exams").select("id, name, start_date").eq("id", examAId).maybeSingle(),
     admin.from("exams").select("id, name, start_date").eq("id", examBId).maybeSingle(),
-    admin.from("student_subjects").select("student_id").eq("subject_id", subjectId),
+    admin.from("student_subjects").select("student_id").eq("subject_id", subjectId).eq("academic_year", activeYear),
   ]);
 
   if (marksA.error || marksB.error || studentsRes.error || settingsRes.error) {
     return NextResponse.json({ error: "Could not load results." }, { status: 500 });
+  }
+
+  if (
+    !examARes.data ||
+    !examBRes.data ||
+    examYearOf(examARes.data.start_date) !== activeYear ||
+    examYearOf(examBRes.data.start_date) !== activeYear
+  ) {
+    return NextResponse.json(
+      { error: "Results are only available for the active academic year." },
+      { status: 400 },
+    );
   }
 
   // Only compare students who actually study this subject. When no enrollment

@@ -20,6 +20,10 @@ import {
   type YearlySettings,
 } from "@/lib/yearly-results";
 import { isUuid, requireStreamTeacher } from "@/lib/stream-teacher-server";
+import {
+  loadActiveYearId,
+  studentsForExamYearFilter,
+} from "@/lib/active-year";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -137,6 +141,7 @@ interface StreamRow {
 }
 
 async function optionsResponse(scope: StreamScope | null): Promise<NextResponse> {
+  const activeYear = await loadActiveYearId(admin);
   const [classesRes, streamsRes] = await Promise.all([
     admin.from("school_classes").select("id, form_level, name").order("form_level"),
     admin.from("streams").select("id, class_id, name"),
@@ -157,7 +162,9 @@ async function optionsResponse(scope: StreamScope | null): Promise<NextResponse>
         .sort((a, b) => a.name.localeCompare(b.name)),
     }));
   return NextResponse.json({
-    years: academicYears.map((y) => ({ id: y.id, label: y.label })),
+    years: academicYears
+      .filter((y) => y.id === activeYear)
+      .map((y) => ({ id: y.id, label: y.label })),
     forms,
   });
 }
@@ -171,6 +178,13 @@ async function examsResponse(url: URL, scope: StreamScope | null): Promise<NextR
   const classId = scope?.classId ?? requestedClassId;
   if (!isValidYear(year) || !classId) {
     return NextResponse.json({ error: "Select an academic year and a form first." }, { status: 400 });
+  }
+  const activeYear = await loadActiveYearId(admin);
+  if (year !== activeYear) {
+    return NextResponse.json(
+      { error: "Results are only available for the active academic year." },
+      { status: 400 },
+    );
   }
 
   const { data: links, error: linkError } = await admin
@@ -239,6 +253,13 @@ async function reportResponse(url: URL, scope: StreamScope | null): Promise<Next
   if (!isValidYear(year) || !classId || examIds.length === 0) {
     return NextResponse.json({ error: "Select an academic year, a form and at least one exam." }, { status: 400 });
   }
+  const activeYear = await loadActiveYearId(admin);
+  if (year !== activeYear) {
+    return NextResponse.json(
+      { error: "Results are only available for the active academic year." },
+      { status: 400 },
+    );
+  }
 
   const includeLeft = url.searchParams.get("includeLeft") === "true";
   const confirmLowExams = url.searchParams.get("confirmLowExams") === "true";
@@ -281,6 +302,7 @@ async function reportResponse(url: URL, scope: StreamScope | null): Promise<Next
         .from("students")
         .select("id, first_name, middle_name, last_name, gender, stream_id, stream:streams(name)")
         .eq("class_id", classId)
+        .or(studentsForExamYearFilter(year))
         .order("id")
         .range(from, to),
     );
@@ -366,6 +388,7 @@ async function reportResponse(url: URL, scope: StreamScope | null): Promise<Next
         admin
           .from("student_subjects")
           .select("student_id, subject_id")
+          .eq("academic_year", year)
           .in("subject_id", subjectIds)
           .order("student_id")
           .range(from, to),

@@ -588,7 +588,7 @@ export default function StudentReportCard({ scope, role }: StudentReportCardProp
           .map(reportExamFromScoped)
           .sort((a, b) => a.start_date.localeCompare(b.start_date));
       } else {
-        const examResult = await fetchExams({ search: "", page: 1, pageSize: 100 });
+        const examResult = await fetchExams({ search: "", page: 1, pageSize: 100, scopeToActiveYear: true });
         eligible = examResult.rows
           .filter((exam) => exam.status !== "draft")
           .sort((a, b) => a.start_date.localeCompare(b.start_date));
