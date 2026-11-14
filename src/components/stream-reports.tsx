@@ -4,6 +4,7 @@ import "./stream-teacher.css";
 
 import { useEffect, useMemo, useState } from "react";
 import { Spinner } from "@/components/loading";
+import AutoGrowTextarea from "@/components/auto-grow-textarea";
 import {
   buildClassResults,
   buildSchoolReport,
@@ -270,8 +271,9 @@ export default function StreamReports({ streamId, year, term }: Props) {
               </label>
               <label className="sm-field" style={{ gridColumn: "1 / -1" }}>
                 <span className="sm-field-label">Class Teacher Remarks</span>
-                <textarea
+                <AutoGrowTextarea
                   className="stream-modal-textarea"
+                  minRows={4}
                   value={review.remarks}
                   onChange={(event) => setReview({ ...review, remarks: event.target.value })}
                   placeholder="Write remarks to appear on the report..."

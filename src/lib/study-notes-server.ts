@@ -270,17 +270,93 @@ export async function getNoteWithContext(noteId: string): Promise<{
 
 export async function loadNoteAudience(noteId: string): Promise<NoteAudienceRow[]> {
   const { data, error } = await studentAdmin.rpc("note_audience", { p_note_id: noteId });
-  if (error) throw error;
-  return (data ?? []).map((r: any) => ({
-    studentId: r.student_id,
-    registrationNo: r.registration_no ?? null,
-    fullName: r.full_name ?? "",
-    hasViewed: Boolean(r.has_viewed),
-    firstViewedAt: r.first_viewed_at ?? null,
-    lastViewedAt: r.last_viewed_at ?? null,
-    viewCount: Number(r.view_count ?? 0),
-    downloadCount: Number(r.download_count ?? 0),
-  }));
+  if (!error) {
+    return dedupeAudience(
+      ((data ?? []) as any[]).map((r) => ({
+        studentId: r.student_id,
+        registrationNo: r.registration_no ?? null,
+        fullName: r.full_name ?? "",
+        hasViewed: Boolean(r.has_viewed),
+        firstViewedAt: r.first_viewed_at ?? null,
+        lastViewedAt: r.last_viewed_at ?? null,
+        viewCount: Number(r.view_count ?? 0),
+        downloadCount: Number(r.download_count ?? 0),
+      })),
+    );
+  }
+  // Older databases may not have the note_audience() helper yet. Fall back to
+  // building the audience with plain queries so the button keeps working.
+  return loadNoteAudienceFallback(noteId);
+}
+
+function dedupeAudience(rows: NoteAudienceRow[]): NoteAudienceRow[] {
+  const byStudent = new Map<string, NoteAudienceRow>();
+  for (const row of rows) {
+    const prev = byStudent.get(row.studentId);
+    if (!prev) {
+      byStudent.set(row.studentId, row);
+      continue;
+    }
+    const lastViewedAt =
+      !prev.lastViewedAt ? row.lastViewedAt
+        : !row.lastViewedAt ? prev.lastViewedAt
+          : prev.lastViewedAt > row.lastViewedAt ? prev.lastViewedAt : row.lastViewedAt;
+    byStudent.set(row.studentId, {
+      ...prev,
+      hasViewed: prev.hasViewed || row.hasViewed,
+      firstViewedAt: prev.firstViewedAt ?? row.firstViewedAt,
+      lastViewedAt,
+      viewCount: Math.max(prev.viewCount, row.viewCount),
+      downloadCount: Math.max(prev.downloadCount, row.downloadCount),
+    });
+  }
+  return Array.from(byStudent.values()).sort((a, b) => a.fullName.localeCompare(b.fullName));
+}
+
+async function loadNoteAudienceFallback(noteId: string): Promise<NoteAudienceRow[]> {
+  const info = await getNoteWithContext(noteId);
+  if (!info) return [];
+  const year = await loadActiveYearId(studentAdmin);
+
+  const { data: subjectRows, error: subErr } = await studentAdmin
+    .from("student_subjects")
+    .select("student_id")
+    .eq("subject_id", info.context.subjectId)
+    .eq("academic_year", year);
+  if (subErr) throw subErr;
+  const studentIds = (subjectRows ?? []).map((r: any) => r.student_id);
+  if (studentIds.length === 0) return [];
+
+  const { data: students, error: stuErr } = await studentAdmin
+    .from("students")
+    .select("id, registration_no, first_name, middle_name, last_name")
+    .in("id", studentIds)
+    .eq("class_id", info.context.classId)
+    .eq("stream_id", info.context.streamId);
+  if (stuErr) throw stuErr;
+
+  const { data: views, error: viewErr } = await studentAdmin
+    .from("note_views")
+    .select("student_id, first_viewed_at, last_viewed_at, view_count, download_count")
+    .eq("note_id", noteId);
+  if (viewErr) throw viewErr;
+  const byStudent = new Map<string, any>((views ?? []).map((v: any) => [v.student_id, v]));
+
+  return dedupeAudience(
+    ((students ?? []) as any[]).map((s) => {
+      const v = byStudent.get(s.id);
+      return {
+        studentId: s.id,
+        registrationNo: s.registration_no ?? null,
+        fullName: [s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ").trim(),
+        hasViewed: Boolean(v),
+        firstViewedAt: v?.first_viewed_at ?? null,
+        lastViewedAt: v?.last_viewed_at ?? null,
+        viewCount: Number(v?.view_count ?? 0),
+        downloadCount: Number(v?.download_count ?? 0),
+      };
+    }),
+  );
 }
 
 export async function studentCanViewNote(student: StudentProfile, noteId: string): Promise<boolean> {

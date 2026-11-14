@@ -153,6 +153,23 @@ export function parseQuestions(
   return { ok: true, questions };
 }
 
+/**
+ * A one-question assignment has no marks to distribute: the only question must
+ * carry the whole assignment total. Teachers often set the total (e.g. 20) but
+ * leave the question at the default 10, which then capped grading at 10.
+ *
+ * This only touches the parsed payload that is about to be stored, so a
+ * multi-question assignment keeps each question's own marks.
+ */
+export function applySingleQuestionMarks(
+  questions: IncomingQuestion[],
+  totalMarks: number,
+): void {
+  if (questions.length !== 1) return;
+  if (!Number.isFinite(totalMarks) || totalMarks <= 0) return;
+  questions[0].marks = totalMarks;
+}
+
 export interface TeacherOption {
   subjectId: string;
   subjectCode: string;

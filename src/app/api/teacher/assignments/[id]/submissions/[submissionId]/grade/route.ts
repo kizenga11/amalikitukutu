@@ -83,6 +83,12 @@ export async function POST(
         .map((answer) => [answer.id, answer.maxMarks]),
     );
 
+    // When the assignment has a single question, the teacher's total is the
+    // real cap: one question is the whole work, so it must be possible to award
+    // the full total even if the question was saved with older/lower marks.
+    const singleQuestion = detail.answers.length === 1;
+    const assignmentTotal = detail.assignment.totalMarks;
+
     const rawAnswers = Array.isArray(body.answers) ? body.answers : [];
     const answers: { answerId: string; awardedMarks: number | null; feedback: string }[] = [];
 
@@ -93,6 +99,7 @@ export async function POST(
       if (!maxByAnswer.has(answerId)) continue;
 
       const maxMarks = maxByAnswer.get(answerId) ?? 0;
+      const cap = singleQuestion ? assignmentTotal : maxMarks;
       let awardedMarks: number | null = null;
       if (row.awardedMarks !== null && row.awardedMarks !== undefined && row.awardedMarks !== "") {
         const value = Number(row.awardedMarks);
@@ -102,9 +109,9 @@ export async function POST(
             { status: 400 },
           );
         }
-        if (value > maxMarks + 0.001) {
+        if (value > cap + 0.001) {
           return NextResponse.json(
-            { error: `Marks cannot exceed ${maxMarks} for a single question.` },
+            { error: `Marks cannot exceed ${cap} for this question.` },
             { status: 400 },
           );
         }

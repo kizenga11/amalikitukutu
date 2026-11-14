@@ -235,6 +235,8 @@ export default function StudentAssignmentView({ assignmentId, onBack, onUpdated 
   const assignment = detail.assignment;
   const locked = detail.locked;
   const marked = detail.submission?.status === "marked";
+  // A one-question assignment carries every mark the teacher set as the total.
+  const singleQuestion = detail.questions.length === 1;
 
   return (
     <div className="sp-panel sp-assignment">
@@ -265,7 +267,7 @@ export default function StudentAssignmentView({ assignmentId, onBack, onUpdated 
           const ideMode = practical ? answerModes[question.id] ?? "ide" : null;
           return (
             <section key={question.id} className="sp-question">
-              <header className="sp-question-head"><h3>Question {question.position}</h3><span className="sp-chip">{questionTypeLabel[qType]} · {question.marks} marks</span></header>
+              <header className="sp-question-head"><h3>Question {question.position}</h3><span className="sp-chip">{questionTypeLabel[qType]} · {singleQuestion ? assignment.totalMarks : question.marks} marks</span></header>
               <p className="sp-question-prompt">{question.prompt}</p>
 
               {practical && !locked && (
@@ -331,7 +333,7 @@ export default function StudentAssignmentView({ assignmentId, onBack, onUpdated 
               )}
 
               {marked && savedAnswer && (
-                <div className="sp-question-mark"><span>Marks: <strong>{savedAnswer.awardedMarks ?? 0}</strong> / {question.marks}</span>{savedAnswer.feedback && <p>Feedback: {savedAnswer.feedback}</p>}</div>
+                <div className="sp-question-mark"><span>Marks: <strong>{savedAnswer.awardedMarks ?? 0}</strong> / {singleQuestion ? assignment.totalMarks : question.marks}</span>{savedAnswer.feedback && <p>Feedback: {savedAnswer.feedback}</p>}</div>
               )}
             </section>
           );

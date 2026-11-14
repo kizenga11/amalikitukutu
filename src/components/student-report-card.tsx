@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Spinner } from "@/components/loading";
+import AutoGrowTextarea from "@/components/auto-grow-textarea";
 import {
   buildClassResults,
   buildSchoolReport,
@@ -967,9 +968,9 @@ export default function StudentReportCard({ scope, role }: StudentReportCardProp
         {canEditRequirements && (
           <div className="res-field rc-requirements-field">
             <span className="res-field-label">Mahitaji ya Wanafunzi — yanaonekana kwenye ripoti zote</span>
-            <textarea
+            <AutoGrowTextarea
               className="res-select rc-requirements-input"
-              rows={3}
+              minRows={3}
               placeholder={"Sabuni ya Dex\nJembe\nKopo la maji"}
               value={requirementDraft ?? requirements.join("\n")}
               onChange={(event) => {

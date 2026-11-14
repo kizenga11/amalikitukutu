@@ -938,9 +938,12 @@
 
 .sp-marked-box p {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: 0.94rem;
   color: #065f46;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  max-width: 72ch;
 }
 
 .sp-questions {
@@ -1042,6 +1045,11 @@
 .sp-question-mark p {
   margin: 0;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--ink);
+  max-width: 72ch;
 }
 
 .sp-attachment-box {
@@ -1648,8 +1656,7 @@
   font-size: 0.82rem;
   line-height: 1.5;
   white-space: pre-wrap;
-  overflow: auto;
-  max-height: 420px;
+  overflow-x: auto;
 }
 
 .sp-answer-rendered code {

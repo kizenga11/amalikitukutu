@@ -4,6 +4,7 @@ import { cleanLine, cleanMultiline, normaliseAttachment } from "@/lib/assignment
 import { authenticate, isUuid } from "@/lib/stream-teacher-server";
 import { studentAdmin } from "@/lib/student-auth";
 import {
+  applySingleQuestionMarks,
   countAssignmentSubmissions,
   deleteTeacherAssignment,
   loadTeacherAssignment,
@@ -199,6 +200,10 @@ export async function PUT(
         { status: 400 },
       );
     }
+
+    // With one question there is nothing to distribute: that question is the
+    // whole assignment, so it must carry all the marks.
+    if (parsedQuestions) applySingleQuestionMarks(parsedQuestions, totalMarks);
 
     let attachment = {
       name: existing.attachment_name as string | null,

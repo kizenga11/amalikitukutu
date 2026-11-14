@@ -4,6 +4,7 @@ import "./stream-teacher.css";
 
 import { useEffect, useMemo, useState } from "react";
 import { Spinner } from "@/components/loading";
+import AutoGrowTextarea from "@/components/auto-grow-textarea";
 import {
   fetchStreamConduct,
   saveStreamConduct,
@@ -175,8 +176,9 @@ export default function StreamConduct({ streamId, year, term }: Props) {
                       />
                     </td>
                     <td>
-                      <textarea
+                      <AutoGrowTextarea
                         className="stream-remarks-input"
+                        minRows={2}
                         value={draft.remarks}
                         onChange={(event) => update(student.id, { remarks: event.target.value })}
                         placeholder="Write behaviour or remarks..."

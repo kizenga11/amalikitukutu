@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
+import AutoGrowTextarea from "@/components/auto-grow-textarea";
 import {
   ATTACHMENT_MAX_BYTES,
   alphaLabel,
@@ -775,7 +776,7 @@ function StructuredPartEditor({
         <button type="button" className="ta-link ta-link--danger" onClick={onRemove} disabled={!canRemove && !isChild}>Remove</button>
         {!isChild && <button type="button" className="ta-link" onClick={onAddChild}>+ Add subpart (i, ii…)</button>}
       </div>
-      <textarea className="ta-input ta-textarea" rows={2} value={part.prompt} onChange={(e) => set({ prompt: e.target.value })} placeholder={`Part ${part.label} question/instruction`} style={{ marginTop: 6 }} />
+      <AutoGrowTextarea className="ta-input ta-textarea" minRows={2} value={part.prompt} onChange={(e) => set({ prompt: e.target.value })} placeholder={`Part ${part.label} question/instruction`} style={{ marginTop: 6 }} />
       {part.type === "mcq" && (
         <div style={{ marginTop: 6 }}>
           <span className="ta-muted">Options labeled A, B, C, D… (student can choose the letter)</span>
@@ -885,15 +886,25 @@ function AssignmentForm({ options, unrestricted, editId, onCancel, onSaved }: { 
     fetchTeacherAssignment(editId).then((detail) => {
       if (!active) return;
       const assignment = detail.assignment;
+      const totalValue = String(assignment.totalMarks);
       setSelection(`${assignment.subjectId}|${assignment.classId}|${assignment.streamId}`);
       setTitle(assignment.title);
       setInstructions(assignment.instructions);
       setDeadline(soonDatetimeLocal(assignment.deadline));
-      setTotalMarks(String(assignment.totalMarks));
+      setTotalMarks(totalValue);
       setAllowLate(assignment.allowLateSubmission);
       setStatus(assignment.status);
       setAttachment(assignment.attachmentName && assignment.attachmentData ? { name: assignment.attachmentName, type: assignment.attachmentType ?? "", data: assignment.attachmentData } : null);
-      setQuestions(detail.questions.length > 0 ? detail.questions.map(questionToDraft) : [newQuestion()]);
+      const loadedQuestions = detail.questions.length > 0 ? detail.questions.map(questionToDraft) : [newQuestion()];
+      // One question carries every mark in the assignment; keep it in step
+      // with the total even for assignments saved with the old default.
+      if (loadedQuestions.length === 1 && totalValue.trim()) {
+        const only = loadedQuestions[0];
+        if (only.questionType !== "structured" && !(only.questionType === "mcq" && only.mcqMode === "items")) {
+          only.marks = totalValue;
+        }
+      }
+      setQuestions(loadedQuestions);
       setQuestionsLocked(Boolean(detail.assignment.hasSubmissions));
       setLoadError("");
     }).catch((err) => { if (active) setLoadError(err instanceof Error ? err.message : "Could not load the assignment."); }).finally(() => { if (active) setLoadingEdit(false); });
@@ -925,6 +936,19 @@ function AssignmentForm({ options, unrestricted, editId, onCancel, onSaved }: { 
     if (!selected) return;
     if (selected.formLevel > 0) setFormFilter(String(selected.formLevel));
   }, [selected?.subjectId, selected?.classId, selected?.streamId, selected?.formLevel]);
+
+  // A single question is the whole assignment, so its marks must match the
+  // total the teacher typed. Without this the question kept the default 10 and
+  // grading could never award the full total (e.g. 20).
+  const soleQuestion = questions.length === 1 ? questions[0] : null;
+  const soleQuestionMarksFollowTotal = soleQuestion !== null
+    && soleQuestion.questionType !== "structured"
+    && !(soleQuestion.questionType === "mcq" && soleQuestion.mcqMode === "items");
+
+  function syncSingleQuestionMarks(value: string) {
+    if (!value.trim() || questionsLocked || !soleQuestionMarksFollowTotal || !soleQuestion) return;
+    updateQuestion(soleQuestion.key, { marks: value });
+  }
 
   const questionTotal = useMemo(() => questions.reduce((sum, q) => {
     if (q.questionType === "structured") return sum + sumPartMarks(q.structuredParts);
@@ -1000,9 +1024,9 @@ function AssignmentForm({ options, unrestricted, editId, onCancel, onSaved }: { 
         <label className="ta-field"><span>Form (Kidato)</span><select className="ta-input" value={formFilter} disabled={isEditing} onChange={(e) => { setFormFilter(e.target.value); if (!isEditing) setSelection(""); }}><option value="">— Select form —</option>{formLevels.map((f) => (<option key={f} value={String(f)}>Form {f} (Kidato {f})</option>))}</select></label>
         <label className="ta-field ta-field--span"><span>Subject, class and stream (target class)</span><select className="ta-input" value={selection} disabled={isEditing} onChange={(e) => setSelection(e.target.value)}><option value="">- Select -</option>{isEditing && !selected && selection && <option value={selection}>Current subject, class and stream</option>}{!isEditing && allStreamGroups.map((group) => (<option key={`ALL|${group.key}`} value={`ALL|${group.key}`}>Form {group.sample.formLevel} {group.sample.className} - {group.sample.subjectName} (All streams: {group.options.map((o) => o.streamName).join(", ")})</option>))}{filteredOptions.map((option) => (<option key={`${option.subjectId}|${option.classId}|${option.streamId}`} value={`${option.subjectId}|${option.classId}|${option.streamId}`}>Form {option.formLevel} {option.className} {option.streamName} - {option.subjectName}</option>))}</select><small className="ta-muted">{selectedAllGroup ? `This will create a separate copy for each stream (${selectedAllGroup.options.map((o) => o.streamName).join(", ")}) in ${selectedAllGroup.sample.className} for ${selectedAllGroup.sample.subjectName}.` : "This assignment will be visible only to students in the selected form/class and stream who take this subject."}</small></label>
         <label className="ta-field ta-field--span"><span>Assignment title</span><input className="ta-input" type="text" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Exercise 2 — Linear equations" /></label>
-        <label className="ta-field ta-field--span"><span>Instructions</span><textarea className="ta-input ta-textarea" rows={4} value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="General instructions for students…" /></label>
+        <label className="ta-field ta-field--span"><span>Instructions</span><AutoGrowTextarea className="ta-input ta-textarea" minRows={4} value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="General instructions for students…" /></label>
         <label className="ta-field"><span>Deadline</span><input className="ta-input" type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} /></label>
-        <label className="ta-field"><span>Total marks</span><input className="ta-input" type="number" min={1} step="0.5" value={totalMarks} onChange={(e) => setTotalMarks(e.target.value)} /><small>Question marks: {questionTotal}{Number(totalMarks) > 0 && questionTotal > Number(totalMarks) ? " — exceeds the total!" : ""}</small></label>
+        <label className="ta-field"><span>Total marks</span><input className="ta-input" type="number" min={1} step="0.5" value={totalMarks} onChange={(e) => { setTotalMarks(e.target.value); syncSingleQuestionMarks(e.target.value); }} /><small>Question marks: {questionTotal}{Number(totalMarks) > 0 && questionTotal > Number(totalMarks) ? " — exceeds the total!" : ""}</small></label>
         <label className="ta-check ta-field--span"><input type="checkbox" checked={allowLate} onChange={(e) => setAllowLate(e.target.checked)} /><span>Allow submissions after the deadline (they will be marked late)</span></label>
         {isEditing && (<label className="ta-field"><span>Status</span><select className="ta-input" value={status} onChange={(e) => setStatus(e.target.value as "draft" | "published" | "closed")}><option value="draft">Draft</option><option value="published">Published</option><option value="closed">Closed</option></select></label>)}
         <div className="ta-field ta-field--span"><span>Attachment (PDF or image, optional)</span>{attachment ? (<div className="ta-attachment"><a href={attachment.data} download={attachment.name} target="_blank" rel="noreferrer">{attachment.name}</a><button type="button" className="ta-link ta-link--danger" onClick={() => setAttachment(null)}>Remove</button></div>) : (<input className="ta-input" type="file" accept="application/pdf,image/png,image/jpeg,image/webp,image/gif" onChange={(e) => void handleAttachment(e)} />)}</div>
@@ -1022,7 +1046,7 @@ function AssignmentForm({ options, unrestricted, editId, onCancel, onSaved }: { 
               <div className="ta-question-grid">
                 <label className="ta-field"><span>Question type</span><select className="ta-input" value={question.questionType} onChange={(e) => changeType(question.key, e.target.value as QuestionType)}><option value="essay">Essay / Long answer</option><option value="calculation">Essay / Calculation (show working)</option><option value="short_answer">Short answer</option><option value="mcq">Multiple choice</option><option value="matching">Matching items</option><option value="structured">Structured / Multi-part</option></select></label>
                 <label className="ta-field"><span>{question.questionType === "structured" ? "Marks (auto from parts if 0)" : "Marks"}</span><input className="ta-input" type="number" min={0} step="0.5" value={question.marks} onChange={(e) => updateQuestion(question.key, { marks: e.target.value })} /></label>
-                <label className="ta-field ta-field--span"><span>Question / instructions</span><textarea className="ta-input ta-textarea" rows={3} value={question.prompt} onChange={(e) => updateQuestion(question.key, { prompt: e.target.value })} placeholder="Type the question here…" /></label>
+                <label className="ta-field ta-field--span"><span>Question / instructions</span><AutoGrowTextarea className="ta-input ta-textarea" minRows={3} value={question.prompt} onChange={(e) => updateQuestion(question.key, { prompt: e.target.value })} placeholder="Type the question here…" /></label>
               </div>
               {question.questionType === "mcq" && (
                 <div className="ta-options">
@@ -1047,7 +1071,7 @@ function AssignmentForm({ options, unrestricted, editId, onCancel, onSaved }: { 
                             <span className="ta-muted">marks</span>
                             <button type="button" className="ta-link ta-link--danger" onClick={() => updateQuestion(question.key, { mcqItems: question.mcqItems.filter((_,i)=>i!==idx) })} disabled={question.mcqItems.length <= 1}>Remove</button>
                           </div>
-                          <textarea className="ta-input ta-textarea" rows={2} value={it.prompt} onChange={(e) => updateQuestion(question.key, { mcqItems: question.mcqItems.map((r,i)=> i===idx?{...r,prompt:e.target.value}:r) })} placeholder={`Question for item (${it.label || toRoman(idx + 1)})...`} style={{ marginTop: 6 }} />
+                          <AutoGrowTextarea className="ta-input ta-textarea" minRows={2} value={it.prompt} onChange={(e) => updateQuestion(question.key, { mcqItems: question.mcqItems.map((r,i)=> i===idx?{...r,prompt:e.target.value}:r) })} placeholder={`Question for item (${it.label || toRoman(idx + 1)})...`} style={{ marginTop: 6 }} />
                           <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
                             {it.choices.map((opt, oi) => (
                               <div key={oi} className="ta-option-row" style={{ alignItems: "center" }}>
@@ -1400,13 +1424,20 @@ function GradePanel({ assignmentId, submissionId, studentName, onBack, onSaved }
 
   const totalScore = useMemo(() => Object.values(marks).reduce((sum, value) => { const n = Number(value); return sum + (Number.isFinite(n) ? n : 0); }, 0), [marks]);
 
+  // A one-question assignment is the whole work: the teacher's total is the
+  // cap. With several questions each one keeps its own marks.
+  const singleQuestion = detail?.answers.length === 1;
+  const maxForAnswer = (answer: TeacherSubmissionDetail["answers"][number]) =>
+    singleQuestion && detail ? detail.assignment.totalMarks : answer.maxMarks;
+
   async function saveGrade() {
     if (!detail || saving) return;
     setError(""); setBanner("");
     for (const answer of detail.answers) {
       if (!answer.id) continue; const value = marks[answer.id]; if (value === "" || value === undefined) continue;
       const number = Number(value); if (!Number.isFinite(number) || number < 0) { setError("The marks entered are invalid."); return; }
-      if (number > answer.maxMarks) { setError(`Question ${answer.position}: marks cannot exceed ${answer.maxMarks}.`); return; }
+      const cap = maxForAnswer(answer);
+      if (number > cap) { setError(`Question ${answer.position}: marks cannot exceed ${cap}.`); return; }
     }
     if (totalScore > detail.assignment.totalMarks) { setError(`The total (${totalScore}) exceeds the assignment total (${detail.assignment.totalMarks}).`); return; }
     setSaving(true);
@@ -1440,17 +1471,17 @@ function GradePanel({ assignmentId, submissionId, studentName, onBack, onSaved }
         {detail.answers.map((answer) => (
           <article key={answer.questionId} className="ta-grade-item">
             <header className="ta-grade-head">
-              <div><strong>Question {answer.position}</strong><span>{questionTypeLabelEn[answer.questionType]} · {answer.maxMarks} marks</span></div>
-              <label className="ta-field ta-field--marks"><span>Marks</span><input className="ta-input" type="number" min={0} max={answer.maxMarks} step="0.5" value={answer.id ? marks[answer.id] ?? "" : ""} disabled={!answer.id} onChange={(e) => answer.id && setMarks((prev) => ({ ...prev, [answer.id]: e.target.value }))} /></label>
+              <div><strong>Question {answer.position}</strong><span>{questionTypeLabelEn[answer.questionType]} · {maxForAnswer(answer)} marks</span></div>
+              <label className="ta-field ta-field--marks"><span>Marks</span><input className="ta-input" type="number" min={0} max={maxForAnswer(answer)} step="0.5" value={answer.id ? marks[answer.id] ?? "" : ""} disabled={!answer.id} onChange={(e) => answer.id && setMarks((prev) => ({ ...prev, [answer.id]: e.target.value }))} /></label>
             </header>
             <p className="ta-question-prompt">{answer.prompt}</p>
             {renderStudentAnswer(answer)}
             {!answer.id && <p className="ta-muted">The student did not answer this question.</p>}
-            <label className="ta-field"><span>Feedback for this question</span><textarea className="ta-input ta-textarea" rows={2} value={answer.id ? feedbacks[answer.id] ?? "" : ""} disabled={!answer.id} onChange={(e) => answer.id && setFeedbacks((prev) => ({ ...prev, [answer.id]: e.target.value }))} /></label>
+            <label className="ta-field"><span>Feedback for this question</span><AutoGrowTextarea className="ta-input ta-textarea" minRows={3} value={answer.id ? feedbacks[answer.id] ?? "" : ""} disabled={!answer.id} onChange={(e) => answer.id && setFeedbacks((prev) => ({ ...prev, [answer.id]: e.target.value }))} /></label>
           </article>
         ))}
       </section>
-      <label className="ta-field"><span>Overall feedback for the student</span><textarea className="ta-input ta-textarea" rows={4} value={overallFeedback} onChange={(e) => setOverallFeedback(e.target.value)} placeholder="Overall feedback…" /></label>
+      <label className="ta-field"><span>Overall feedback for the student</span><AutoGrowTextarea className="ta-input ta-textarea" minRows={6} value={overallFeedback} onChange={(e) => setOverallFeedback(e.target.value)} placeholder="Overall feedback…" /></label>
       <div className="ta-form-actions"><button type="button" className="ta-btn ta-btn--ghost" onClick={onBack} disabled={saving}>Back</button><button type="button" className="ta-btn ta-btn--primary" onClick={() => void saveGrade()} disabled={saving}>{saving ? "Saving…" : "Save marks"}</button></div>
     </div>
   );

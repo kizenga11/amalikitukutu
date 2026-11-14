@@ -7,7 +7,12 @@ async function requestJson<T>(input: string, init: RequestInit = {}): Promise<T>
   const response = await authedFetch(input, { ...init, cache: "no-store" });
   const payload = (await response.json().catch(() => null)) as (Record<string, unknown> & T) | null;
   if (!response.ok) {
-    const message = typeof payload?.error === "string" ? payload.error : "Something went wrong. Please try again.";
+    const message =
+      typeof payload?.error === "string"
+        ? payload.error
+        : response.status === 404
+          ? "This request is not available on the running server. Restart the app, then try again."
+          : `Something went wrong (HTTP ${response.status}). Please try again.`;
     throw new Error(message);
   }
   return payload as T;

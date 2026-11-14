@@ -466,7 +466,8 @@
 
 .ta-textarea {
   resize: vertical;
-  line-height: 1.55;
+  line-height: 1.6;
+  font-size: 0.92rem;
 }
 
 .ta-check {
@@ -916,8 +917,7 @@
   font-size: 0.82rem;
   line-height: 1.5;
   white-space: pre-wrap;
-  overflow: auto;
-  max-height: 420px;
+  overflow-x: auto;
 }
 
 .ta-answer-body code {

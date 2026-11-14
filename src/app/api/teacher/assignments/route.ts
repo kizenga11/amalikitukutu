@@ -4,6 +4,7 @@ import { cleanLine, cleanMultiline, normaliseAttachment } from "@/lib/assignment
 import { authenticate, isUuid } from "@/lib/stream-teacher-server";
 import { studentAdmin } from "@/lib/student-auth";
 import {
+  applySingleQuestionMarks,
   canTeach,
   loadActivePeriod,
   loadTeacherAssignments,
@@ -116,6 +117,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 400 },
       );
     }
+
+    // With one question there is nothing to distribute: that question is the
+    // whole assignment, so it must carry all the marks.
+    applySingleQuestionMarks(parsed.questions, totalMarks);
 
     const attachmentResult = normaliseAttachment(body.attachment);
     if (!attachmentResult.ok) {
