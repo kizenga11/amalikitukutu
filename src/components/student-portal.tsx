@@ -30,6 +30,20 @@ import "./student-portal.css";
 
 type Tab = "home" | "results" | "assignments" | "notes";
 
+const HOLIDAY_MESSAGE =
+  "🏖️ Uko likizo: soma kila siku, wasaidie wazazi nyumbani, epuka makundi mabaya, tumia simu kwa busara, jitunze kiafya na ujiandae kurudi shule kwa wakati. Likizo njema na salama! 📚 Na jiandae kwa opening test itakayoanza tarehe 11 January 2027.";
+
+function HolidayMarquee() {
+  return (
+    <div className="sp-marquee" role="note">
+      <div className="sp-marquee-track">
+        <span>{HOLIDAY_MESSAGE}</span>
+        <span aria-hidden="true">{HOLIDAY_MESSAGE}</span>
+      </div>
+    </div>
+  );
+}
+
 function formatDate(value: string | null | undefined, withTime = false): string {
   if (!value) return "—";
   const date = new Date(value);
@@ -343,6 +357,8 @@ export default function StudentPortal() {
           <>
             {tab === "home" && (
               <div className="sp-stack">
+                <HolidayMarquee />
+
                 <section className="sp-hero">
                   <div className="sp-hero-avatar">{initials.toUpperCase()}</div>
                   <div className="sp-hero-body">

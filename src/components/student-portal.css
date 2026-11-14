@@ -449,6 +449,55 @@
 
 /* ----------------------------- Home ----------------------------- */
 
+.sp-marquee {
+  overflow: hidden;
+  white-space: nowrap;
+  background: #fff8e1;
+  border: 1px solid #fcd34d;
+  border-left: 4px solid #f59e0b;
+  border-right: 4px solid #f59e0b;
+  border-radius: 10px;
+  color: #78350f;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 8px 0;
+}
+
+.sp-marquee-track {
+  display: inline-block;
+  white-space: nowrap;
+  animation: sp-marquee-scroll 30s linear infinite;
+  will-change: transform;
+}
+
+.sp-marquee-track span {
+  display: inline-block;
+  padding-right: 80px;
+}
+
+.sp-marquee:hover .sp-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes sp-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-marquee {
+    overflow-x: auto;
+  }
+
+  .sp-marquee-track {
+    animation: none;
+  }
+}
+
 .sp-hero {
   display: flex;
   align-items: center;
