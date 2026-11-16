@@ -26,6 +26,11 @@ const SLIDES = [
   { src: "/assets/slide2.jpg", alt: "Amali Kitukutu students working" },
   { src: "/assets/slide3.jpg", alt: "Amali Kitukutu technical training" },
   { src: "/assets/slide4.jpg", alt: "Amali Kitukutu classroom" },
+  { src: "/assets/slide5.jpg", alt: "Amali Kitukutu workshop practice" },
+  { src: "/assets/slide6.jpg", alt: "Amali Kitukutu students in class" },
+  { src: "/assets/slide7.jpg", alt: "Amali Kitukutu school grounds" },
+  { src: "/assets/slide8.jpg", alt: "Amali Kitukutu practical session" },
+  { src: "/assets/slide9.jpg", alt: "Amali Kitukutu school community" },
 ];
 
 const PROGRAMS = [
@@ -221,7 +226,9 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentSlide((prev) => (prev + 1) % SLIDES.length), 10000);
+    // Nine slides, so keep each one on screen long enough to read but still
+    // complete a full loop in under a minute.
+    const timer = setInterval(() => setCurrentSlide((prev) => (prev + 1) % SLIDES.length), 6000);
     return () => clearInterval(timer);
   }, []);
 
