@@ -21,10 +21,14 @@ const Dashboard = dynamic(() => import("@/components/dashboard"), {
   ),
 });
 
+// The hero uses /_next/image, which caches optimised pictures by URL for a long
+// time. When a slide image is replaced with newer artwork, give the file a new
+// name (bump the -v2 suffix) so every browser and CDN sees the new picture
+// instead of a cached copy.
 const SLIDES = [
-  { src: "/assets/slide1.jpg", alt: "Amali Kitukutu school campus" },
+  { src: "/assets/slide1-v2.jpg", alt: "Amali Kitukutu school campus" },
   { src: "/assets/slide2.jpg", alt: "Amali Kitukutu students working" },
-  { src: "/assets/slide3.jpg", alt: "Amali Kitukutu technical training" },
+  { src: "/assets/slide3-v2.jpg", alt: "Amali Kitukutu technical training" },
   { src: "/assets/slide4.jpg", alt: "Amali Kitukutu classroom" },
   { src: "/assets/slide5.jpg", alt: "Amali Kitukutu workshop practice" },
   { src: "/assets/slide6.jpg", alt: "Amali Kitukutu students in class" },
