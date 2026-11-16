@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/errors";
 import {
+  DEFAULT_STUDENT_PASSWORD,
   hashPassword,
   loadStudentAccount,
   requireStudent,
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 400 },
       );
     }
-    if (newPassword === "Kitukutu_TECH") {
+    if (newPassword === DEFAULT_STUDENT_PASSWORD) {
       return NextResponse.json(
         { error: "Do not reuse the school's initial password. Choose your own." },
         { status: 400 },

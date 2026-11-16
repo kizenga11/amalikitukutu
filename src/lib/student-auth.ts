@@ -16,9 +16,17 @@ export const studentAdmin: SupabaseClient = createClient(supabaseUrl, serviceRol
 
 export const STUDENT_SESSION_COOKIE = "amali_student_session";
 export const STUDENT_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const LOGIN_WINDOW_MS = 15 * 60 * 1000;
-const MAX_REGISTRATION_FAILURES = 6;
-const MAX_IP_FAILURES = 25;
+
+/**
+ * Initial password given to every student account. The Academic Officer can
+ * restore it from the "Student Logins" page; students are then forced to pick
+ * their own password on the next sign-in.
+ */
+export const DEFAULT_STUDENT_PASSWORD = "Kitukutu_TECH";
+
+export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+export const MAX_REGISTRATION_FAILURES = 6;
+export const MAX_IP_FAILURES = 25;
 
 const SCRYPT_N = 16384;
 const SCRYPT_R = 8;
@@ -143,7 +151,23 @@ export async function checkLoginRateLimit(
   registrationNo: string,
   ip: string | null,
 ): Promise<RateLimitState> {
-  const since = new Date(Date.now() - LOGIN_WINDOW_MS).toISOString();
+  const windowStartMs = Date.now() - LOGIN_WINDOW_MS;
+
+  // A successful sign-in resets the counter for this registration number.
+  // We keep the older failed rows for the admin audit trail instead of
+  // deleting them, and simply count failures recorded after the last success.
+  const { data: lastSuccess } = await studentAdmin
+    .from("student_login_attempts")
+    .select("attempted_at")
+    .eq("registration_no", registrationNo)
+    .eq("success", true)
+    .order("attempted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const lastSuccessMs = lastSuccess ? new Date(lastSuccess.attempted_at).getTime() : 0;
+  const since = new Date(Math.max(windowStartMs, lastSuccessMs)).toISOString();
+
   const byRegistration = await studentAdmin
     .from("student_login_attempts")
     .select("id", { count: "exact", head: true })
@@ -179,13 +203,8 @@ export async function recordLoginAttempt(
     success,
   });
 
-  if (success) {
-    await studentAdmin
-      .from("student_login_attempts")
-      .delete()
-      .eq("registration_no", registrationNo)
-      .eq("success", false);
-  }
+  // Successful rows are kept too: the Academic Officer uses them to see when
+  // a student last signed in and how often they failed before getting in.
 
   // Opportunistic cleanup so the table cannot grow without bound.
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();

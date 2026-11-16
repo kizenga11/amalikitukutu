@@ -24,6 +24,7 @@ function PageLoading() {
 const ClassManagement = dynamic(() => import("@/components/class-management"), { ssr: false, loading: PageLoading });
 const SubjectManagement = dynamic(() => import("@/components/subject-management"), { ssr: false, loading: PageLoading });
 const StudentsManagement = dynamic(() => import("@/components/students-management"), { ssr: false, loading: PageLoading });
+const StudentLogins = dynamic(() => import("@/components/student-logins"), { ssr: false, loading: PageLoading });
 const TeachersManagement = dynamic(() => import("@/components/teachers-management"), { ssr: false, loading: PageLoading });
 const SubjectAnalysis = dynamic(() => import("@/components/subject-analysis"), { ssr: false, loading: PageLoading });
 const ExamManagement = dynamic(() => import("@/components/exam-management"), { ssr: false, loading: PageLoading });
@@ -48,6 +49,8 @@ import { readStoredJson, readStoredPeriod, writeStoredJson, writeStoredPeriod, t
 import { errorMessage } from "@/lib/errors";
 import Sidebar from "@/components/navigation/sidebar";
 import Breadcrumbs from "@/components/navigation/breadcrumbs";
+import NotificationBell from "@/components/notification-bell";
+import type { NotificationTarget } from "@/lib/notifications-types";
 import {
   allowedKeysFor,
   breadcrumbsFor,
@@ -178,6 +181,9 @@ export default function Dashboard({
   const hasStreamTeacher = role === "Teacher" && yearStreamAssignments.length > 0;
   const allowedKeys = allowedKeysFor(role, { hasStreamTeacher });
   const menuEntries = visibleMenuFor(role, { hasStreamTeacher });
+  const notificationTargets: NotificationTarget[] = allowedKeys.includes("assignments")
+    ? ["studentlogins", "assignments"]
+    : ["studentlogins"];
   const effectiveActive: NavKey = allowedKeys.includes(active) ? active : "dashboard";
   const streamSection: StreamTeacherSection | null =
     effectiveActive === "streamstudents"
@@ -266,7 +272,15 @@ export default function Dashboard({
           </div>
 
           <div className="topbar-right">
-            <button className="icon-btn" aria-label="Notifications">{icons.bell}</button>
+            {role === "Academic" || role === "Headmaster" ? (
+              <NotificationBell
+                userId={user.id}
+                allowedTargets={notificationTargets}
+                onNavigate={(target) => pickNav(target)}
+              />
+            ) : (
+              <button className="icon-btn" aria-label="Notifications">{icons.bell}</button>
+            )}
             <button className="logout-btn" onClick={onLogout} disabled={loggingOut}>
               {loggingOut ? <span className="spinner" aria-hidden="true" /> : icons.logout}
               <span>{loggingOut ? "Signing out…" : "Log out"}</span>
@@ -330,6 +344,7 @@ export default function Dashboard({
           {effectiveActive === "classes" && <ClassManagement />}
           {effectiveActive === "academic" && <SubjectManagement />}
           {effectiveActive === "students" && <StudentsManagement />}
+          {effectiveActive === "studentlogins" && <StudentLogins />}
           {effectiveActive === "staff" && <TeachersManagement currentUserId={user.id} />}
           {effectiveActive === "streamteachers" && <StreamTeacherAssignment year={activePeriod.yearId} />}
           {streamSection && (

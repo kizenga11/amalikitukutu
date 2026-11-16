@@ -34,6 +34,7 @@ export function resolveRole(value: unknown): Role {
 export type NavKey =
   | "dashboard"
   | "students"
+  | "studentlogins"
   | "staff"
   | "classes"
   | "academic"
@@ -69,7 +70,7 @@ export function isNavKey(value: unknown): value is NavKey {
   return (
     typeof value === "string" &&
     [
-      "dashboard", "students", "staff", "classes", "academic", "reports", "enrollment",
+      "dashboard", "students", "studentlogins", "staff", "classes", "academic", "reports", "enrollment",
       "reportcard", "compare", "combined", "beststudent", "certificates", "analysis", "exams",
       "streamstudents", "streamsubjects", "streamresults", "streamreports",
       "streambeststudent", "streamcertificates", "streamteachers", "attendance", "lessonplans", "assignments", "notes", "sms", "settings",
@@ -103,6 +104,7 @@ export const navIcons = {
   results: <Icon paths={<><path d="M3 3v16a2 2 0 0 0 2 2h16" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></>} />,
   settings: <Icon paths={<><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /><circle cx="12" cy="12" r="3" /></>} />,
   students: <Icon paths={<><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" /><path d="M22 10v6" /><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" /></>} />,
+  login: <Icon paths={<><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><path d="m10 17 5-5-5-5" /><path d="M15 12H3" /></>} />,
   staff: <Icon paths={<><path d="M10 15H6a4 4 0 0 0-4 4v2" /><path d="m14.305 16.53.923-.382" /><path d="m15.228 13.852-.923-.383" /><path d="m16.852 12.228-.383-.923" /><path d="m16.852 17.772-.383.924" /><path d="m19.148 12.228.383-.923" /><path d="m19.53 18.696-.382-.924" /><path d="m20.772 13.852.924-.383" /><path d="m20.772 16.148.924.383" /><circle cx="18" cy="15" r="3" /><circle cx="9" cy="7" r="4" /></>} />,
   classes: <Icon paths={<><path d="M14 21v-3a2 2 0 0 0-4 0v3" /><path d="M18 5v16" /><path d="m4 6 7.106-3.79a2 2 0 0 1 1.788 0L20 6" /><path d="m6 11-3.52 2.147a1 1 0 0 0-.48.854V19a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a1 1 0 0 0-.48-.853L18 11" /><path d="M6 5v16" /><circle cx="12" cy="9" r="2" /></>} />,
   subjects: <Icon paths={<><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" /></>} />,
@@ -166,6 +168,7 @@ export const menuConfig: MenuEntry[] = [
     roles: ADMIN_ROLES,
     items: [
       { kind: "link", key: "students", label: "Students", icon: navIcons.students, roles: ADMIN_ROLES },
+      { kind: "link", key: "studentlogins", label: "Student Logins", icon: navIcons.login, roles: ADMIN_ROLES },
       { kind: "link", key: "staff", label: "Staff", icon: navIcons.staff, roles: ADMIN_ROLES },
       { kind: "link", key: "streamteachers", label: "Stream Teachers", icon: navIcons.staff, roles: ADMIN_ROLES },
       { kind: "link", key: "classes", label: "Classes", icon: navIcons.classes, roles: ADMIN_ROLES },
