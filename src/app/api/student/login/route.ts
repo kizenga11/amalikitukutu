@@ -23,10 +23,10 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
-    const registrationNo = normaliseRegistrationNo(body?.registrationNo);
+    const typedRegistrationNo = normaliseRegistrationNo(body?.registrationNo);
     const password = typeof body?.password === "string" ? body.password : "";
 
-    if (!registrationNo || !password) {
+    if (!typedRegistrationNo || !password) {
       return NextResponse.json(
         { error: "Enter your registration number and password." },
         { status: 400 },
@@ -34,6 +34,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const ip = requestIp(request);
+
+    // Resolve the student first: registration numbers are stored without the
+    // year, so a student may type either S7811/0020 or S7811/0020/2026. Using
+    // the stored number from here on keeps both forms under one rate limit and
+    // makes the login monitor show the right student.
+    const found = await findStudentByRegistrationNo(typedRegistrationNo);
+    const registrationNo = found
+      ? normaliseRegistrationNo(found.registrationNo)
+      : typedRegistrationNo;
+
     const limit = await checkLoginRateLimit(registrationNo, ip);
     if (limit.blocked) {
       return NextResponse.json(
@@ -46,7 +56,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const found = await findStudentByRegistrationNo(registrationNo);
     if (!found) {
       await recordLoginAttempt(registrationNo, ip, false);
       return NextResponse.json(

@@ -2,6 +2,13 @@ import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } fr
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { loadActiveYearId } from "@/lib/active-year";
+import {
+  normaliseRegistrationNo,
+  registrationVariants,
+} from "@/lib/student-registration";
+
+// Re-exported for the API routes that already import it from here.
+export { normaliseRegistrationNo };
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -350,13 +357,21 @@ export async function requireStudent(
 export async function findStudentByRegistrationNo(
   registrationNo: string,
 ): Promise<{ id: string; registrationNo: string } | null> {
-  const { data, error } = await studentAdmin
-    .from("students")
-    .select("id, registration_no")
-    .ilike("registration_no", registrationNo)
-    .maybeSingle();
-  if (error || !data) return null;
-  return { id: data.id, registrationNo: data.registration_no ?? registrationNo };
+  // Plain registrations are tried first. Only if nothing matches do we retry
+  // without a trailing /YYYY, so students who type the entry year still get in
+  // while a stored number that really ends in a year keeps priority.
+  for (const candidate of registrationVariants(registrationNo)) {
+    const { data, error } = await studentAdmin
+      .from("students")
+      .select("id, registration_no")
+      .ilike("registration_no", candidate)
+      .maybeSingle();
+    if (error) continue;
+    if (data) {
+      return { id: data.id, registrationNo: data.registration_no ?? candidate };
+    }
+  }
+  return null;
 }
 
 export async function loadStudentAccount(studentId: string): Promise<{
@@ -372,10 +387,6 @@ export async function loadStudentAccount(studentId: string): Promise<{
     .maybeSingle();
   if (error || !data) return null;
   return data;
-}
-
-export function normaliseRegistrationNo(value: unknown): string {
-  return typeof value === "string" ? value.trim().toUpperCase().slice(0, 40) : "";
 }
 
 export interface StudentSubject {
