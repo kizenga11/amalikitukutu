@@ -237,9 +237,64 @@ export default function StudentPortal() {
 
   if (loading) {
     return (
-      <div className="sp-standalone">
-        <div className="sp-card sp-card--narrow">
-          <p className="sp-muted">Loading your portal…</p>
+      <div className="sp-standalone sp-standalone--loading">
+        <style>{`
+          .sp-standalone--loading{position:relative;overflow:hidden;background:radial-gradient(1100px 620px at 12% -10%,rgba(52,211,153,.22),transparent 60%),radial-gradient(900px 540px at 102% 112%,rgba(45,212,191,.18),transparent 56%),linear-gradient(160deg,#04120d 0%,#0a2a1e 46%,#051510 100%)}
+          .sp-standalone--loading::before{content:"";position:absolute;inset:-25%;background-image:radial-gradient(rgba(167,243,208,.16) 1px,transparent 1px);background-size:26px 26px;mask-image:radial-gradient(circle at 50% 45%,#000 0%,transparent 68%);-webkit-mask-image:radial-gradient(circle at 50% 45%,#000 0%,transparent 68%);animation:spLoadDrift 24s linear infinite;pointer-events:none}
+          .sp-standalone--loading::after{content:"";position:absolute;width:520px;height:520px;left:-170px;bottom:-230px;border-radius:50%;background:radial-gradient(circle,rgba(16,185,129,.3),transparent 65%);filter:blur(12px);animation:spLoadFloat 9s ease-in-out infinite;pointer-events:none}
+          .sp-load-card{position:relative;z-index:1;width:min(430px,100%);padding:2.7rem 2rem 2.1rem;text-align:center;border-radius:28px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.035));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 30px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.18);overflow:hidden;animation:spLoadCardIn .7s cubic-bezier(.22,1,.36,1) both}
+          .sp-load-card::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.14) 48%,transparent 64%);transform:translateX(-130%);animation:spLoadSheen 4s ease-in-out infinite;pointer-events:none}
+          .sp-load-orb{position:relative;width:112px;height:112px;margin:0 auto 1.35rem;display:grid;place-items:center}
+          .sp-load-orb::before{content:"";position:absolute;inset:-6px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 52%,rgba(167,243,208,.92) 72%,rgba(52,211,153,.15) 88%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2.5px));animation:spLoadSpin 2.6s linear infinite}
+          .sp-load-orb::after{content:"";position:absolute;inset:8px;border-radius:50%;background:radial-gradient(circle,rgba(52,211,153,.38),transparent 68%);filter:blur(8px);animation:spLoadPulse 2.8s ease-in-out infinite}
+          .sp-load-logo{position:relative;z-index:1;width:86px;height:86px;border-radius:50%;background:#fff;padding:10px;object-fit:contain;box-shadow:0 12px 34px rgba(0,0,0,.4),0 0 0 6px rgba(255,255,255,.06)}
+          .sp-load-kicker{margin:0;font-size:.68rem;font-weight:800;letter-spacing:.28em;text-transform:uppercase;color:#6ee7b7}
+          .sp-load-title{margin:.4rem 0 0;font-size:1.42rem;line-height:1.25;font-weight:800;letter-spacing:-.02em;background:linear-gradient(92deg,#ffffff 20%,#d1fae5 55%,#6ee7b7 90%);-webkit-background-clip:text;background-clip:text;color:transparent}
+          .sp-load-dots{display:inline-flex;gap:3px;margin-left:2px;vertical-align:baseline}
+          .sp-load-dots i{width:5px;height:5px;border-radius:999px;background:#6ee7b7;display:inline-block;animation:spLoadDot 1.2s ease-in-out infinite}
+          .sp-load-dots i:nth-child(2){animation-delay:.15s}
+          .sp-load-dots i:nth-child(3){animation-delay:.3s}
+          .sp-load-swap{position:relative;height:1.35rem;margin:.85rem 0 1.15rem;font-size:.8rem;color:rgba(209,250,229,.78)}
+          .sp-load-swap span{position:absolute;inset:0;opacity:0;transform:translateY(8px);animation:spLoadSwap 9s ease-in-out infinite}
+          .sp-load-swap span:nth-child(2){animation-delay:3s}
+          .sp-load-swap span:nth-child(3){animation-delay:6s}
+          .sp-load-track{position:relative;height:6px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}
+          .sp-load-bar{position:absolute;top:0;bottom:0;width:42%;border-radius:999px;background:linear-gradient(90deg,rgba(16,185,129,0),#34d399 35%,#a7f3d0 65%,rgba(16,185,129,0));animation:spLoadBar 1.9s cubic-bezier(.65,0,.35,1) infinite}
+          .sp-load-note{margin:.95rem 0 0;font-size:.72rem;color:rgba(226,240,233,.5)}
+          @keyframes spLoadSpin{to{transform:rotate(360deg)}}
+          @keyframes spLoadPulse{0%,100%{opacity:.55;transform:scale(.92)}50%{opacity:1;transform:scale(1.06)}}
+          @keyframes spLoadCardIn{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:none}}
+          @keyframes spLoadSheen{0%,62%{transform:translateX(-130%)}100%{transform:translateX(130%)}}
+          @keyframes spLoadDrift{to{background-position:26px 26px}}
+          @keyframes spLoadFloat{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(30px,-24px,0)}}
+          @keyframes spLoadDot{0%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-4px)}}
+          @keyframes spLoadSwap{0%{opacity:0;transform:translateY(8px)}4%,27%{opacity:1;transform:none}33%,100%{opacity:0;transform:translateY(-8px)}}
+          @keyframes spLoadBar{0%{left:-45%}60%{left:58%}100%{left:105%}}
+          @media (max-width:480px){.sp-load-card{padding:2.1rem 1.25rem 1.7rem;border-radius:22px}.sp-load-title{font-size:1.22rem}.sp-load-orb{width:96px;height:96px;margin-bottom:1.1rem}.sp-load-logo{width:74px;height:74px}}
+          @media (prefers-reduced-motion:reduce){.sp-standalone--loading::before,.sp-standalone--loading::after,.sp-load-card,.sp-load-card::after,.sp-load-orb::before,.sp-load-orb::after,.sp-load-bar,.sp-load-dots i,.sp-load-swap span{animation:none}.sp-load-swap span:first-child{opacity:1;transform:none}}
+        `}</style>
+        <div className="sp-load-card" role="status" aria-live="polite" aria-label="Loading your portal">
+          <div className="sp-load-orb" aria-hidden="true">
+            <Image src="/assets/logo.png" alt="" width={86} height={86} className="sp-load-logo" priority />
+          </div>
+          <p className="sp-load-kicker">Amali Kitukutu</p>
+          <h1 className="sp-load-title">
+            Loading your portal
+            <span className="sp-load-dots" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+          </h1>
+          <div className="sp-load-swap" aria-hidden="true">
+            <span>Preparing your dashboard</span>
+            <span>Fetching your subjects</span>
+            <span>Checking your assignments</span>
+          </div>
+          <div className="sp-load-track" aria-hidden="true">
+            <span className="sp-load-bar" />
+          </div>
+          <p className="sp-load-note">This only takes a moment.</p>
         </div>
       </div>
     );

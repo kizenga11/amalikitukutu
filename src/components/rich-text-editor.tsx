@@ -37,7 +37,7 @@ export default function RichTextEditor({
   value,
   onChange,
   disabled = false,
-  placeholder = "Andika jibu lako hapa…",
+  placeholder = "Write your answer here…",
   minHeight = 260,
   ariaLabel = "Answer",
 }: {
