@@ -9,7 +9,7 @@ import {
   fetchStudents,
   fetchSubjects,
   insertStudent,
-  renumberStudentRegistrations,
+  assignMissingStudentRegistrations,
   saveStudentSubjects,
   updateStudent,
   type DbClassRow,
@@ -437,29 +437,20 @@ export default function StudentsManagement({ scope }: StudentsManagementProps = 
 
     try {
       if (editingId) {
-        const prev = students.find((s) => s.id === editingId);
+        // Registration numbers are assigned once by the database trigger and
+        // never reshuffled here, so editing a student keeps their number.
         await updateStudent(editingId, payload);
         await saveStudentSubjects(editingId, assignedSubjectIds);
-        const targets = new Set<string | null>();
-        if (prev?.class_id !== classId) {
-          targets.add(prev?.class_id ?? null);
-        }
-        targets.add(classId);
-        try {
-          await renumberStudentRegistrations(Array.from(targets));
-        } catch {
-          // ignore renumber errors
-        }
         showToast("success", `Student "${first} ${last}" updated.`);
       } else {
         const inserted = await insertStudent(payload);
         await saveStudentSubjects(inserted.id, assignedSubjectIds);
-        try {
-          await renumberStudentRegistrations([classId]);
-        } catch {
-          // ignore renumber errors
-        }
-        showToast("success", `Student "${first} ${last}" registered.`);
+        showToast(
+          "success",
+          inserted.registration_no
+            ? `Student "${first} ${last}" registered · Reg No ${inserted.registration_no}.`
+            : `Student "${first} ${last}" registered, but no Reg No was assigned. Click "Assign Reg Nos" once.`,
+        );
       }
       setShowForm(false);
       setEditingId(null);
@@ -479,13 +470,17 @@ export default function StudentsManagement({ scope }: StudentsManagementProps = 
     }
   }
 
-  async function handleRenumber() {
+  async function handleAssignMissingRegNos() {
     if (renumbering) return;
     setRenumbering(true);
     try {
-      const classIds: (string | null)[] = classes.map((c) => c.id);
-      await renumberStudentRegistrations(classIds.length ? classIds : [null]);
-      showToast("success", "Registration numbers assigned: girls first, then boys, alphabetically.");
+      const assigned = await assignMissingStudentRegistrations();
+      showToast(
+        "success",
+        assigned > 0
+          ? `${assigned} student${assigned === 1 ? "" : "s"} received the next registration number${assigned === 1 ? "" : "s"}. No other number changed.`
+          : "Every student already has a registration number. Nothing changed.",
+      );
       await loadPage();
     } catch (error) {
       const message = errorMessage(error, "Unable to assign registration numbers.");
@@ -659,7 +654,7 @@ export default function StudentsManagement({ scope }: StudentsManagementProps = 
               <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={importing} onClick={() => importInputRef.current?.click()}>
                 {importing ? "Importing…" : "Import CSV"}
               </button>
-              <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={renumbering} onClick={handleRenumber}>
+              <button className="cm-btn cm-btn--ghost cm-btn--sm" disabled={renumbering} onClick={handleAssignMissingRegNos}>
                 {renumbering ? "Assigning…" : "Assign Reg Nos"}
               </button>
             </>

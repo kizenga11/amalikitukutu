@@ -448,12 +448,10 @@ export async function deleteStudents(ids: string[]): Promise<void> {
   if (error) throw error;
 }
 
-export async function renumberStudentRegistrations(classIds: (string | null)[]): Promise<void> {
-  const targets: (string | null)[] = classIds.length ? classIds : [null];
-  for (const classId of targets) {
-    const { error } = await supabase.rpc("renumber_student_registrations", { p_class_id: classId });
-    if (error) throw error;
-  }
+export async function assignMissingStudentRegistrations(): Promise<number> {
+  const { data, error } = await supabase.rpc("assign_missing_student_registrations");
+  if (error) throw error;
+  return typeof data === "number" ? data : 0;
 }
 
 // ---------------------------------------------------------------
