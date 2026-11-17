@@ -101,6 +101,17 @@ export async function logoutStudent() {
   return studentRequest<{ ok: true }>("/api/student/logout", { method: "POST" });
 }
 
+/** A sign-out request can hang on a weak connection; never block the redirect on it. */
+export const STUDENT_LOGOUT_TIMEOUT_MS = 2500;
+
+export async function logoutStudentReliably(): Promise<void> {
+  const request = logoutStudent().catch(() => undefined);
+  const timeout = new Promise<void>((resolve) =>
+    window.setTimeout(resolve, STUDENT_LOGOUT_TIMEOUT_MS),
+  );
+  await Promise.race([request, timeout]);
+}
+
 export async function fetchStudentMe() {
   return studentRequest<StudentMe>("/api/student/me");
 }

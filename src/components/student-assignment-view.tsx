@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   ATTACHMENT_MAX_BYTES,
   isPracticalQuestion,
@@ -380,7 +380,7 @@ function MatchingAnswer({ qid, cfg, value, locked, onChange }: { qid: string; cf
   return (
     <div className="sp-matching">
       {cfg.pairs.map((p, i) => (
-        <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "center", marginBottom: 8 }}>
+        <div key={i} className="sp-matching-row">
           <div><strong>({toRoman(i + 1)})</strong> {p.left}</div>
           <select className="ta-input" value={map[String(i)] || ""} onChange={(e) => onChange({ ...map, [String(i)]: e.target.value })}>
             <option value="">— Select match —</option>
@@ -397,8 +397,8 @@ function McqItemsStudent({ qid, items, instruction, value, locked, onChange }: {
   function setItem(key: string, v: any) { onChange({ ...map, [key]: v }); }
   return (
     <div className="sp-mcq-items">
-      {instruction && <p style={{ marginBottom: 10, whiteSpace: "pre-wrap" }}>{instruction}</p>}
-      <div style={{ display: "grid", gap: 12 }}>
+      {instruction && <p className="sp-mcq-items-instruction">{instruction}</p>}
+      <div className="sp-mcq-items-list">
         {items.map((it, idx) => {
           const key = it.key || `item-${idx}`;
           const label = it.label || toRoman(idx + 1);
@@ -407,26 +407,25 @@ function McqItemsStudent({ qid, items, instruction, value, locked, onChange }: {
           const labels: string[] = (Array.isArray(it.choiceLabels) && it.choiceLabels.length === choices.length) ? it.choiceLabels : choices.map((_, i) => String.fromCharCode(65 + i));
           const selectedLabel = typeof val === "string" && /^[A-Za-z]+$/.test(val) ? val : (typeof val === "number" ? (labels[val] || String.fromCharCode(65 + val)) : "");
           return (
-            <div key={key} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 12, background: "#fff" }}>
-              <div style={{ marginBottom: 8 }}><strong>({label})</strong> {it.prompt}</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "start" }}>
-                <div style={{ display: "grid", gap: 6 }}>
+            <div key={key} className="sp-mcq-item">
+              <div className="sp-mcq-item-prompt"><strong>({label})</strong> {it.prompt}</div>
+              <div className="sp-mcq-item-body">
+                <div className="sp-mcq-choices">
                   {choices.map((opt, i) => {
                     const lbl = labels[i] || String.fromCharCode(65 + i);
                     const checked = val === i || val === String(i) || val === lbl;
                     return (
-                      <label key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: locked ? "default" : "pointer" }}>
+                      <label key={i} className={`sp-mcq-choice ${locked ? "sp-mcq-choice--locked" : ""}`}>
                         <input type="radio" name={`mcqi-${qid}-${key}`} checked={checked} disabled={locked} onChange={() => setItem(key, lbl)} />
                         <span><strong>{lbl}.</strong> {String(opt)}</span>
                       </label>
                     );
                   })}
                 </div>
-                <div style={{ minWidth: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                  <span className="sp-muted" style={{ fontSize: 12 }}>Jibu</span>
+                <div className="sp-mcq-answer">
+                  <span className="sp-muted sp-mcq-answer-label">Jibu</span>
                   <select
-                    className="ta-input"
-                    style={{ width: 88, textAlign: "center", fontWeight: 600 }}
+                    className="ta-input sp-mcq-answer-select"
                     value={selectedLabel}
                     disabled={locked}
                     onChange={(e) => { const v = e.target.value; setItem(key, v || ""); }}
@@ -440,7 +439,7 @@ function McqItemsStudent({ qid, items, instruction, value, locked, onChange }: {
                   </select>
                 </div>
               </div>
-              {locked && <div className="sp-muted" style={{ marginTop: 6 }}>Jibu lililochaguliwa: <strong>[ {selectedLabel || "—"} ]</strong></div>}
+              {locked && <div className="sp-muted sp-mcq-item-locked">Jibu lililochaguliwa: <strong>[ {selectedLabel || "—"} ]</strong></div>}
             </div>
           );
         })}
@@ -459,26 +458,25 @@ function StructuredAnswer({ qid, parts, value, locked, onChange }: { qid: string
       const hasChildren = p.children && p.children.length > 0;
       const leafVal = map[key];
       return (
-        <div key={key} style={{ marginLeft: depth * 16, marginBottom: 10 }}>
+        <div key={key} className="sp-structured-part" style={{ "--sp-depth": depth } as CSSProperties}>
           <div><strong>{label}.</strong> {p.prompt} {!hasChildren && <span className="sp-chip">{partMarks(p)} marks</span>}</div>
           {!hasChildren && (
             p.type === "mcq" ? (
-              <div className="sp-mcq" style={{ display: "grid", gap: 6 }}>
+              <div className="sp-mcq sp-mcq--compact">
                 {(p.options || []).map((opt, i) => {
                   const lbl = (p.choiceLabels && p.choiceLabels[i]) || (p.options && p.options.length <= 8 ? String.fromCharCode(65 + i) : toRoman(i + 1));
                   const checked = leafVal === i || leafVal === String(i) || leafVal === lbl || leafVal === String(opt);
                   return (
-                    <label key={i} className="sp-mcq-option" style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <label key={i} className="sp-mcq-option">
                       <input type="radio" name={`s-${qid}-${key}`} checked={checked} disabled={locked} onChange={() => setLeaf(key, lbl)} />
                       <span><strong>{lbl}.</strong> {String(opt)}</span>
                     </label>
                   );
                 })}
-                <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="sp-mcq-answer-inline">
                   <span className="sp-muted">Answer (letter):</span>
                   <select
-                    className="ta-input"
-                    style={{ width: 90 }}
+                    className="ta-input sp-mcq-inline-select"
                     value={(typeof leafVal === "string" && /^[A-Za-z]+$/.test(leafVal)) ? leafVal : (typeof leafVal === "number" ? ((p.choiceLabels && p.choiceLabels[leafVal]) || String.fromCharCode(65 + leafVal)) : "")}
                     disabled={locked}
                     onChange={(e) => { const v = e.target.value; if (v) setLeaf(key, v); }}

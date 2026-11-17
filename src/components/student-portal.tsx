@@ -15,7 +15,7 @@ import {
   fetchStudentMe,
   fetchStudentNotes,
   fetchStudentResults,
-  logoutStudent,
+  logoutStudentReliably,
   StudentApiError,
   type StudentMe,
   type StudentResultsResponse,
@@ -26,12 +26,13 @@ import StudentAssignmentView from "@/components/student-assignment-view";
 import StudentNotesTab from "@/components/student-notes-tab";
 import StudentConfirmDialog from "@/components/student-confirm-dialog";
 import StudentNoticeDialog from "@/components/student-notice-dialog";
+import StudentLogoutOverlay from "@/components/student-logout-overlay";
 import "./student-portal.css";
 
 type Tab = "home" | "results" | "assignments" | "notes";
 
 const HOLIDAY_MESSAGE =
-  "🏖️ Uko likizo: soma kila siku, wasaidie wazazi nyumbani, epuka makundi mabaya, tumia simu kwa busara, jitunze kiafya na ujiandae kurudi shule kwa wakati. Likizo njema na salama! 📚 Na jiandae kwa opening test itakayoanza tarehe 11 January 2027.";
+  "🏖️ Uko likizo: soma kila siku, wasaidie wazazi nyumbani, epuka makundi mabaya, tumia simu kwa busara, jitunze kiafya na ujiandae kurudi shule kwa wakati. 📚 Na jiandae kwa opening test itakayoanza tarehe 11 January 2027. Likizo njema na salama!";
 
 function HolidayMarquee() {
   return (
@@ -85,6 +86,7 @@ export default function StudentPortal() {
   const [openAssignment, setOpenAssignment] = useState<string | null>(null);
   const [assignmentFilter, setAssignmentFilter] = useState<"all" | "pending" | "done">("all");
   const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const loadAssignments = useCallback(async () => {
     try {
@@ -203,12 +205,13 @@ export default function StudentPortal() {
   }, [router]);
 
   async function handleLogout() {
-    try {
-      await logoutStudent();
-    } catch {
-      // Ignore network errors while logging out.
-    }
+    if (loggingOut) return;
+    setConfirmingLogout(false);
+    setLoggingOut(true);
+    // Show progress immediately, but never wait forever for a slow sign-out.
+    await logoutStudentReliably();
     router.replace("/student/login");
+    router.refresh();
   }
 
   const fullName = me
@@ -386,8 +389,9 @@ export default function StudentPortal() {
               type="button"
               className="sp-link sp-link--danger"
               onClick={() => setConfirmingLogout(true)}
+              disabled={loggingOut}
             >
-              Log out
+              {loggingOut ? "Logging out…" : "Log out"}
             </button>
           </div>
         </div>
@@ -669,12 +673,10 @@ export default function StudentPortal() {
         confirmLabel="Log out"
         cancelLabel="Stay signed in"
         tone="danger"
-        onConfirm={() => {
-          setConfirmingLogout(false);
-          void handleLogout();
-        }}
+        onConfirm={() => void handleLogout()}
         onCancel={() => setConfirmingLogout(false)}
       />
+      {loggingOut && <StudentLogoutOverlay />}
     </div>
   );
 }

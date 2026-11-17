@@ -7,10 +7,11 @@ import { useRouter } from "next/navigation";
 import {
   changeStudentPassword,
   fetchStudentMe,
-  logoutStudent,
+  logoutStudentReliably,
   StudentApiError,
   type StudentMe,
 } from "@/lib/student-portal-api";
+import StudentLogoutOverlay from "@/components/student-logout-overlay";
 import "./student-portal.css";
 
 function EyeIcon({ off = false }: { off?: boolean }) {
@@ -43,6 +44,7 @@ export default function StudentChangePasswordForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,12 +111,11 @@ export default function StudentChangePasswordForm() {
   }
 
   async function handleLogout() {
-    try {
-      await logoutStudent();
-    } catch {
-      // Ignore network errors while logging out.
-    }
+    if (loggingOut) return;
+    setLoggingOut(true);
+    await logoutStudentReliably();
     router.replace("/student/login");
+    router.refresh();
   }
 
   const forced = Boolean(me?.mustChangePassword);
@@ -231,11 +232,12 @@ export default function StudentChangePasswordForm() {
               Back to portal
             </Link>
           )}
-          <button type="button" className="sp-link" onClick={handleLogout}>
-            Log out
+          <button type="button" className="sp-link" onClick={() => void handleLogout()} disabled={loggingOut}>
+            {loggingOut ? "Logging out…" : "Log out"}
           </button>
         </div>
       </div>
+      {loggingOut && <StudentLogoutOverlay />}
     </div>
   );
 }

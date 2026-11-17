@@ -355,20 +355,123 @@
 }
 
 @media (max-width: 720px) {
+  .ide-toolbar {
+    align-items: stretch;
+    gap: 0.45rem;
+    padding: 0.5rem;
+  }
+
+  .ide-toolbar-left,
+  .ide-toolbar-right {
+    flex: 1 1 100%;
+    min-width: 0;
+    justify-content: space-between;
+    gap: 0.4rem;
+  }
+
+  .ide-language {
+    min-height: 2rem;
+  }
+
+  .ide-mode-btn,
+  .ide-icon-btn,
+  .ide-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.8rem;
+    touch-action: manipulation;
+  }
+
+  .ide-btn--submit {
+    min-height: 2.75rem;
+  }
+
   .ide-editor-wrap {
-    height: 300px;
+    height: min(340px, 46vh);
+    height: min(340px, 46dvh);
+    min-height: 220px;
+  }
+
+  .ide-textarea {
+    padding: 0.75rem;
+    /* 16px prevents iOS Safari from zooming when the code field is focused. */
+    font-size: 16px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .ide-stdin {
+    gap: 0.4rem;
+    padding: 0.55rem;
+  }
+
+  .ide-stdin textarea {
+    min-height: 4rem;
+    padding: 0.6rem;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .ide-output {
+    gap: 0.5rem;
+    padding: 0.55rem;
   }
 
   .ide-output-grid {
     grid-template-columns: 1fr;
   }
 
+  .ide-pre {
+    max-height: 11rem;
+    font-size: 0.75rem;
+  }
+
+  .ide-error-link {
+    min-height: 2.75rem;
+    align-items: flex-start;
+  }
+
   .ide-submit-bar {
     align-items: stretch;
     flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.65rem;
+  }
+
+  .ide-submit-hint {
+    text-align: center;
+    line-height: 1.5;
   }
 
   .ide-submit-bar .ide-btn {
     width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .ide-toolbar-left,
+  .ide-toolbar-right {
+    justify-content: flex-start;
+  }
+
+  .ide-mode-switch {
+    flex: 1 1 auto;
+  }
+
+  .ide-mode-btn {
+    flex: 1 1 50%;
+  }
+
+  .ide-font {
+    margin-left: auto;
+  }
+
+  .ide-btn--run {
+    flex: 1 1 100%;
   }
 }

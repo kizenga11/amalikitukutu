@@ -1711,3 +1711,557 @@
 .sp-answer-rendered code {
   font-family: inherit;
 }
+
+/* ============================================================
+   Mobile polish (loaded last so it tunes the rules above)
+   ============================================================ */
+
+/* ---------------------- Logout progress ---------------------- */
+
+.sp-logout-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: calc(1.25rem + env(safe-area-inset-top, 0px)) 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(3px);
+}
+
+.sp-logout-card {
+  width: min(340px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.6rem 1.4rem;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--white);
+  box-shadow: 0 20px 55px rgba(15, 23, 42, 0.24);
+  text-align: center;
+}
+
+.sp-logout-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid #dbeae0;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: sp-logout-spin 0.8s linear infinite;
+}
+
+@keyframes sp-logout-spin {
+  to { transform: rotate(360deg); }
+}
+
+.sp-logout-card strong {
+  font-size: 1.02rem;
+  color: var(--ink);
+}
+
+.sp-logout-progress {
+  display: block;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #edf2ef;
+}
+
+.sp-logout-progress i {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--primary), #6bbf8a);
+  animation: sp-logout-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes sp-logout-slide {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(260%); }
+}
+
+.sp-logout-hint {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-logout-spinner,
+  .sp-logout-progress i {
+    animation-duration: 2.4s;
+  }
+}
+
+/* ---------------- Answer inputs (matching / MCQ / parts) ---------------- */
+
+.sp-matching {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sp-matching-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.sp-mcq-items-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.sp-mcq-items-instruction {
+  margin: 0 0 0.625rem;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.sp-mcq-item {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.sp-mcq-item-prompt {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.sp-mcq-item-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.sp-mcq-choices {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.sp-mcq-choice {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  line-height: 1.5;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.sp-mcq-choice input {
+  margin-top: 0.15rem;
+  accent-color: var(--primary);
+}
+
+.sp-mcq-choice--locked {
+  cursor: default;
+}
+
+.sp-mcq-answer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.sp-mcq-answer-label {
+  font-size: 0.75rem;
+}
+
+.sp-mcq-answer-select {
+  width: 5.5rem;
+  text-align: center;
+  font-weight: 700;
+}
+
+.sp-mcq-item-locked {
+  margin-top: 0.375rem;
+}
+
+.sp-mcq--compact {
+  gap: 0.375rem;
+}
+
+.sp-mcq-answer-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.sp-mcq-inline-select {
+  width: 5.625rem;
+}
+
+.sp-structured-part {
+  min-width: 0;
+  margin-left: calc(var(--sp-depth, 0) * 16px);
+  margin-bottom: 0.625rem;
+}
+
+/* -------------------------- Notes viewer -------------------------- */
+
+.sp-viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.62);
+}
+
+.sp-viewer {
+  display: flex;
+  flex-direction: column;
+  width: min(1000px, 96vw);
+  height: 88vh;
+  height: 88dvh;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.sp-viewer-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.sp-viewer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.sp-viewer-head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-viewer-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem;
+}
+
+.sp-viewer-body--image {
+  display: grid;
+  place-items: center;
+  background: #0f172a;
+}
+
+.sp-viewer-body--image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
+}
+
+/* --------------------------- Breakpoints --------------------------- */
+
+@media (max-width: 900px) {
+  .sp-topbar {
+    gap: 0.5rem 0.75rem;
+    padding: calc(0.55rem + env(safe-area-inset-top, 0px)) clamp(0.75rem, 3vw, 1.25rem) 0.55rem;
+  }
+
+  .sp-tabs {
+    gap: 0.35rem;
+    padding: 0.15rem 0.1rem 0.1rem;
+    scroll-snap-type: x proximity;
+  }
+
+  .sp-tab {
+    flex: 0 0 auto;
+    min-height: 2.6rem;
+    padding: 0.55rem 0.8rem;
+    scroll-snap-align: start;
+  }
+
+  .sp-userbox-actions {
+    gap: 0.5rem;
+  }
+
+  .sp-userbox-actions .sp-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .sp-main {
+    gap: 0.8rem;
+    padding: 0.85rem 0.8rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .sp-stack {
+    gap: 0.8rem;
+  }
+
+  .sp-card {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  .sp-brand img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sp-brand div {
+    display: none;
+  }
+
+  .sp-avatar {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .sp-hero {
+    gap: 0.8rem;
+    padding: 1rem;
+  }
+
+  .sp-hero-avatar {
+    width: 3rem;
+    height: 3rem;
+    font-size: 1rem;
+  }
+
+  .sp-hero-body h1 {
+    font-size: 1.15rem;
+    overflow-wrap: anywhere;
+  }
+
+  .sp-hero-body p {
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+
+  .sp-hero-actions .sp-btn {
+    min-height: 44px;
+  }
+
+  .sp-stats {
+    gap: 0.55rem;
+  }
+
+  .sp-stat {
+    padding: 0.75rem;
+  }
+
+  .sp-stat strong {
+    font-size: 1.35rem;
+  }
+
+  .sp-profile-grid {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .sp-assignment-card {
+    gap: 0.6rem;
+    padding: 0.8rem;
+  }
+
+  .sp-assignment-card-main strong {
+    font-size: 0.92rem;
+    overflow-wrap: anywhere;
+  }
+
+  .sp-page-title,
+  .sp-section-head h1 {
+    font-size: 1.15rem;
+  }
+
+  .sp-filter-bar {
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+    scrollbar-width: none;
+  }
+
+  .sp-filter-bar .sp-chip {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.4rem;
+  }
+
+  .sp-panel {
+    gap: 0.85rem;
+    padding: 0.85rem;
+    border-radius: 12px;
+  }
+
+  .sp-question {
+    gap: 0.6rem;
+    padding: 0.8rem;
+  }
+
+  .sp-question-prompt {
+    font-size: 0.88rem;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  .sp-answer-mode {
+    display: flex;
+    width: 100%;
+  }
+
+  .sp-answer-mode-btn {
+    flex: 1;
+    min-height: 44px;
+    font-size: 0.82rem;
+  }
+
+  .sp-matching-row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .sp-matching-row:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .sp-mcq-item-body {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  .sp-mcq-answer {
+    flex-direction: row;
+    align-self: stretch;
+    justify-content: flex-start;
+    padding-top: 0.4rem;
+    border-top: 1px dashed var(--line);
+  }
+
+  .sp-mcq-answer-select {
+    width: 6rem;
+    text-align: left;
+  }
+
+  .sp-structured-part {
+    margin-left: calc(var(--sp-depth, 0) * 8px);
+  }
+
+  /* 16px keeps iOS Safari from zooming when an input is focused. */
+  .sp-input,
+  .sp-select,
+  .ta-input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .sp-btn,
+  .sp-chip--button {
+    min-height: 44px;
+  }
+
+  .sp-file {
+    max-width: 100%;
+  }
+
+  .sp-save-state {
+    width: 100%;
+    font-size: 0.75rem;
+  }
+
+  .sp-submit-actions .sp-btn {
+    flex: 1 1 100%;
+  }
+
+  .sp-result-summary {
+    gap: 0.4rem;
+  }
+
+  .sp-result-summary div {
+    min-width: calc(50% - 0.2rem);
+  }
+
+  .sp-table-wrap {
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sp-exam-option {
+    min-width: 170px;
+    max-width: 220px;
+  }
+
+  .sp-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .sp-modal-actions .sp-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .sp-viewer-backdrop {
+    padding: calc(0.5rem + env(safe-area-inset-top, 0px)) 0.5rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .sp-viewer {
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+  }
+
+  .sp-viewer-body {
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .sp-tab {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.78rem;
+  }
+
+  .sp-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .sp-stat:last-child {
+    grid-column: auto;
+  }
+
+  .sp-hero-actions {
+    flex-direction: column;
+  }
+
+  .sp-answer-mode-btn {
+    padding: 0.4rem 0.3rem;
+  }
+}

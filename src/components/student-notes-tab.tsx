@@ -206,20 +206,20 @@ export default function StudentNotesTab({ topics }: { topics: StudentTopicViewIt
       )}
 
       {viewer && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewer(null)}>
-          <div style={{ background: "#fff", borderRadius: 12, width: "min(1000px, 96vw)", height: "88vh", display: "flex", flexDirection: "column", overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: "10px 14px", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-              <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{viewer.title}</strong>
+        <div className="sp-viewer-backdrop" onClick={() => setViewer(null)}>
+          <div className="sp-viewer" onClick={(e) => e.stopPropagation()}>
+            <div className="sp-viewer-head">
+              <strong>{viewer.title}</strong>
               <button type="button" className="sp-btn sp-btn--ghost" onClick={() => setViewer(null)}>Close</button>
             </div>
             {viewer.kind === "pdf" ? (
-              <iframe src={viewer.url} title={viewer.title} style={{ flex: 1, width: "100%", border: "none" }} />
+              <iframe className="sp-viewer-frame" src={viewer.url} title={viewer.title} />
             ) : viewer.kind === "image" ? (
-              <div style={{ flex: 1, overflow: "auto", display: "grid", placeItems: "center", padding: 16, background: "#0f172a" }}>
-                <img src={viewer.url} alt={viewer.title} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", background: "#fff", borderRadius: 8 }} />
+              <div className="sp-viewer-body sp-viewer-body--image">
+                <img src={viewer.url} alt={viewer.title} />
               </div>
             ) : (
-              <div style={{ flex: 1, overflow: "auto", padding: 16 }} className="sp-note-content">
+              <div className="sp-viewer-body sp-note-content">
                 <NoteContent html={viewer.contentHtml} />
               </div>
             )}

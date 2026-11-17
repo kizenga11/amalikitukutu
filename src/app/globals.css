@@ -874,12 +874,18 @@ button:disabled, select:disabled { cursor: not-allowed; }
 /* ---- Phone widths: stacked layout, still one screen ---- */
 @media (max-width: 960px) {
 	.auth { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
-	.auth-brand { gap: .75rem; padding: 1rem 1.25rem; }
+	.auth-brand {
+		gap: .75rem;
+		padding: calc(1rem + env(safe-area-inset-top, 0px)) 1.25rem 1rem;
+	}
 	.auth-brand::after { width: 16rem; height: 16rem; bottom: -60%; }
 	.auth-brand-lockup { justify-content: center; }
 	.auth-brand-body,
 	.auth-brand-foot { display: none; }
-	.auth-panel { flex-direction: column; padding: 1.1rem 1.25rem; }
+	.auth-panel {
+		flex-direction: column;
+		padding: 1.1rem 1.25rem calc(1.1rem + env(safe-area-inset-bottom, 0px));
+	}
 	.auth-mobile-brand {
 		display: flex;
 		flex-direction: column;
@@ -897,11 +903,11 @@ button:disabled, select:disabled { cursor: not-allowed; }
 	.auth-form { margin-top: 0; }
 }
 @media (max-width: 420px) {
-	.auth-brand { padding: .85rem 1rem; }
+	.auth-brand { padding: calc(.85rem + env(safe-area-inset-top, 0px)) 1rem .85rem; }
 	.auth-brand-logo { width: 2.5rem; height: 2.5rem; border-radius: .8rem; }
 	.auth-brand-name { font-size: .9rem; }
 	.auth-brand-sub { font-size: .65rem; }
-	.auth-panel { padding: .9rem 1rem; }
+	.auth-panel { padding: .9rem 1rem calc(.9rem + env(safe-area-inset-bottom, 0px)); }
 	.auth-card { padding: 1rem 1rem .85rem; }
 	.auth-form { gap: .7rem; }
 	.auth-options { flex-direction: column; align-items: flex-start; gap: .3rem; }
@@ -3198,6 +3204,28 @@ select.st-input:disabled { background: var(--page); color: #a1a1aa; cursor: not-
 	.st-filter,
 	.sm-search,
 	.auth-input {
+		min-height: 2.75rem;
+	}
+	/* Auth inputs: 16px stops iOS zoom, larger targets stop mis-taps. */
+	.auth-input {
+		font-size: 16px;
+	}
+	.auth-pw-toggle {
+		right: .25rem;
+		width: 2.75rem;
+		height: 2.75rem;
+	}
+	.auth-submit,
+	.auth-back,
+	.auth-link {
+		min-height: 2.75rem;
+	}
+	.auth-back,
+	.auth-link {
+		display: inline-flex;
+		align-items: center;
+	}
+	.auth-check {
 		min-height: 2.75rem;
 	}
 	.res-toolbar {
