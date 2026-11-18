@@ -210,10 +210,9 @@ function cleanPastedWordHtml(html: string): string {
   let out = html;
   out = out.replace(/<!--\[if[\s\S]*?<!\[endif\]-->/gi, "");
   out = out.replace(/<!--StartFragment-->|<!--EndFragment-->/gi, "");
+  // Remove Office namespace tags (unwrap) so nested content like <img> is preserved.
   out = out.replace(/<\/?o:p[^>]*>/gi, "");
-  out = out.replace(/<\/?(?:w|m):[^>]*>/gi, "");
-  out = out.replace(/<v:[^>]*>[\s\S]*?<\/v:[^>]*>/gi, "");
-  out = out.replace(/<v:[^>]*\/>/gi, "");
+  out = out.replace(/<\/?(?:w|m|v):[^>]*>/gi, "");
 
   out = out.replace(/<img\b[^>]*>/gi, (tag) => cleanResponsiveTag(tag, "img"));
   out = out.replace(/<table\b[^>]*>/gi, (tag) => cleanResponsiveTag(tag, "table"));

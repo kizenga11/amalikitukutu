@@ -776,6 +776,25 @@ function TextNoteEditor({ subtopicId, saving, hasNote, defaultTitle, initialHtml
     }
   }, [initialHtml, subtopicId]);
 
+  function readClipboardImageFiles(cd: DataTransfer): Promise<string[]> {
+    const files = Array.from(cd.items || [])
+      .filter((item) => item.type.startsWith("image/"))
+      .map((item) => item.getAsFile())
+      .filter((f): f is File => !!f);
+    if (files.length === 0) return Promise.resolve([]);
+    return Promise.all(
+      files.map(
+        (file) =>
+          new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+            reader.onerror = () => resolve("");
+            reader.readAsDataURL(file);
+          }),
+      ),
+    ).then((urls) => urls.filter(Boolean));
+  }
+
   function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
     const cd = e.clipboardData;
     const el = ref.current;
@@ -784,7 +803,19 @@ function TextNoteEditor({ subtopicId, saving, hasNote, defaultTitle, initialHtml
     const html = cd.getData("text/html");
     if (html && html.trim()) {
       e.preventDefault();
-      insertHtmlAtCursor(el, preparePastedNoteHtml(html) || html);
+      void readClipboardImageFiles(cd).then((imageUrls) => {
+        let cleaned = preparePastedNoteHtml(html) || html;
+        if (imageUrls.length > 0) {
+          let i = 0;
+          cleaned = cleaned.replace(/(<img\b[^>]*\bsrc\s*=\s*)(["'])([^"']*)\2/gi, (m, pre, q, src) => {
+            if (/^file:/i.test(src) && i < imageUrls.length) {
+              return `${pre}${q}${imageUrls[i++]}${q}`;
+            }
+            return m;
+          });
+        }
+        if (ref.current) insertHtmlAtCursor(ref.current, cleaned);
+      });
       return;
     }
 
