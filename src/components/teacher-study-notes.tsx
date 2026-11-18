@@ -25,9 +25,9 @@ import { formatBytes, isNoteImageFile, preparePastedNoteHtml } from "@/lib/study
 import NoteContent from "@/components/note-content";
 
 function fmtDate(v: string | null | undefined) {
-  if (!v) return "—";
+  if (!v) return "â€”";
   const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "â€”";
   return d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
@@ -201,13 +201,15 @@ export default function TeacherStudyNotes() {
   }, [topics]);
 
   // Teacher-facing index: Computer Science F1, Computer Science F2,
-  // Technical Drawing F1, … Clicking one card reveals its topics.
+  // Technical Drawing F1, â€¦ Clicking one card reveals its topics.
   const groupedTopics = useMemo(() => {
     const map = new Map<string, {
       key: string;
       label: string;
       formLabel: string;
       formLevel: number;
+      subjectId: string;
+      classId: string;
       subjectName: string;
       topics: NoteTopicDetail[];
       publishedCount: number;
@@ -225,6 +227,8 @@ export default function TeacherStudyNotes() {
           label: c ? `${subjectName} ${formShortLabel(c)}` : "Unassigned topics",
           formLabel: formShortLabel(c),
           formLevel: c?.formLevel || 0,
+          subjectId: c?.subjectId || "",
+          classId: c?.classId || "",
           subjectName,
           topics: [],
           publishedCount: 0,
@@ -249,6 +253,23 @@ export default function TeacherStudyNotes() {
       );
   }, [filteredTopics]);
 
+  function startCreateTopicForGroup(group: { formLevel: number; subjectId: string; classId: string }) {
+    if (!group.subjectId || !group.classId) {
+      setShowCreate(true);
+      return;
+    }
+    if (group.formLevel > 0) setFormFilter(String(group.formLevel));
+    const groupContexts = contexts.filter((c) => c.subjectId === group.subjectId && c.classId === group.classId);
+    if (groupContexts.length > 1) {
+      setCtxId(`ALL|${group.subjectId}|${group.classId}`);
+    } else if (groupContexts.length === 1) {
+      setCtxId(groupContexts[0].teachingAssignmentId);
+    } else {
+      setCtxId("");
+    }
+    setShowCreate(true);
+  }
+
   function toggleGroup(id: string) {
     setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
   }
@@ -260,7 +281,7 @@ export default function TeacherStudyNotes() {
   }
 
   // Number topics inside each teaching context (subject/class/stream):
-  // Topic 1, Topic 2, … so each class/stream has its own sequence.
+  // Topic 1, Topic 2, â€¦ so each class/stream has its own sequence.
   const topicNumbers = useMemo(() => {
     const sorted = [...topics].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     const counts = new Map<string, number>();
@@ -447,7 +468,7 @@ export default function TeacherStudyNotes() {
     finally { setAudLoading(false); }
   }
 
-  if (loading) return <div className="ta-page"><p className="ta-muted">Loading study notes…</p></div>;
+  if (loading) return <div className="ta-page"><p className="ta-muted">Loading study notesâ€¦</p></div>;
 
   return (
     <div className="ta-page">
@@ -477,12 +498,12 @@ export default function TeacherStudyNotes() {
       {showCreate && (
         <section className="ta-card">
           <h3 className="ta-card-title">Create topic</h3>
-          <p className="ta-muted" style={{ marginTop: 0 }}>Select the form (Kidato) and target. For subjects taught in all streams of the same class, you can choose “All streams” to create the topic for every stream at once. Only students in each selected class/stream (and form) who take the subject will see the notes.</p>
+          <p className="ta-muted" style={{ marginTop: 0 }}>Select the form (Kidato) and target. For subjects taught in all streams of the same class, you can choose â€œAll streamsâ€ to create the topic for every stream at once. Only students in each selected class/stream (and form) who take the subject will see the notes.</p>
           <div className="ta-grid ta-grid--2">
             <label className="ta-field">
               <span>Form (Kidato)</span>
               <select className="ta-input" value={formFilter} onChange={(e) => { setFormFilter(e.target.value); setCtxId(""); }}>
-                <option value="">— Select form —</option>
+                <option value="">â€” Select form â€”</option>
                 {formLevels.map((f) => (
                   <option key={f} value={String(f)}>Form {f} (Kidato {f})</option>
                 ))}
@@ -491,7 +512,7 @@ export default function TeacherStudyNotes() {
             <label className="ta-field">
               <span>Subject / Class / Stream (target)</span>
               <select className="ta-input" value={ctxId} onChange={(e) => setCtxId(e.target.value)}>
-                <option value="">Select…</option>
+                <option value="">Selectâ€¦</option>
                 {allStreamGroups.map((group) => (
                   <option key={`ALL|${group.key}`} value={`ALL|${group.key}`}>
                     Form {group.sample.formLevel} {group.sample.className} - {group.sample.subjectName} (All streams: {group.contexts.map((c) => c.streamName).join(", ")})
@@ -499,7 +520,7 @@ export default function TeacherStudyNotes() {
                 ))}
                 {filteredContexts.map((c) => (
                   <option key={c.teachingAssignmentId} value={c.teachingAssignmentId}>
-                    Form {c.formLevel} — {c.subjectName} · {c.className} {c.streamName}
+                    Form {c.formLevel} â€” {c.subjectName} Â· {c.className} {c.streamName}
                   </option>
                 ))}
               </select>
@@ -515,7 +536,7 @@ export default function TeacherStudyNotes() {
             <input className="ta-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Introduction to Algebra" />
           </label>
           <div className="ta-actions" style={{ marginTop: 10 }}>
-            <button type="button" className="ta-btn ta-btn--primary" onClick={() => void onCreate()} disabled={creating}>{creating ? "Creating…" : "Create topic"}</button>
+            <button type="button" className="ta-btn ta-btn--primary" onClick={() => void onCreate()} disabled={creating}>{creating ? "Creatingâ€¦" : "Create topic"}</button>
             <button type="button" className="ta-btn ta-btn--ghost" onClick={() => setShowCreate(false)}>Cancel</button>
           </div>
         </section>
@@ -554,7 +575,7 @@ export default function TeacherStudyNotes() {
                 className="ta-input"
                 value={listQuery}
                 onChange={(e) => setListQuery(e.target.value)}
-                placeholder="Topic or subtopic title…"
+                placeholder="Topic or subtopic titleâ€¦"
               />
             </label>
           </div>
@@ -564,26 +585,43 @@ export default function TeacherStudyNotes() {
             groupedTopics.map((group) => {
               const groupOpen = Boolean(openGroups[group.key]);
               const totalSubtopics = group.topics.reduce((sum, t) => sum + t.subtopics.length, 0);
-              const streamSuffix = group.streamNames.length > 1 ? ` · ${[...group.streamNames].sort().join(", ")}` : "";
+              const streamSuffix = group.streamNames.length > 1 ? ` Â· ${[...group.streamNames].sort().join(", ")}` : "";
               return (
                 <section key={group.key} className="ta-card" style={{ padding: 0, overflow: "hidden" }}>
-                  <button
-                    type="button"
-                    onClick={() => toggleGroup(group.key)}
-                    aria-expanded={groupOpen}
+                  <div
                     style={{
-                      display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left",
-                      border: 0, background: groupOpen ? "#eef2ff" : "#fff", padding: "14px 16px", cursor: "pointer",
+                      display: "flex", alignItems: "center", gap: 8, width: "100%",
+                      background: groupOpen ? "#eef2ff" : "#fff", padding: "14px 16px",
                     }}
                   >
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.key)}
+                      aria-expanded={groupOpen}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0, textAlign: "left",
+                        border: 0, background: "transparent", padding: 0, cursor: "pointer",
+                      }}
+                    >
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ display: "block", fontWeight: 800, fontSize: 16, overflow: "hidden", textOverflow: "ellipsis" }}>{group.label}</span>
                       <span className="ta-muted" style={{ display: "block", fontSize: 12, marginTop: 4 }}>
-                        {group.topics.length} topic{group.topics.length === 1 ? "" : "s"} · {totalSubtopics} subtopic{totalSubtopics === 1 ? "" : "s"} · {group.publishedCount} published{streamSuffix}
+                        {group.topics.length} topic{group.topics.length === 1 ? "" : "s"} Â· {totalSubtopics} subtopic{totalSubtopics === 1 ? "" : "s"} Â· {group.publishedCount} published{streamSuffix}
                       </span>
                     </span>
                     <span className="ta-btn ta-btn--ghost" style={{ pointerEvents: "none", margin: 0 }}>{groupOpen ? "Hide topics" : "Open topics"}</span>
-                  </button>
+                    </button>
+                    {group.subjectId && group.classId ? (
+                      <button
+                        type="button"
+                        className="ta-btn ta-btn--ghost"
+                        onClick={(e) => { e.stopPropagation(); startCreateTopicForGroup(group); }}
+                        title="Add another topic for this subject/class"
+                      >
+                        + Add topic
+                      </button>
+                    ) : null}
+                  </div>
 
                   {groupOpen && (
                     <div style={{ padding: "8px 14px 14px", borderTop: "1px solid #e5e7eb", display: "grid", gap: 12 }}>
@@ -607,7 +645,7 @@ export default function TeacherStudyNotes() {
                               <span style={{ flex: 1, minWidth: 0 }}>
                                 <span style={{ display: "block", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{topic.title}</span>
                                 <span className="ta-muted" style={{ display: "block", fontSize: 12, marginTop: 2 }}>
-                                  {topic.context?.streamName ? `${topic.context.streamName} · ` : ""}{topic.subtopics.length} subtopic{topic.subtopics.length === 1 ? "" : "s"} · {publishedCount} published
+                                  {topic.context?.streamName ? `${topic.context.streamName} Â· ` : ""}{topic.subtopics.length} subtopic{topic.subtopics.length === 1 ? "" : "s"} Â· {publishedCount} published
                                 </span>
                               </span>
                               <span className="ta-btn ta-btn--ghost" style={{ pointerEvents: "none", margin: 0 }}>{open ? "Hide" : "Open"}</span>
@@ -624,7 +662,7 @@ export default function TeacherStudyNotes() {
                                     placeholder="Topic title"
                                   />
                                   <button type="button" className="ta-btn ta-btn--ghost" onClick={() => void onAddSubtopic(topic.id)} disabled={Boolean(addingSubtopic[topic.id]) || topic.subtopics.length >= 100}>
-                                    {addingSubtopic[topic.id] ? "Adding…" : "+ Add subtopic"}
+                                    {addingSubtopic[topic.id] ? "Addingâ€¦" : "+ Add subtopic"}
                                   </button>
                                   <button type="button" className="ta-btn ta-btn--ghost ta-btn--danger" onClick={() => onDeleteTopic(topic.id)}>Delete topic</button>
                                 </div>
@@ -676,8 +714,8 @@ export default function TeacherStudyNotes() {
                                                   <div style={{ minWidth: 0, flex: "1 1 220px" }}>
                                                     <div style={{ fontWeight: 600 }}>{s.note.title}</div>
                                                     <div className="ta-muted" style={{ fontSize: 12 }}>
-                                                      {(s.note.contentHtml && !s.note.filePath) ? "Text note" : `PDF ${formatBytes(s.note.fileSize)}`} · {s.note.isPublished ? `Published ${fmtDate(s.note.publishedAt)}` : "Not published"}
-                                                      {s.images.length > 0 ? ` · ${s.images.length} diagram${s.images.length === 1 ? "" : "s"}` : ""}
+                                                      {(s.note.contentHtml && !s.note.filePath) ? "Text note" : `PDF ${formatBytes(s.note.fileSize)}`} Â· {s.note.isPublished ? `Published ${fmtDate(s.note.publishedAt)}` : "Not published"}
+                                                      {s.images.length > 0 ? ` Â· ${s.images.length} diagram${s.images.length === 1 ? "" : "s"}` : ""}
                                                     </div>
                                                   </div>
                                                   <div className="ta-actions" style={{ flexWrap: "wrap" }}>
@@ -780,7 +818,7 @@ export default function TeacherStudyNotes() {
               <button type="button" className="ta-btn ta-btn--ghost" onClick={() => setAudNoteId(null)}>Close</button>
             </div>
             <div style={{ padding: "14px 0 0", overflow: "auto", flex: 1, minHeight: 0 }}>
-              {audLoading ? <p className="ta-muted" style={{ margin: 0 }}>Loading audience…</p> : audError ? <div className="ta-alert ta-alert--error" style={{ margin: 0 }}>{audError}</div> : (
+              {audLoading ? <p className="ta-muted" style={{ margin: 0 }}>Loading audienceâ€¦</p> : audError ? <div className="ta-alert ta-alert--error" style={{ margin: 0 }}>{audError}</div> : (
                 <>
                   {audSummary && (
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 14 }}>
@@ -814,8 +852,8 @@ export default function TeacherStudyNotes() {
                       <tbody>
                         {audRows.map((r) => (
                           <tr key={r.studentId}>
-                            <td>{r.fullName || "—"}</td>
-                            <td style={{ whiteSpace: "nowrap" }}>{r.registrationNo || "—"}</td>
+                            <td>{r.fullName || "â€”"}</td>
+                            <td style={{ whiteSpace: "nowrap" }}>{r.registrationNo || "â€”"}</td>
                             <td>
                               <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: r.hasViewed ? "#dcfce7" : "#f3f4f6", color: r.hasViewed ? "#166534" : "#374151" }}>
                                 {r.hasViewed ? "Yes" : "No"}
@@ -867,7 +905,7 @@ function UploadRow({ subtopicId, uploading, hasNote, defaultTitle, onUpload }: {
         <input className="ta-input" value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} placeholder="Note title" style={{ minWidth: 220, flex: "1 1 220px" }} />
         <input type="file" accept="application/pdf,.pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} style={{ flex: "1 1 220px", maxWidth: "100%" }} />
         <button type="button" className="ta-btn ta-btn--primary" disabled={uploading || !file} onClick={() => { onUpload(file, noteTitle); setFile(null); }}>
-          {uploading ? "Uploading…" : hasNote ? "Replace with PDF" : "Upload PDF"}
+          {uploading ? "Uploadingâ€¦" : hasNote ? "Replace with PDF" : "Upload PDF"}
         </button>
       </div>
       <span className="ta-muted" style={{ fontSize: 12 }}>PDF only, max 2 MB.</span>
@@ -985,7 +1023,7 @@ function TextNoteEditor({ subtopicId, saving, hasNote, defaultTitle, initialHtml
       />
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <button type="button" className="ta-btn ta-btn--primary" disabled={saving} onClick={() => onSave(title, ref.current?.innerHTML || "")}>
-          {saving ? "Saving…" : hasNote ? "Replace with text note" : "Save text note"}
+          {saving ? "Savingâ€¦" : hasNote ? "Replace with text note" : "Save text note"}
         </button>
         <span className="ta-muted" style={{ fontSize: 12 }}>Paste from Word to keep formatting, tables and drawings. Images adjust to fit phones and other screens.</span>
       </div>
@@ -1119,7 +1157,7 @@ function CodeNoteEditor({ subtopicId, saving, hasNote, defaultTitle, initialHtml
           disabled={saving || !code.trim()}
           onClick={() => onSave(title, codeToNoteHtml(language, code))}
         >
-          {saving ? "Saving…" : hasNote ? "Replace with code note" : "Save code note"}
+          {saving ? "Savingâ€¦" : hasNote ? "Replace with code note" : "Save code note"}
         </button>
         <span className="ta-muted" style={{ fontSize: 12 }}>Andika/paste code au attach faili, kisha angalia preview na uhifadhi. Baadaye unaweza ku-publish ili wanafunzi waione.</span>
       </div>
@@ -1152,7 +1190,7 @@ function SubtopicImages({
     <div style={{ display: "grid", gap: 8 }}>
       <div className="ta-muted" style={{ fontSize: 12, fontWeight: 600 }}>Option 3: Upload diagrams / michoro</div>
       <p className="ta-muted" style={{ margin: 0, fontSize: 12 }}>
-        Attach one or more pictures to this subtopic. Add a caption such as “Mchoro 1.42: ...”. Students see the diagrams when the note above is published.
+        Attach one or more pictures to this subtopic. Add a caption such as â€œMchoro 1.42: ...â€. Students see the diagrams when the note above is published.
       </p>
 
       {images.length > 0 ? (
@@ -1198,7 +1236,7 @@ function SubtopicImages({
             setFileKey((k) => k + 1);
           }}
         >
-          {uploading ? "Uploading…" : "Upload diagram"}
+          {uploading ? "Uploadingâ€¦" : "Upload diagram"}
         </button>
       </div>
       <span className="ta-muted" style={{ fontSize: 12 }}>JPG, PNG, WEBP or GIF, max 5 MB each.</span>
@@ -1246,7 +1284,7 @@ function DiagramTile({
       />
       <div className="ta-actions" style={{ marginTop: 0, flexWrap: "wrap" }}>
         <button type="button" className="ta-btn ta-btn--ghost" disabled={saving || !changed} onClick={() => onSave(caption)}>
-          {saving ? "Saving…" : "Save caption"}
+          {saving ? "Savingâ€¦" : "Save caption"}
         </button>
         <button type="button" className="ta-btn ta-btn--ghost ta-btn--danger" disabled={saving} onClick={onDelete}>
           Delete
