@@ -30,6 +30,24 @@ function fmtDate(v: string | null | undefined) {
   return d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+function formShortLabel(context: NoteContext | null | undefined) {
+  if (!context) return "Unassigned";
+  if (context.formLevel > 0) return `F${context.formLevel}`;
+  return context.className || "Unassigned";
+}
+
+// Notes are grouped by subject + class + form, never by stream, so Computer
+// Science F1 and Computer Science F2 show as separate cards while all streams
+// of one class stay together.
+function noteGroupKey(context: NoteContext | null | undefined) {
+  if (!context) return "none";
+  return [
+    context.subjectId || context.subjectCode || context.subjectName || "subject",
+    context.classId || context.className || "class",
+    context.formLevel || 0,
+  ].join("|");
+}
+
 export default function TeacherStudyNotes() {
   const [contexts, setContexts] = useState<NoteContext[]>([]);
   const [topics, setTopics] = useState<NoteTopicDetail[]>([]);
@@ -48,8 +66,9 @@ export default function TeacherStudyNotes() {
   const [listSubjectFilter, setListSubjectFilter] = useState<string>("");
   const [listQuery, setListQuery] = useState("");
 
-  // Accordion state: topics and subtopics start collapsed so a long list of
-  // subjects does not turn into one huge scrolling page.
+  // Accordion state: subject/class cards start collapsed, then topics and
+  // subtopics start collapsed too, so teachers see a short index first.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [openTopics, setOpenTopics] = useState<Record<string, boolean>>({});
   const [openSubtopics, setOpenSubtopics] = useState<Record<string, boolean>>({});
 
@@ -179,6 +198,58 @@ export default function TeacherStudyNotes() {
     return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
   }, [topics]);
 
+  // Teacher-facing index: Computer Science F1, Computer Science F2,
+  // Technical Drawing F1, … Clicking one card reveals its topics.
+  const groupedTopics = useMemo(() => {
+    const map = new Map<string, {
+      key: string;
+      label: string;
+      formLabel: string;
+      formLevel: number;
+      subjectName: string;
+      topics: NoteTopicDetail[];
+      publishedCount: number;
+      streamNames: string[];
+    }>();
+
+    for (const topic of filteredTopics) {
+      const c = topic.context;
+      const key = noteGroupKey(c);
+      let group = map.get(key);
+      if (!group) {
+        const subjectName = c?.subjectName || c?.subjectCode || "Subject";
+        group = {
+          key,
+          label: c ? `${subjectName} ${formShortLabel(c)}` : "Unassigned topics",
+          formLabel: formShortLabel(c),
+          formLevel: c?.formLevel || 0,
+          subjectName,
+          topics: [],
+          publishedCount: 0,
+          streamNames: [],
+        };
+        map.set(key, group);
+      }
+      group.topics.push(topic);
+      group.publishedCount += topic.subtopics.filter((s) => s.note?.isPublished).length;
+      if (c?.streamName && !group.streamNames.includes(c.streamName)) group.streamNames.push(c.streamName);
+    }
+
+    return Array.from(map.values())
+      .map((group) => {
+        group.topics.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.title.localeCompare(b.title));
+        return group;
+      })
+      .sort((a, b) =>
+        (a.formLevel || 999) - (b.formLevel || 999) ||
+        a.subjectName.localeCompare(b.subjectName) ||
+        a.label.localeCompare(b.label),
+      );
+  }, [filteredTopics]);
+
+  function toggleGroup(id: string) {
+    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
   function toggleTopic(id: string) {
     setOpenTopics((prev) => ({ ...prev, [id]: !prev[id] }));
   }
@@ -214,6 +285,7 @@ export default function TeacherStudyNotes() {
     const n = Number(count);
     if (!Number.isInteger(n) || n < 1 || n > 100) { setError("Subtopics must be 1-100."); return; }
     setCreating(true); setError(""); setInfo("");
+    const createdContext = selectedAllGroup ? selectedAllGroup.sample : selectedCtx;
     try {
       if (selectedAllGroup) {
         for (const c of selectedAllGroup.contexts) {
@@ -223,6 +295,9 @@ export default function TeacherStudyNotes() {
       } else {
         await createNoteTopic({ teachingAssignmentId: ctxId, title: title.trim(), subtopicCount: n });
         setInfo("Topic created. Add PDF or text notes to each subtopic and publish for students.");
+      }
+      if (createdContext) {
+        setOpenGroups((prev) => ({ ...prev, [noteGroupKey(createdContext)]: true }));
       }
       setTitle(""); setCount("5"); setShowCreate(false);
       await loadAll();
@@ -363,7 +438,7 @@ export default function TeacherStudyNotes() {
       <div className="ta-header">
         <div>
           <h2 className="ta-title">Study Notes</h2>
-          <p className="ta-subtitle">Upload PDF study notes for your subjects/classes. Publish so students can read them in their portal.</p>
+          <p className="ta-subtitle">Notes are grouped by subject and class. Click a card such as Computer Science F1 to see its topics, then open a topic to add or publish notes.</p>
         </div>
         <div className="ta-actions">
           <button type="button" className="ta-btn ta-btn--primary" onClick={() => setShowCreate((v) => !v)}>+ New topic</button>
@@ -470,154 +545,183 @@ export default function TeacherStudyNotes() {
           {filteredTopics.length === 0 ? (
             <section className="ta-card"><p className="ta-muted">No note topics match the selected filters. Try another form, subject or search word.</p></section>
           ) : (
-            filteredTopics.map((topic) => {
-              const open = Boolean(openTopics[topic.id]);
-              const publishedCount = topic.subtopics.filter((s) => s.note?.isPublished).length;
+            groupedTopics.map((group) => {
+              const groupOpen = Boolean(openGroups[group.key]);
+              const totalSubtopics = group.topics.reduce((sum, t) => sum + t.subtopics.length, 0);
+              const streamSuffix = group.streamNames.length > 1 ? ` · ${[...group.streamNames].sort().join(", ")}` : "";
               return (
-                <section key={topic.id} className="ta-card" style={{ padding: 0, overflow: "hidden" }}>
+                <section key={group.key} className="ta-card" style={{ padding: 0, overflow: "hidden" }}>
                   <button
                     type="button"
-                    onClick={() => toggleTopic(topic.id)}
-                    aria-expanded={open}
+                    onClick={() => toggleGroup(group.key)}
+                    aria-expanded={groupOpen}
                     style={{
                       display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left",
-                      border: 0, background: open ? "#f8fafc" : "#fff", padding: "12px 14px", cursor: "pointer",
+                      border: 0, background: groupOpen ? "#eef2ff" : "#fff", padding: "14px 16px", cursor: "pointer",
                     }}
                   >
-                    <span style={{ background: "#eef2ff", color: "#3730a3", borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
-                      Topic {topicNumbers.get(topic.id) ?? 1}
-                    </span>
                     <span style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ display: "block", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{topic.title}</span>
-                      <span className="ta-muted" style={{ display: "block", fontSize: 12, marginTop: 2 }}>
-                        {topic.context ? `Form ${topic.context.formLevel} (Kidato ${topic.context.formLevel}) · ${topic.context.subjectName} · ${topic.context.className} ${topic.context.streamName}` : "Subject"}
-                        {" · "}{topic.subtopics.length} subtopic{topic.subtopics.length === 1 ? "" : "s"}
-                        {" · "}{publishedCount} published
+                      <span style={{ display: "block", fontWeight: 800, fontSize: 16, overflow: "hidden", textOverflow: "ellipsis" }}>{group.label}</span>
+                      <span className="ta-muted" style={{ display: "block", fontSize: 12, marginTop: 4 }}>
+                        {group.topics.length} topic{group.topics.length === 1 ? "" : "s"} · {totalSubtopics} subtopic{totalSubtopics === 1 ? "" : "s"} · {group.publishedCount} published{streamSuffix}
                       </span>
                     </span>
-                    <span className="ta-btn ta-btn--ghost" style={{ pointerEvents: "none", margin: 0 }}>{open ? "Hide" : "Open"}</span>
+                    <span className="ta-btn ta-btn--ghost" style={{ pointerEvents: "none", margin: 0 }}>{groupOpen ? "Hide topics" : "Open topics"}</span>
                   </button>
 
-                  {open && (
-                    <div style={{ padding: "0 14px 14px", borderTop: "1px solid #e5e7eb" }}>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 12 }}>
-                        <input
-                          className="ta-input"
-                          defaultValue={topic.title}
-                          onBlur={(e) => { if (e.target.value.trim() !== topic.title) void onRenameTopic(topic.id, e.target.value); }}
-                          style={{ fontWeight: 600, flex: "1 1 240px" }}
-                          placeholder="Topic title"
-                        />
-                        <button type="button" className="ta-btn ta-btn--ghost ta-btn--danger" onClick={() => onDeleteTopic(topic.id)}>Delete topic</button>
-                      </div>
-
-                      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-                        {topic.subtopics.map((s) => {
-                          const subOpen = Boolean(openSubtopics[s.id]);
-                          const status = s.note ? (s.note.isPublished ? "published" : "draft") : "empty";
-                          const statusStyle = status === "published"
-                            ? { background: "#dcfce7", color: "#166534" }
-                            : status === "draft"
-                              ? { background: "#fef3c7", color: "#92400e" }
-                              : { background: "#f3f4f6", color: "#374151" };
-                          return (
-                            <div key={s.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, background: "#fff", overflow: "hidden" }}>
-                              <button
-                                type="button"
-                                onClick={() => toggleSubtopic(s.id)}
-                                aria-expanded={subOpen}
-                                style={{
-                                  display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left",
-                                  border: 0, background: subOpen ? "#f8fafc" : "#fff", padding: "10px 12px", cursor: "pointer",
-                                }}
-                              >
-                                <strong style={{ minWidth: 28 }}>{s.position}.</strong>
-                                <span style={{ flex: 1, minWidth: 0, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{subTitles[s.id] ?? s.title}</span>
-                                {s.images.length > 0 && <span className="ta-muted" style={{ fontSize: 12, whiteSpace: "nowrap" }}>{s.images.length} diagram{s.images.length === 1 ? "" : "s"}</span>}
-                                <span style={{ ...statusStyle, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>
-                                  {status === "published" ? "Published" : status === "draft" ? "Draft" : "No note"}
+                  {groupOpen && (
+                    <div style={{ padding: "8px 14px 14px", borderTop: "1px solid #e5e7eb", display: "grid", gap: 12 }}>
+                      {group.topics.map((topic) => {
+                        const open = Boolean(openTopics[topic.id]);
+                        const publishedCount = topic.subtopics.filter((s) => s.note?.isPublished).length;
+                        return (
+                          <section key={topic.id} className="ta-card" style={{ padding: 0, overflow: "hidden", margin: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => toggleTopic(topic.id)}
+                              aria-expanded={open}
+                              style={{
+                                display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left",
+                                border: 0, background: open ? "#f8fafc" : "#fff", padding: "12px 14px", cursor: "pointer",
+                              }}
+                            >
+                              <span style={{ background: "#eef2ff", color: "#3730a3", borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
+                                Topic {topicNumbers.get(topic.id) ?? 1}
+                              </span>
+                              <span style={{ flex: 1, minWidth: 0 }}>
+                                <span style={{ display: "block", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{topic.title}</span>
+                                <span className="ta-muted" style={{ display: "block", fontSize: 12, marginTop: 2 }}>
+                                  {topic.context?.streamName ? `${topic.context.streamName} · ` : ""}{topic.subtopics.length} subtopic{topic.subtopics.length === 1 ? "" : "s"} · {publishedCount} published
                                 </span>
-                                <span className="ta-btn ta-btn--ghost" style={{ pointerEvents: "none", margin: 0 }}>{subOpen ? "Close" : "Edit"}</span>
-                              </button>
+                              </span>
+                              <span className="ta-btn ta-btn--ghost" style={{ pointerEvents: "none", margin: 0 }}>{open ? "Hide" : "Open"}</span>
+                            </button>
 
-                              {subOpen && (
-                                <div style={{ padding: "0 12px 12px", borderTop: "1px solid #e5e7eb" }}>
-                                  <label className="ta-field" style={{ marginTop: 10 }}>
-                                    <span>Subtopic title</span>
-                                    <input
-                                      className="ta-input"
-                                      value={subTitles[s.id] ?? s.title}
-                                      onChange={(e) => setSubTitles((p) => ({ ...p, [s.id]: e.target.value }))}
-                                      onBlur={() => void onRenameSubtopic(s.id)}
-                                    />
-                                  </label>
-
-                                  {s.note ? (
-                                    <div style={{ marginTop: 8, padding: 10, background: "#f8fafc", borderRadius: 8 }}>
-                                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                                        <div style={{ minWidth: 0, flex: "1 1 220px" }}>
-                                          <div style={{ fontWeight: 600 }}>{s.note.title}</div>
-                                          <div className="ta-muted" style={{ fontSize: 12 }}>
-                                            {(s.note.contentHtml && !s.note.filePath) ? "Text note" : `PDF ${formatBytes(s.note.fileSize)}`} · {s.note.isPublished ? `Published ${fmtDate(s.note.publishedAt)}` : "Not published"}
-                                            {s.images.length > 0 ? ` · ${s.images.length} diagram${s.images.length === 1 ? "" : "s"}` : ""}
-                                          </div>
-                                        </div>
-                                        <div className="ta-actions" style={{ flexWrap: "wrap" }}>
-                                          <button type="button" className="ta-btn ta-btn--ghost" onClick={() => void onOpenNote(s.note!.id, s.note!.title)}>Open</button>
-                                          <button type="button" className="ta-btn ta-btn--ghost" onClick={() => void onAudience(s.note!.id)}>Audience</button>
-                                          <button type="button" className="ta-btn ta-btn--ghost" onClick={() => void onTogglePublish(s.note!.id, !s.note!.isPublished)} disabled={busyNote[s.note.id]}>
-                                            {s.note.isPublished ? "Unpublish" : "Publish"}
-                                          </button>
-                                          <button type="button" className="ta-btn ta-btn--ghost ta-btn--danger" onClick={() => onDeleteNote(s.note!.id)} disabled={busyNote[s.note.id]}>Delete</button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="ta-muted" style={{ marginTop: 6, fontSize: 13 }}>No note added yet. Upload a PDF, save a text note, au ongeza code note hapo chini.</div>
-                                  )}
-
-                                  <div style={{ marginTop: 10, borderTop: "1px solid #e5e7eb", paddingTop: 10, display: "grid", gap: 12 }}>
-                                    <UploadRow
-                                      subtopicId={s.id}
-                                      uploading={Boolean(uploading[s.id])}
-                                      hasNote={Boolean(s.note)}
-                                      defaultTitle={s.note?.title || subTitles[s.id] || s.title}
-                                      onUpload={(file, t) => void onUpload(s.id, file, t)}
-                                    />
-                                    <TextNoteEditor
-                                      subtopicId={s.id}
-                                      saving={Boolean(savingText[s.id])}
-                                      hasNote={Boolean(s.note)}
-                                      defaultTitle={s.note?.title || subTitles[s.id] || s.title}
-                                      initialHtml={(s.note && s.note.contentHtml && !s.note.filePath) ? s.note.contentHtml : ""}
-                                      onSave={(title, html) => void onSaveText(s.id, title, html)}
-                                    />
-                                    <CodeNoteEditor
-                                      subtopicId={s.id}
-                                      saving={Boolean(savingText[s.id])}
-                                      hasNote={Boolean(s.note)}
-                                      defaultTitle={s.note?.title || subTitles[s.id] || s.title}
-                                      initialHtml={(s.note && s.note.contentHtml && !s.note.filePath) ? s.note.contentHtml : ""}
-                                      onSave={(title, html) => void onSaveText(s.id, title, html)}
-                                    />
-                                    <SubtopicImages
-                                      uploading={Boolean(busyImage[s.id])}
-                                      busy={busyImage}
-                                      images={s.images}
-                                      onUpload={(file, caption) => void onUploadImage(s.id, file, caption)}
-                                      onSaveCaption={(id, caption) => void onSaveImageCaption(id, caption)}
-                                      onDelete={onDeleteImage}
-                                      onPreview={(img) => {
-                                        if (img.url) setViewer({ kind: "image", url: img.url, title: img.caption || img.fileName || "Diagram" });
-                                      }}
-                                    />
-                                  </div>
+                            {open && (
+                              <div style={{ padding: "0 14px 14px", borderTop: "1px solid #e5e7eb" }}>
+                                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 12 }}>
+                                  <input
+                                    className="ta-input"
+                                    defaultValue={topic.title}
+                                    onBlur={(e) => { if (e.target.value.trim() !== topic.title) void onRenameTopic(topic.id, e.target.value); }}
+                                    style={{ fontWeight: 600, flex: "1 1 240px" }}
+                                    placeholder="Topic title"
+                                  />
+                                  <button type="button" className="ta-btn ta-btn--ghost ta-btn--danger" onClick={() => onDeleteTopic(topic.id)}>Delete topic</button>
                                 </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+
+                                <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+                                  {topic.subtopics.map((s) => {
+                                    const subOpen = Boolean(openSubtopics[s.id]);
+                                    const status = s.note ? (s.note.isPublished ? "published" : "draft") : "empty";
+                                    const statusStyle = status === "published"
+                                      ? { background: "#dcfce7", color: "#166534" }
+                                      : status === "draft"
+                                        ? { background: "#fef3c7", color: "#92400e" }
+                                        : { background: "#f3f4f6", color: "#374151" };
+                                    return (
+                                      <div key={s.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, background: "#fff", overflow: "hidden" }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleSubtopic(s.id)}
+                                          aria-expanded={subOpen}
+                                          style={{
+                                            display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left",
+                                            border: 0, background: subOpen ? "#f8fafc" : "#fff", padding: "10px 12px", cursor: "pointer",
+                                          }}
+                                        >
+                                          <strong style={{ minWidth: 28 }}>{s.position}.</strong>
+                                          <span style={{ flex: 1, minWidth: 0, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{subTitles[s.id] ?? s.title}</span>
+                                          {s.images.length > 0 && <span className="ta-muted" style={{ fontSize: 12, whiteSpace: "nowrap" }}>{s.images.length} diagram{s.images.length === 1 ? "" : "s"}</span>}
+                                          <span style={{ ...statusStyle, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>
+                                            {status === "published" ? "Published" : status === "draft" ? "Draft" : "No note"}
+                                          </span>
+                                          <span className="ta-btn ta-btn--ghost" style={{ pointerEvents: "none", margin: 0 }}>{subOpen ? "Close" : "Edit"}</span>
+                                        </button>
+
+                                        {subOpen && (
+                                          <div style={{ padding: "0 12px 12px", borderTop: "1px solid #e5e7eb" }}>
+                                            <label className="ta-field" style={{ marginTop: 10 }}>
+                                              <span>Subtopic title</span>
+                                              <input
+                                                className="ta-input"
+                                                value={subTitles[s.id] ?? s.title}
+                                                onChange={(e) => setSubTitles((p) => ({ ...p, [s.id]: e.target.value }))}
+                                                onBlur={() => void onRenameSubtopic(s.id)}
+                                              />
+                                            </label>
+
+                                            {s.note ? (
+                                              <div style={{ marginTop: 8, padding: 10, background: "#f8fafc", borderRadius: 8 }}>
+                                                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                                                  <div style={{ minWidth: 0, flex: "1 1 220px" }}>
+                                                    <div style={{ fontWeight: 600 }}>{s.note.title}</div>
+                                                    <div className="ta-muted" style={{ fontSize: 12 }}>
+                                                      {(s.note.contentHtml && !s.note.filePath) ? "Text note" : `PDF ${formatBytes(s.note.fileSize)}`} · {s.note.isPublished ? `Published ${fmtDate(s.note.publishedAt)}` : "Not published"}
+                                                      {s.images.length > 0 ? ` · ${s.images.length} diagram${s.images.length === 1 ? "" : "s"}` : ""}
+                                                    </div>
+                                                  </div>
+                                                  <div className="ta-actions" style={{ flexWrap: "wrap" }}>
+                                                    <button type="button" className="ta-btn ta-btn--ghost" onClick={() => void onOpenNote(s.note!.id, s.note!.title)}>Open</button>
+                                                    <button type="button" className="ta-btn ta-btn--ghost" onClick={() => void onAudience(s.note!.id)}>Audience</button>
+                                                    <button type="button" className="ta-btn ta-btn--ghost" onClick={() => void onTogglePublish(s.note!.id, !s.note!.isPublished)} disabled={busyNote[s.note.id]}>
+                                                      {s.note.isPublished ? "Unpublish" : "Publish"}
+                                                    </button>
+                                                    <button type="button" className="ta-btn ta-btn--ghost ta-btn--danger" onClick={() => onDeleteNote(s.note!.id)} disabled={busyNote[s.note.id]}>Delete</button>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <div className="ta-muted" style={{ marginTop: 6, fontSize: 13 }}>No note added yet. Upload a PDF, save a text note, au ongeza code note hapo chini.</div>
+                                            )}
+
+                                            <div style={{ marginTop: 10, borderTop: "1px solid #e5e7eb", paddingTop: 10, display: "grid", gap: 12 }}>
+                                              <UploadRow
+                                                subtopicId={s.id}
+                                                uploading={Boolean(uploading[s.id])}
+                                                hasNote={Boolean(s.note)}
+                                                defaultTitle={s.note?.title || subTitles[s.id] || s.title}
+                                                onUpload={(file, t) => void onUpload(s.id, file, t)}
+                                              />
+                                              <TextNoteEditor
+                                                subtopicId={s.id}
+                                                saving={Boolean(savingText[s.id])}
+                                                hasNote={Boolean(s.note)}
+                                                defaultTitle={s.note?.title || subTitles[s.id] || s.title}
+                                                initialHtml={(s.note && s.note.contentHtml && !s.note.filePath) ? s.note.contentHtml : ""}
+                                                onSave={(title, html) => void onSaveText(s.id, title, html)}
+                                              />
+                                              <CodeNoteEditor
+                                                subtopicId={s.id}
+                                                saving={Boolean(savingText[s.id])}
+                                                hasNote={Boolean(s.note)}
+                                                defaultTitle={s.note?.title || subTitles[s.id] || s.title}
+                                                initialHtml={(s.note && s.note.contentHtml && !s.note.filePath) ? s.note.contentHtml : ""}
+                                                onSave={(title, html) => void onSaveText(s.id, title, html)}
+                                              />
+                                              <SubtopicImages
+                                                uploading={Boolean(busyImage[s.id])}
+                                                busy={busyImage}
+                                                images={s.images}
+                                                onUpload={(file, caption) => void onUploadImage(s.id, file, caption)}
+                                                onSaveCaption={(id, caption) => void onSaveImageCaption(id, caption)}
+                                                onDelete={onDeleteImage}
+                                                onPreview={(img) => {
+                                                  if (img.url) setViewer({ kind: "image", url: img.url, title: img.caption || img.fileName || "Diagram" });
+                                                }}
+                                              />
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </section>
+                        );
+                      })}
                     </div>
                   )}
                 </section>
