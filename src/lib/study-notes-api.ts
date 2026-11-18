@@ -42,6 +42,13 @@ export function deleteNoteTopic(id: string): Promise<{ ok: true }> {
   return requestJson(`/api/teacher/notes/topics/${id}`, { method: "DELETE" });
 }
 
+export function addNoteSubtopic(topicId: string, title?: string): Promise<{ ok: true; id: string; position: number }> {
+  return requestJson(`/api/teacher/notes/topics/${topicId}/subtopics`, {
+    method: "POST",
+    body: JSON.stringify(title ? { title } : {}),
+  });
+}
+
 export function renameNoteSubtopic(id: string, title: string): Promise<{ ok: true }> {
   return requestJson(`/api/teacher/notes/subtopics/${id}`, { method: "PATCH", body: JSON.stringify({ title }) });
 }

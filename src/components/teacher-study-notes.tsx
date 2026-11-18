@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./teacher-assignments.css";
 import {
+  addNoteSubtopic,
   createNoteTopic,
   deleteNote,
   deleteNoteImage,
@@ -85,6 +86,7 @@ export default function TeacherStudyNotes() {
   const [savingText, setSavingText] = useState<Record<string, boolean>>({});
   const [busyNote, setBusyNote] = useState<Record<string, boolean>>({});
   const [busyImage, setBusyImage] = useState<Record<string, boolean>>({});
+  const [addingSubtopic, setAddingSubtopic] = useState<Record<string, boolean>>({});
   const [viewer, setViewer] = useState<
     | { kind: "pdf"; url: string; title: string }
     | { kind: "text"; contentHtml: string; title: string }
@@ -291,10 +293,10 @@ export default function TeacherStudyNotes() {
         for (const c of selectedAllGroup.contexts) {
           await createNoteTopic({ teachingAssignmentId: c.teachingAssignmentId, title: title.trim(), subtopicCount: n });
         }
-        setInfo(`Topic created for ${selectedAllGroup.contexts.length} streams (${selectedAllGroup.contexts.map((c) => c.streamName).join(", ")}). Add PDF or text notes to each subtopic and publish for students.`);
+        setInfo(`Topic created for ${selectedAllGroup.contexts.length} streams (${selectedAllGroup.contexts.map((c) => c.streamName).join(", ")}). Add PDF, text, or code notes to each subtopic and publish for students. You can add more subtopics later.`);
       } else {
         await createNoteTopic({ teachingAssignmentId: ctxId, title: title.trim(), subtopicCount: n });
-        setInfo("Topic created. Add PDF or text notes to each subtopic and publish for students.");
+        setInfo("Topic created. Add PDF, text, or code notes to each subtopic and publish for students. You can add more subtopics later.");
       }
       if (createdContext) {
         setOpenGroups((prev) => ({ ...prev, [noteGroupKey(createdContext)]: true }));
@@ -319,6 +321,20 @@ export default function TeacherStudyNotes() {
         try { await deleteNoteTopic(id); setInfo("Topic deleted."); await loadAll(); } catch (e: any) { setError(e?.message || "Failed."); }
       },
     });
+  }
+  async function onAddSubtopic(topicId: string) {
+    setAddingSubtopic((p) => ({ ...p, [topicId]: true }));
+    setError(""); setInfo("");
+    try {
+      await addNoteSubtopic(topicId);
+      setInfo("Subtopic added. You can now add a PDF, text note, or code note to it.");
+      setOpenTopics((prev) => ({ ...prev, [topicId]: true }));
+      await loadAll();
+    } catch (e: any) {
+      setError(e?.message || "Could not add subtopic.");
+    } finally {
+      setAddingSubtopic((p) => ({ ...p, [topicId]: false }));
+    }
   }
   async function onRenameSubtopic(id: string) {
     const t = (subTitles[id] || "").trim(); if (!t) return;
@@ -607,6 +623,9 @@ export default function TeacherStudyNotes() {
                                     style={{ fontWeight: 600, flex: "1 1 240px" }}
                                     placeholder="Topic title"
                                   />
+                                  <button type="button" className="ta-btn ta-btn--ghost" onClick={() => void onAddSubtopic(topic.id)} disabled={Boolean(addingSubtopic[topic.id]) || topic.subtopics.length >= 100}>
+                                    {addingSubtopic[topic.id] ? "Adding…" : "+ Add subtopic"}
+                                  </button>
                                   <button type="button" className="ta-btn ta-btn--ghost ta-btn--danger" onClick={() => onDeleteTopic(topic.id)}>Delete topic</button>
                                 </div>
 
