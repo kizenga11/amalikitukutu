@@ -573,7 +573,7 @@ export default function TeacherStudyNotes() {
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="ta-muted" style={{ marginTop: 6, fontSize: 13 }}>No note added yet. Upload a PDF or save a text note below.</div>
+                                    <div className="ta-muted" style={{ marginTop: 6, fontSize: 13 }}>No note added yet. Upload a PDF, save a text note, au ongeza code note hapo chini.</div>
                                   )}
 
                                   <div style={{ marginTop: 10, borderTop: "1px solid #e5e7eb", paddingTop: 10, display: "grid", gap: 12 }}>
@@ -585,6 +585,14 @@ export default function TeacherStudyNotes() {
                                       onUpload={(file, t) => void onUpload(s.id, file, t)}
                                     />
                                     <TextNoteEditor
+                                      subtopicId={s.id}
+                                      saving={Boolean(savingText[s.id])}
+                                      hasNote={Boolean(s.note)}
+                                      defaultTitle={s.note?.title || subTitles[s.id] || s.title}
+                                      initialHtml={(s.note && s.note.contentHtml && !s.note.filePath) ? s.note.contentHtml : ""}
+                                      onSave={(title, html) => void onSaveText(s.id, title, html)}
+                                    />
+                                    <CodeNoteEditor
                                       subtopicId={s.id}
                                       saving={Boolean(savingText[s.id])}
                                       hasNote={Boolean(s.note)}
@@ -857,6 +865,140 @@ function TextNoteEditor({ subtopicId, saving, hasNote, defaultTitle, initialHtml
           {saving ? "Saving…" : hasNote ? "Replace with text note" : "Save text note"}
         </button>
         <span className="ta-muted" style={{ fontSize: 12 }}>Paste from Word to keep formatting, tables and drawings. Images adjust to fit phones and other screens.</span>
+      </div>
+    </div>
+  );
+}
+
+const CODE_NOTE_LANGUAGES = [
+  { value: "plain", label: "Plain text" },
+  { value: "c", label: "C" },
+  { value: "cpp", label: "C++" },
+  { value: "java", label: "Java" },
+  { value: "python", label: "Python" },
+  { value: "javascript", label: "JavaScript" },
+  { value: "typescript", label: "TypeScript" },
+  { value: "html", label: "HTML" },
+  { value: "css", label: "CSS" },
+  { value: "php", label: "PHP" },
+  { value: "sql", label: "SQL" },
+  { value: "vb", label: "Visual Basic" },
+  { value: "csharp", label: "C#" },
+];
+
+function escapeHtmlText(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function codeToNoteHtml(language: string, code: string): string {
+  const lang = (language || "plain").replace(/[^a-z0-9_-]/gi, "") || "plain";
+  return `<pre data-note-kind="code" data-language="${escapeHtmlText(lang)}"><code class="language-${escapeHtmlText(lang)}">${escapeHtmlText(code)}</code></pre>`;
+}
+
+function parseCodeNoteHtml(html: string): { language: string; code: string } | null {
+  if (typeof html !== "string") return null;
+  const trimmed = html.trim();
+  const isMarkedCode = /data-note-kind\s*=\s*(["'])code\1/i.test(trimmed);
+  const isSinglePre = /^<pre\b[\s\S]*<\/pre>$/i.test(trimmed);
+  if (!isMarkedCode && !isSinglePre) return null;
+
+  const preMatch = trimmed.match(/<pre\b[^>]*>([\s\S]*?)<\/pre>/i);
+  if (!preMatch) return null;
+  const preTag = trimmed.match(/<pre\b([^>]*)>/i)?.[1] || "";
+  const langMatch = preTag.match(/data-language\s*=\s*(["'])(.*?)\1/i) || preTag.match(/class\s*=\s*(["']).*?\blanguage-([a-z0-9_-]+)\b.*?\1/i);
+  const language = (langMatch?.[2] || "plain").trim() || "plain";
+  const inner = preMatch[1].replace(/^<code\b[^>]*>/i, "").replace(/<\/code>$/i, "");
+  const code = inner
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&");
+  return { language, code };
+}
+
+function CodeNoteEditor({ subtopicId, saving, hasNote, defaultTitle, initialHtml, onSave }: { subtopicId: string; saving: boolean; hasNote: boolean; defaultTitle: string; initialHtml: string; onSave: (title: string, html: string) => void }) {
+  const parsed = useMemo(() => parseCodeNoteHtml(initialHtml || ""), [initialHtml]);
+  const [title, setTitle] = useState(defaultTitle);
+  const [language, setLanguage] = useState(parsed?.language || "plain");
+  const [code, setCode] = useState(parsed?.code || "");
+  const [fileName, setFileName] = useState("");
+
+  useEffect(() => { setTitle(defaultTitle); }, [defaultTitle, subtopicId]);
+  useEffect(() => {
+    setLanguage(parsed?.language || "plain");
+    setCode(parsed?.code || "");
+    setFileName("");
+  }, [subtopicId, parsed?.language, parsed?.code]);
+
+  function onAttachFile(file: File | null) {
+    if (!file) return;
+    setFileName(file.name);
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    const extLang: Record<string, string> = { c: "c", h: "c", cpp: "cpp", cc: "cpp", cxx: "cpp", hpp: "cpp", java: "java", py: "python", js: "javascript", jsx: "javascript", ts: "typescript", tsx: "typescript", html: "html", htm: "html", css: "css", php: "php", sql: "sql", vb: "vb", cs: "csharp" };
+    if (extLang[ext]) setLanguage(extLang[ext]);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      setCode(text);
+    };
+    reader.readAsText(file);
+  }
+
+  const previewHtml = useMemo(() => codeToNoteHtml(language, code), [language, code]);
+
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <div className="ta-muted" style={{ fontSize: 12, fontWeight: 600 }}>Option 3: Code note (andika au attach faili la code)</div>
+      <input className="ta-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Note title" style={{ maxWidth: 520 }} />
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <label className="ta-field" style={{ margin: 0, minWidth: 180 }}>
+          <span style={{ fontSize: 12 }}>Lugha ya code</span>
+          <select className="ta-input" value={language} onChange={(e) => setLanguage(e.target.value)}>
+            {CODE_NOTE_LANGUAGES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+          </select>
+        </label>
+        <label className="ta-field" style={{ margin: 0, flex: "1 1 260px" }}>
+          <span style={{ fontSize: 12 }}>Attach faili la code (hiari)</span>
+          <input
+            className="ta-input"
+            type="file"
+            accept=".txt,.c,.h,.cpp,.hpp,.cc,.cxx,.java,.py,.js,.jsx,.ts,.tsx,.html,.htm,.css,.php,.sql,.json,.xml,.vb,.cs,.rb,.go,.rs,.kt,.swift,.sh,.bat,.ps1,text/plain"
+            onChange={(e) => onAttachFile(e.target.files?.[0] || null)}
+          />
+        </label>
+        {fileName ? <span className="ta-muted" style={{ fontSize: 12 }}>Faili: {fileName}</span> : null}
+      </div>
+      <textarea
+        className="ta-input"
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        placeholder={"Andika au paste code hapa..."}
+        style={{ minHeight: 160, fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontSize: 13, whiteSpace: "pre", overflow: "auto" }}
+      />
+      <div>
+        <div className="ta-muted" style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Preview ya note (hivi ndivyo itakavyoonekana)</div>
+        <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, padding: 10, background: "#fff", maxHeight: 260, overflow: "auto" }}>
+          {code.trim() ? <NoteContent html={previewHtml} /> : <span className="ta-muted" style={{ fontSize: 13 }}>Hakuna code bado.</span>}
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <button
+          type="button"
+          className="ta-btn ta-btn--primary"
+          disabled={saving || !code.trim()}
+          onClick={() => onSave(title, codeToNoteHtml(language, code))}
+        >
+          {saving ? "Saving…" : hasNote ? "Replace with code note" : "Save code note"}
+        </button>
+        <span className="ta-muted" style={{ fontSize: 12 }}>Andika/paste code au attach faili, kisha angalia preview na uhifadhi. Baadaye unaweza ku-publish ili wanafunzi waione.</span>
       </div>
     </div>
   );
