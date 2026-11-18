@@ -20,7 +20,7 @@ import {
   uploadNotePdf,
 } from "@/lib/study-notes-api";
 import type { NoteAudienceRow, NoteContext, NoteImage, NoteTopicDetail } from "@/lib/study-notes-shared";
-import { formatBytes, isNoteImageFile } from "@/lib/study-notes-shared";
+import { formatBytes, isNoteImageFile, preparePastedNoteHtml } from "@/lib/study-notes-shared";
 import NoteContent from "@/components/note-content";
 
 function fmtDate(v: string | null | undefined) {
@@ -744,6 +744,27 @@ function UploadRow({ subtopicId, uploading, hasNote, defaultTitle, onUpload }: {
   );
 }
 
+function insertHtmlAtCursor(el: HTMLDivElement, html: string) {
+  el.focus();
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || !el.contains(selection.anchorNode)) {
+    el.insertAdjacentHTML("beforeend", html);
+    return;
+  }
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
+  const fragment = range.createContextualFragment(html);
+  const last = fragment.lastChild;
+  range.insertNode(fragment);
+  if (last) {
+    const after = document.createRange();
+    after.setStartAfter(last);
+    after.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(after);
+  }
+}
+
 function TextNoteEditor({ subtopicId, saving, hasNote, defaultTitle, initialHtml, onSave }: { subtopicId: string; saving: boolean; hasNote: boolean; defaultTitle: string; initialHtml: string; onSave: (title: string, html: string) => void }) {
   const [title, setTitle] = useState(defaultTitle);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -754,6 +775,39 @@ function TextNoteEditor({ subtopicId, saving, hasNote, defaultTitle, initialHtml
       el.innerHTML = initialHtml || "";
     }
   }, [initialHtml, subtopicId]);
+
+  function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
+    const cd = e.clipboardData;
+    const el = ref.current;
+    if (!cd || !el) return;
+
+    const html = cd.getData("text/html");
+    if (html && html.trim()) {
+      e.preventDefault();
+      insertHtmlAtCursor(el, preparePastedNoteHtml(html) || html);
+      return;
+    }
+
+    const items = Array.from(cd.items || []);
+    const imageItems = items.filter((item) => item.type.startsWith("image/"));
+    if (imageItems.length > 0) {
+      e.preventDefault();
+      for (const item of imageItems) {
+        const file = item.getAsFile();
+        if (!file) continue;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const src = typeof reader.result === "string" ? reader.result : "";
+          if (src && ref.current) {
+            insertHtmlAtCursor(ref.current, `<img src="${src}" alt="" />`);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+      return;
+    }
+  }
+
   return (
     <div style={{ display: "grid", gap: 8 }}>
       <div className="ta-muted" style={{ fontSize: 12, fontWeight: 600 }}>Option 2: Write or paste text note (saves storage)</div>
@@ -764,13 +818,14 @@ function TextNoteEditor({ subtopicId, saving, hasNote, defaultTitle, initialHtml
         suppressContentEditableWarning
         className="ta-input note-content"
         style={{ minHeight: 140, maxHeight: 320, overflow: "auto", background: "#fff" }}
-        data-placeholder="Type here or paste text from Word/Docs. Formatting is kept."
+        data-placeholder="Type or paste from Word (text, tables and images are kept as they appear)."
+        onPaste={handlePaste}
       />
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <button type="button" className="ta-btn ta-btn--primary" disabled={saving} onClick={() => onSave(title, ref.current?.innerHTML || "")}>
           {saving ? "Saving…" : hasNote ? "Replace with text note" : "Save text note"}
         </button>
-        <span className="ta-muted" style={{ fontSize: 12 }}>Paste from Word to keep formatting. Text notes use less storage than PDFs.</span>
+        <span className="ta-muted" style={{ fontSize: 12 }}>Paste from Word to keep formatting, tables and drawings. Images adjust to fit phones and other screens.</span>
       </div>
     </div>
   );

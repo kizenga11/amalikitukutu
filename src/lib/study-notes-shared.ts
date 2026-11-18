@@ -172,17 +172,80 @@ export function noteKind(note: { filePath?: string | null; contentHtml?: string 
   return null;
 }
 
-export function sanitizeNoteHtml(input: unknown, max = 200_000): string {
+export const MAX_NOTE_HTML_LENGTH = 8_000_000;
+
+function stripStyleProperties(style: string, props: string[]): string {
+  if (!style) return style;
+  let next = style;
+  for (const prop of props) {
+    const re = new RegExp(`(?:^|;)\\s*${prop}\\s*:[^;]*`, "gi");
+    next = next.replace(re, "");
+  }
+  next = next.replace(/(^|;)\s*mso-[^:]+\s*:[^;]*/gi, "");
+  next = next.replace(/;{2,}/g, ";").replace(/^\s*;\s*|\s*;\s*$/g, "").trim();
+  return next;
+}
+
+function cleanResponsiveTag(tag: string, kind: "img" | "table" | "cell"): string {
+  let out = tag.replace(/\s(?:width|height)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  out = out.replace(/\sstyle\s*=\s*(["'])([\s\S]*?)\1/gi, (_m, q: string, style: string) => {
+    const props =
+      kind === "img"
+        ? ["width", "height", "max-width", "min-width", "max-height", "min-height"]
+        : ["width", "height", "min-width", "max-width"];
+    const cleaned = stripStyleProperties(style, props);
+    return cleaned ? ` style=${q}${cleaned}${q}` : "";
+  });
+  out = out.replace(/\sclass\s*=\s*(["'])([\s\S]*?)\1/gi, (_m, q: string, cls: string) => {
+    const cleaned = cls
+      .split(/\s+/)
+      .filter((c) => c && !/^Mso/i.test(c))
+      .join(" ");
+    return cleaned ? ` class=${q}${cleaned}${q}` : "";
+  });
+  return out;
+}
+
+function cleanPastedWordHtml(html: string): string {
+  let out = html;
+  out = out.replace(/<!--\[if[\s\S]*?<!\[endif\]-->/gi, "");
+  out = out.replace(/<!--StartFragment-->|<!--EndFragment-->/gi, "");
+  out = out.replace(/<\/?o:p[^>]*>/gi, "");
+  out = out.replace(/<\/?(?:w|m):[^>]*>/gi, "");
+  out = out.replace(/<v:[^>]*>[\s\S]*?<\/v:[^>]*>/gi, "");
+  out = out.replace(/<v:[^>]*\/>/gi, "");
+
+  out = out.replace(/<img\b[^>]*>/gi, (tag) => cleanResponsiveTag(tag, "img"));
+  out = out.replace(/<table\b[^>]*>/gi, (tag) => cleanResponsiveTag(tag, "table"));
+  out = out.replace(/<(td|th|col|colgroup)\b[^>]*>/gi, (tag) => cleanResponsiveTag(tag, "cell"));
+  out = out.replace(/<([a-z0-9]+)\b([^>]*)>/gi, (tag, _name: string, attrs: string) => {
+    if (!/style\s*=|class\s*=/i.test(attrs)) return tag;
+    return tag.replace(/\sstyle\s*=\s*(["'])([\s\S]*?)\1/gi, (_m, q: string, style: string) => {
+      const cleaned = stripStyleProperties(style, []);
+      return cleaned ? ` style=${q}${cleaned}${q}` : "";
+    });
+  });
+  return out;
+}
+
+export function preparePastedNoteHtml(input: unknown, max = MAX_NOTE_HTML_LENGTH): string {
+  if (typeof input !== "string") return "";
+  return cleanPastedWordHtml(input.slice(0, max));
+}
+
+export function sanitizeNoteHtml(input: unknown, max = MAX_NOTE_HTML_LENGTH): string {
   if (typeof input !== "string") return "";
   let html = input.slice(0, max);
+  html = cleanPastedWordHtml(html);
   // remove dangerous blocks
   html = html.replace(/<\s*(script|style|iframe|object|embed|link|meta|base|form)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "");
   html = html.replace(/<\s*(script|style|iframe|object|embed|link|meta|base|form)\b[^>]*\/?\s*>/gi, "");
   // drop event handlers and dangerous urls
   html = html.replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
   html = html.replace(/\s(href|src)\s*=\s*("\s*javascript:[^"]*"|'\s*javascript:[^']*'|\s*javascript:[^\s>]+)/gi, ' $1="#"');
+  html = html.replace(/\s(?:href|src)\s*=\s*("\s*vbscript:[^"]*"|'\s*vbscript:[^']*'|\s*vbscript:[^\s>]+)/gi, ' $1="#"');
   // strip style attributes with expression/url risks minimally
-  html = html.replace(/\sstyle\s*=\s*("\s*[^"]*expression\([^"]*"|'\s*[^']*expression\([^']*')/gi, "");
+  html = html.replace(/\sstyle\s*=\s*(["'])([^"']*(?:expression|javascript:)[^"']*)\1/gi, "");
   return html.trim();
 }
 

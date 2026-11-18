@@ -3,7 +3,7 @@ import { errorMessage } from "@/lib/errors";
 import { authenticate, isUuid } from "@/lib/stream-teacher-server";
 import { studentAdmin } from "@/lib/student-auth";
 import { canManageTeachingAssignment } from "@/lib/study-notes-server";
-import { cleanNoteTitle, normalizeNoteHtml, noteHtmlToPlainText, sanitizeNoteHtml } from "@/lib/study-notes-shared";
+import { MAX_NOTE_HTML_LENGTH, cleanNoteTitle, normalizeNoteHtml, noteHtmlToPlainText, sanitizeNoteHtml } from "@/lib/study-notes-shared";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
 
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
     const title = cleanNoteTitle(body?.title, 200) || "Note";
-    const contentHtml = normalizeNoteHtml(sanitizeNoteHtml(body?.contentHtml, 200_000));
+    const contentHtml = normalizeNoteHtml(sanitizeNoteHtml(body?.contentHtml, MAX_NOTE_HTML_LENGTH));
     const plain = noteHtmlToPlainText(contentHtml);
     if (!plain) {
       return NextResponse.json({ error: "Enter or paste note content before saving." }, { status: 400 });

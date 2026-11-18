@@ -6,6 +6,8 @@
   line-height: 1.75;
   overflow-wrap: anywhere;
   word-break: break-word;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .note-content > :first-child {
@@ -115,11 +117,14 @@
 /* Tables are displayed as real tables even when Tailwind preflight reset them. */
 .note-content table {
   display: table;
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
+  max-width: 100%;
   margin: 0.75em 0;
   border-collapse: collapse;
   border-spacing: 0;
   font-size: 0.9rem;
+  table-layout: auto;
 }
 
 .note-content thead {
@@ -141,6 +146,8 @@
   padding: 0.4em 0.55em;
   text-align: left;
   vertical-align: top;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .note-content th {
@@ -150,8 +157,10 @@
 }
 
 .note-content img {
-  max-width: 100%;
-  height: auto;
+  display: block;
+  max-width: 100% !important;
+  width: auto;
+  height: auto !important;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
 }
