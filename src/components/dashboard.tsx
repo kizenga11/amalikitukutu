@@ -139,6 +139,11 @@ export default function Dashboard({
   const [viewPeriod, setViewPeriod] = useState<Period>(loadStoredPeriod);
   const [streamAssignments, setStreamAssignments] = useState<StreamTeacherRecord[]>([]);
   const [selectedStreamId, setSelectedStreamId] = useState("");
+  const [assignmentLink, setAssignmentLink] = useState<{
+    assignmentId: string;
+    submissionId?: string;
+  } | null>(null);
+  const [studentLoginFocusId, setStudentLoginFocusId] = useState<string | null>(null);
 
   useEffect(() => {
     if (role !== "Teacher") return;
@@ -276,7 +281,22 @@ export default function Dashboard({
               <NotificationBell
                 userId={user.id}
                 allowedTargets={notificationTargets}
-                onNavigate={(target) => pickNav(target)}
+                onNavigate={(target, notification) => {
+                  pickNav(target);
+                  if (target === "assignments") {
+                    setAssignmentLink(
+                      notification.assignmentId
+                        ? {
+                            assignmentId: notification.assignmentId,
+                            submissionId: notification.submissionId,
+                          }
+                        : null,
+                    );
+                  }
+                  if (target === "studentlogins") {
+                    setStudentLoginFocusId(notification.studentId ?? null);
+                  }
+                }}
               />
             ) : (
               <button className="icon-btn" aria-label="Notifications">{icons.bell}</button>
@@ -344,7 +364,12 @@ export default function Dashboard({
           {effectiveActive === "classes" && <ClassManagement />}
           {effectiveActive === "academic" && <SubjectManagement />}
           {effectiveActive === "students" && <StudentsManagement />}
-          {effectiveActive === "studentlogins" && <StudentLogins />}
+          {effectiveActive === "studentlogins" && (
+            <StudentLogins
+              focusStudentId={studentLoginFocusId}
+              onFocusConsumed={() => setStudentLoginFocusId(null)}
+            />
+          )}
           {effectiveActive === "staff" && <TeachersManagement currentUserId={user.id} />}
           {effectiveActive === "streamteachers" && <StreamTeacherAssignment year={activePeriod.yearId} />}
           {streamSection && (
@@ -369,7 +394,12 @@ export default function Dashboard({
           {effectiveActive === "certificates" && <AwardCertificates />}
           {effectiveActive === "sms" && <SmsMessaging />}
           {effectiveActive === "lessonplans" && <LessonPlansView />}
-          {effectiveActive === "assignments" && (role === "Teacher" || role === "Academic") && <TeacherAssignments />}
+          {effectiveActive === "assignments" && (role === "Teacher" || role === "Academic") && (
+            <TeacherAssignments
+              initialTarget={assignmentLink}
+              onInitialTargetConsumed={() => setAssignmentLink(null)}
+            />
+          )}
           {effectiveActive === "notes" && (role === "Teacher" || role === "Academic") && <TeacherStudyNotes />}
           {timetableSection && (
             <TimetableView

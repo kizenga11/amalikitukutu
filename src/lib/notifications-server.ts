@@ -255,6 +255,7 @@ function buildLoginEvents(
             : `${group.count} failed attempts · ${reasons}`,
         timestamp: group.latest,
         target: "studentlogins",
+        studentId: group.student.id,
         count: group.count,
       });
       continue;
@@ -371,6 +372,7 @@ export async function loadSmartNotifications(options: {
       }`,
       timestamp: assignment.created_at,
       target: "assignments" as const,
+      assignmentId: assignment.id,
       count: 1,
     }));
 
@@ -394,6 +396,8 @@ export async function loadSmartNotifications(options: {
           : "Assignment submission",
         timestamp: submission.submitted_at ?? "",
         target: "assignments" as const,
+        assignmentId: submission.assignment_id,
+        submissionId: submission.id,
         count: 1,
       };
     });

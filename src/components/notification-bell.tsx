@@ -177,7 +177,7 @@ export default function NotificationBell({
   allowedTargets = ["studentlogins", "assignments"],
 }: {
   userId: string;
-  onNavigate: (target: NotificationTarget) => void;
+  onNavigate: (target: NotificationTarget, notification: SmartNotification) => void;
   allowedTargets?: NotificationTarget[];
 }) {
   const [open, setOpen] = useState(false);
@@ -286,7 +286,7 @@ export default function NotificationBell({
   function openNotification(notification: SmartNotification) {
     closePanel();
     if (notification.target && allowedTargets.includes(notification.target)) {
-      onNavigate(notification.target);
+      onNavigate(notification.target, notification);
     }
   }
 

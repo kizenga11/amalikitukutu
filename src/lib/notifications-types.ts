@@ -19,6 +19,12 @@ export interface SmartNotification {
   message: string;
   timestamp: string;
   target: NotificationTarget | null;
+  /** When the alert relates to a specific assignment (new/published or a submission). */
+  assignmentId?: string;
+  /** When the alert relates to a specific student submission. */
+  submissionId?: string;
+  /** When the alert relates to a specific student (e.g. a failed sign-in). */
+  studentId?: string;
   /** Grouped events (e.g. repeated failed sign-ins) report how many happened. */
   count: number;
 }

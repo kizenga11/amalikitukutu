@@ -436,7 +436,13 @@ function validateAndBuildQuestion(question: DraftQuestion, index: number): { ok:
   };
 }
 
-export default function TeacherAssignments() {
+export default function TeacherAssignments({
+  initialTarget = null,
+  onInitialTargetConsumed,
+}: {
+  initialTarget?: { assignmentId: string; submissionId?: string } | null;
+  onInitialTargetConsumed?: () => void;
+} = {}) {
   const [view, setView] = useState<View>({ kind: "list" });
   const [options, setOptions] = useState<TeacherOption[]>([]);
   const [unrestricted, setUnrestricted] = useState(false);
@@ -482,6 +488,21 @@ export default function TeacherAssignments() {
 
   useEffect(() => { void load(); }, [load]);
   function afterMutation() { void load(); }
+
+  useEffect(() => {
+    if (!initialTarget?.assignmentId) return;
+    if (initialTarget.submissionId) {
+      setView({
+        kind: "grade",
+        assignmentId: initialTarget.assignmentId,
+        submissionId: initialTarget.submissionId,
+        studentName: "",
+      });
+    } else {
+      setView({ kind: "detail", id: initialTarget.assignmentId });
+    }
+    onInitialTargetConsumed?.();
+  }, [initialTarget, onInitialTargetConsumed]);
 
   const formByContext = useMemo(() => {
     const map = new Map<string, number>();

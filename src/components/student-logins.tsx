@@ -150,7 +150,13 @@ function AttemptLine({ attempt }: { attempt: LoginAttemptItem }) {
   );
 }
 
-export default function StudentLogins() {
+export default function StudentLogins({
+  focusStudentId = null,
+  onFocusConsumed,
+}: {
+  focusStudentId?: string | null;
+  onFocusConsumed?: () => void;
+} = {}) {
   const [tab, setTab] = useState<Tab>("students");
 
   const [searchInput, setSearchInput] = useState("");
@@ -257,14 +263,44 @@ export default function StudentLogins() {
     setActivityError("");
     setActivityLoading(true);
     try {
-      setActivity(await fetchStudentActivity(target.studentId));
+      const result = await fetchStudentActivity(target.studentId);
+      setActivity(result);
       setActivityLoadedAt(Date.now());
+      setSelected((current) =>
+        current && current.studentId === target.studentId
+          ? {
+              studentId: result.student.studentId,
+              fullName: result.student.fullName,
+              registrationNo: result.student.registrationNo,
+              className: result.student.className,
+              streamName: result.student.streamName,
+              hasAccount: Boolean(result.account),
+            }
+          : current,
+      );
     } catch (err) {
       setActivityError(resultMessage(err, "Could not load the login history."));
     } finally {
       setActivityLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!focusStudentId) return;
+    const inList = data?.students.find((student) => student.studentId === focusStudentId);
+    const target: DetailTarget =
+      inList ??
+      ({
+        studentId: focusStudentId,
+        fullName: "Loading…",
+        registrationNo: null,
+        className: "",
+        streamName: "",
+        hasAccount: true,
+      } as DetailTarget);
+    void openDetails(target);
+    onFocusConsumed?.();
+  }, [focusStudentId, data, onFocusConsumed, openDetails]);
 
   async function handleReset() {
     if (!resetTarget || resetting) return;
