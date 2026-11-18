@@ -78,11 +78,9 @@ export async function loadStaffNoteContexts(
   staffId: string,
   unrestricted: boolean,
 ): Promise<NoteContext[]> {
-  const year = await loadActiveYearId(studentAdmin);
-  let query = studentAdmin
-    .from("teaching_assignments")
-    .select(TEACHING_SELECT)
-    .eq("academic_year", year);
+  // Teachers can add/manage notes for any of their teaching assignments across
+  // all academic years/forms (not limited to the active year).
+  let query = studentAdmin.from("teaching_assignments").select(TEACHING_SELECT);
   if (!unrestricted) query = query.eq("teacher_id", staffId);
   const { data, error } = await query;
   if (error) throw error;
@@ -269,23 +267,8 @@ export async function getNoteWithContext(noteId: string): Promise<{
 }
 
 export async function loadNoteAudience(noteId: string): Promise<NoteAudienceRow[]> {
-  const { data, error } = await studentAdmin.rpc("note_audience", { p_note_id: noteId });
-  if (!error) {
-    return dedupeAudience(
-      ((data ?? []) as any[]).map((r) => ({
-        studentId: r.student_id,
-        registrationNo: r.registration_no ?? null,
-        fullName: r.full_name ?? "",
-        hasViewed: Boolean(r.has_viewed),
-        firstViewedAt: r.first_viewed_at ?? null,
-        lastViewedAt: r.last_viewed_at ?? null,
-        viewCount: Number(r.view_count ?? 0),
-        downloadCount: Number(r.download_count ?? 0),
-      })),
-    );
-  }
-  // Older databases may not have the note_audience() helper yet. Fall back to
-  // building the audience with plain queries so the button keeps working.
+  // Notes are visible to students by subject (without year/form/class limits),
+  // so compute audience in application logic to keep it consistent.
   return loadNoteAudienceFallback(noteId);
 }
 
@@ -318,21 +301,21 @@ async function loadNoteAudienceFallback(noteId: string): Promise<NoteAudienceRow
   if (!info) return [];
   const year = await loadActiveYearId(studentAdmin);
 
+  // Audience = students currently enrolled in this subject (active year),
+  // regardless of the note's class/stream/form or academic year.
   const { data: subjectRows, error: subErr } = await studentAdmin
     .from("student_subjects")
     .select("student_id")
     .eq("subject_id", info.context.subjectId)
     .eq("academic_year", year);
   if (subErr) throw subErr;
-  const studentIds = (subjectRows ?? []).map((r: any) => r.student_id);
+  const studentIds = Array.from(new Set((subjectRows ?? []).map((r: any) => r.student_id).filter(Boolean)));
   if (studentIds.length === 0) return [];
 
   const { data: students, error: stuErr } = await studentAdmin
     .from("students")
     .select("id, registration_no, first_name, middle_name, last_name")
-    .in("id", studentIds)
-    .eq("class_id", info.context.classId)
-    .eq("stream_id", info.context.streamId);
+    .in("id", studentIds);
   if (stuErr) throw stuErr;
 
   const { data: views, error: viewErr } = await studentAdmin
@@ -362,9 +345,9 @@ async function loadNoteAudienceFallback(noteId: string): Promise<NoteAudienceRow
 export async function studentCanViewNote(student: StudentProfile, noteId: string): Promise<boolean> {
   const info = await getNoteWithContext(noteId);
   if (!info || !info.note.isPublished) return false;
-  if (!student.classId || !student.streamId) return false;
-  if (info.context.classId !== student.classId || info.context.streamId !== student.streamId) return false;
-  // must take subject
+
+  // Students can view published notes for subjects they study (active year),
+  // without limits by the note's class/stream/form or academic year.
   const year = await loadActiveYearId(studentAdmin);
   const { data, error } = await studentAdmin
     .from("student_subjects")
@@ -378,25 +361,21 @@ export async function studentCanViewNote(student: StudentProfile, noteId: string
 }
 
 export async function loadStudentPublishedNotes(student: StudentProfile): Promise<StudentTopicView[]> {
-  if (!student.classId || !student.streamId) return [];
   const year = await loadActiveYearId(studentAdmin);
-  // student's subjects
+  // Subjects the student studies (active year), as-is.
   const { data: subs, error: subErr } = await studentAdmin
     .from("student_subjects")
     .select("subject_id")
     .eq("student_id", student.id)
     .eq("academic_year", year);
   if (subErr) throw subErr;
-  const subjectIds = (subs ?? []).map((s: any) => s.subject_id);
+  const subjectIds = Array.from(new Set((subs ?? []).map((s: any) => s.subject_id).filter(Boolean)));
   if (subjectIds.length === 0) return [];
 
-  // teaching assignments matching class/stream/subjects
+  // All teaching assignments for those subjects, across all years/forms/classes/streams.
   const { data: tas, error: taErr } = await studentAdmin
     .from("teaching_assignments")
     .select(TEACHING_SELECT)
-    .eq("class_id", student.classId)
-    .eq("stream_id", student.streamId)
-    .eq("academic_year", year)
     .in("subject_id", subjectIds);
   if (taErr) throw taErr;
   const contexts = ((tas ?? []) as unknown as TeachingRow[]).map(toContext);
@@ -444,7 +423,7 @@ export async function loadStudentPublishedNotes(student: StudentProfile): Promis
             fileName: noteRow.file_name ?? null,
             fileSize: noteRow.file_size == null ? null : Number(noteRow.file_size),
             kind: isText ? ("text" as const) : ("pdf" as const),
-            contentHtml: isText ? noteRow.content_html : null,
+            contentHtml: isText ? note_row_content(noteRow) : null,
           },
           images,
         };
@@ -470,7 +449,13 @@ export async function loadStudentPublishedNotes(student: StudentProfile): Promis
 
   // Group order by subject name, then oldest topic first so numbering (Topic 1,
   // Topic 2, …) matches the order students see.
-  return result.sort((a, b) => a.subjectName.localeCompare(b.subjectName));
+  return result.sort(
+    (a, b) => a.subjectName.localeCompare(b.subjectName) || a.title.localeCompare(b.title),
+  );
+}
+
+function note_row_content(noteRow: any): string | null {
+  return typeof noteRow.content_html === "string" ? noteRow.content_html : null;
 }
 
 export async function recordStudentNoteView(noteId: string, studentId: string, action: "open" | "download"): Promise<void> {
