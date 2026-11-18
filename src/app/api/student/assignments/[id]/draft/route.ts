@@ -61,7 +61,10 @@ export async function POST(
     if (!attachmentResult.ok) {
       return NextResponse.json({ error: attachmentResult.error }, { status: 400 });
     }
-    const attachment = attachmentResult.attachment;
+    // A teacher may remove a student's attachment (e.g. wrong/abusive upload).
+    // Once removed it stays removed — the student cannot re-upload it.
+    const removedByTeacher = Boolean(existing?.attachment_removed_at);
+    const attachment = removedByTeacher ? null : attachmentResult.attachment;
 
     const now = new Date().toISOString();
     let submissionId: string;

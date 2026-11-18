@@ -149,13 +149,45 @@ export interface StudentAnswer {
 }
 
 export const ATTACHMENT_MAX_BYTES = 3 * 1024 * 1024;
-const ATTACHMENT_TYPES = new Set([
+export const ATTACHMENT_TYPES = new Set([
   "application/pdf",
   "image/png",
   "image/jpeg",
   "image/webp",
   "image/gif",
 ]);
+
+/** Work out a supported MIME type from the file name. */
+export function attachmentTypeForName(name: string): string {
+  const lower = name.trim().toLowerCase();
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  return "";
+}
+
+/**
+ * Android browsers frequently report an empty type or application/octet-stream
+ * for a perfectly valid PDF. Prefer the declared type when it is one we
+ * support, otherwise fall back to the file extension.
+ */
+export function attachmentTypeForFile(file: { name: string; type: string }): string {
+  const declared = (file.type || "").trim().toLowerCase();
+  return ATTACHMENT_TYPES.has(declared) ? declared : attachmentTypeForName(file.name);
+}
+
+/**
+ * FileReader builds the data URL from the browser's (possibly missing) type.
+ * Rebuild the prefix with the validated type so the server always receives a
+ * data URL it can accept.
+ */
+export function dataUrlWithType(dataUrl: string, type: string): string {
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0 || !type) return dataUrl;
+  return `data:${type};base64,${dataUrl.slice(comma + 1)}`;
+}
 
 export type AttachmentResult =
   | { ok: true; attachment: AssignmentAttachment | null }
@@ -172,11 +204,16 @@ export function normaliseAttachment(input: unknown): AttachmentResult {
   if (!data) return { ok: true, attachment: null };
   if (!name) return { ok: false, error: "The attachment has no file name." };
 
-  const match = data.match(/^data:([a-z0-9.+-]+\/[a-z0-9.+-]+);base64,([a-z0-9+/=\s]+)$/i);
-  if (!match) return { ok: false, error: "The attachment must be a PDF or an image." };
+  // Some browsers emit data:;base64,... or data:application/octet-stream;base64,...
+  // when they cannot resolve a file's MIME type, so infer it from the name.
+  const match = data.match(/^data:([^,]*),([a-z0-9+/=\s]+)$/i);
+  if (!match || !match[1].toLowerCase().split(";").includes("base64")) {
+    return { ok: false, error: "The attachment must be a PDF or an image." };
+  }
 
-  const type = match[1].toLowerCase();
-  if (!ATTACHMENT_TYPES.has(type)) {
+  const declared = match[1].split(";")[0].trim().toLowerCase();
+  const type = ATTACHMENT_TYPES.has(declared) ? declared : attachmentTypeForName(name);
+  if (!type) {
     return { ok: false, error: "Unsupported file type. Use PDF, PNG, JPG, WEBP or GIF." };
   }
 
@@ -184,7 +221,7 @@ export function normaliseAttachment(input: unknown): AttachmentResult {
     return { ok: false, error: "The attachment is too large. The limit is 3 MB." };
   }
 
-  return { ok: true, attachment: { name, type, data } };
+  return { ok: true, attachment: { name, type, data: dataUrlWithType(data, type) } };
 }
 
 export function dataUrlBytes(base64: string): number {

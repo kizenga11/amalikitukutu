@@ -45,6 +45,8 @@ export interface StudentAssignmentDetail {
     attachmentName: string | null;
     attachmentType: string | null;
     attachmentData: string | null;
+    attachmentRemovedAt: string | null;
+    attachmentRemovedReason: string | null;
   } | null;
   answers: StudentAnswer[];
   locked: boolean;
@@ -82,9 +84,11 @@ async function studentRequest<T>(path: string, init: RequestInit = {}): Promise<
   if (!response.ok) {
     const message =
       (typeof data?.error === "string" && data.error) ||
-      (response.status === 401
-        ? "Your session has expired. Please sign in again."
-        : "Something went wrong. Please try again.");
+      (response.status === 413
+        ? "The file is too large for the server. Please try a smaller PDF."
+        : response.status === 401
+          ? "Your session has expired. Please sign in again."
+          : "Something went wrong. Please try again.");
     throw new StudentApiError(message, response.status, data);
   }
   return data as T;

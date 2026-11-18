@@ -48,6 +48,8 @@ export interface SubmissionRow {
   attachment_name: string | null;
   attachment_type: string | null;
   attachment_data: string | null;
+  attachment_removed_at: string | null;
+  attachment_removed_reason: string | null;
 }
 
 export const ASSIGNMENT_SELECT =
@@ -130,7 +132,7 @@ export async function loadVisibleAssignments(
   const { data: submissionData, error: submissionError } = await studentAdmin
     .from("assignment_submissions")
     .select(
-      "id, assignment_id, student_id, status, last_saved_at, submitted_at, is_late, total_score, feedback, attachment_name, attachment_type, attachment_data",
+      "id, assignment_id, student_id, status, last_saved_at, submitted_at, is_late, total_score, feedback, attachment_name, attachment_type, attachment_data, attachment_removed_at, attachment_removed_reason",
     )
     .eq("student_id", student.id)
     .in(
@@ -179,7 +181,7 @@ export async function loadSubmission(
   const { data, error } = await studentAdmin
     .from("assignment_submissions")
     .select(
-      "id, assignment_id, student_id, status, last_saved_at, submitted_at, is_late, total_score, feedback, attachment_name, attachment_type, attachment_data",
+      "id, assignment_id, student_id, status, last_saved_at, submitted_at, is_late, total_score, feedback, attachment_name, attachment_type, attachment_data, attachment_removed_at, attachment_removed_reason",
     )
     .eq("assignment_id", assignmentId)
     .eq("student_id", studentId)

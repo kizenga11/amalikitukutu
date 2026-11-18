@@ -3,6 +3,9 @@
 import { ChangeEvent, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   ATTACHMENT_MAX_BYTES,
+  ATTACHMENT_TYPES,
+  attachmentTypeForFile,
+  dataUrlWithType,
   isPracticalQuestion,
   normaliseMatchingConfig,
   normaliseMcqConfig,
@@ -45,8 +48,6 @@ function readFileAsDataUrl(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-
-const ALLOWED_TYPES = new Set(["application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"]);
 
 function safeParseJson(text: string): unknown {
   if (!text) return undefined;
@@ -198,9 +199,10 @@ export default function StudentAssignmentView({ assignmentId, onBack, onUpdated 
 
   async function handleAttachment(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]; event.target.value = ""; if (!file) return;
-    if (!ALLOWED_TYPES.has(file.type)) { showNotice("error", "Invalid file", "Use a PDF or an image (PNG, JPG, WEBP, GIF)."); return; }
+    const type = attachmentTypeForFile(file);
+    if (!ATTACHMENT_TYPES.has(type)) { showNotice("error", "Invalid file", "Use a PDF or an image (PNG, JPG, WEBP, GIF)."); return; }
     if (file.size > ATTACHMENT_MAX_BYTES) { showNotice("error", "File too large", "The attachment is too large. The limit is 3 MB."); return; }
-    try { const data = await readFileAsDataUrl(file); const next = { name: file.name, type: file.type, data }; setAttachment(next); stateRef.current.attachment = next; markDirty(); } catch { showNotice("error", "Could not read file", "Could not read the file."); }
+    try { const data = dataUrlWithType(await readFileAsDataUrl(file), type); const next = { name: file.name, type, data }; setAttachment(next); stateRef.current.attachment = next; markDirty(); } catch { showNotice("error", "Could not read file", "Could not read the file."); }
   }
   function removeAttachment() { setAttachment(null); stateRef.current.attachment = null; markDirty(); }
 
@@ -235,6 +237,7 @@ export default function StudentAssignmentView({ assignmentId, onBack, onUpdated 
   const assignment = detail.assignment;
   const locked = detail.locked;
   const marked = detail.submission?.status === "marked";
+  const attachmentRemoved = Boolean(detail.submission?.attachmentRemovedAt);
   // A one-question assignment carries every mark the teacher set as the total.
   const singleQuestion = detail.questions.length === 1;
 
@@ -342,10 +345,20 @@ export default function StudentAssignmentView({ assignmentId, onBack, onUpdated 
 
       <div className="sp-attachment-box">
         <h3>Your attachment (optional)</h3>
-        <p className="sp-muted">PDF or image, up to 3 MB.</p>
-        {attachment ? (
-          <div className="sp-attachment-current"><a href={attachment.data} download={attachment.name} target="_blank" rel="noreferrer">{attachment.name}</a>{!locked && <button type="button" className="sp-link sp-link--danger" onClick={removeAttachment}>Remove</button>}</div>
-        ) : (!locked && <input className="sp-file" type="file" accept="application/pdf,image/png,image/jpeg,image/webp,image/gif" onChange={(e) => void handleAttachment(e)} />)}
+        {attachmentRemoved ? (
+          <div className="sp-attachment-removed" role="status">
+            <strong>Your attachment was removed by your teacher.</strong>
+            <p>{detail.submission?.attachmentRemovedReason || "No reason provided."}</p>
+            <span className="sp-muted">You cannot upload this attachment again. Please follow the reason above (for example, type your answer in the provided spaces or submit the correct work as instructed).</span>
+          </div>
+        ) : (
+          <>
+            <p className="sp-muted">PDF or image, up to 3 MB.</p>
+            {attachment ? (
+              <div className="sp-attachment-current"><a href={attachment.data} download={attachment.name} target="_blank" rel="noreferrer">{attachment.name}</a>{!locked && <button type="button" className="sp-link sp-link--danger" onClick={removeAttachment}>Remove</button>}</div>
+            ) : (!locked && <input className="sp-file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,application/pdf,image/png,image/jpeg,image/webp,image/gif" onChange={(e) => void handleAttachment(e)} />)}
+          </>
+        )}
       </div>
 
       <div className="sp-submit-bar">

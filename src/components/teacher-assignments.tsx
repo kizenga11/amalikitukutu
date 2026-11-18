@@ -4,7 +4,10 @@ import { ChangeEvent, useCallback, useEffect, useMemo, useState, type ReactEleme
 import AutoGrowTextarea from "@/components/auto-grow-textarea";
 import {
   ATTACHMENT_MAX_BYTES,
+  ATTACHMENT_TYPES,
   alphaLabel,
+  attachmentTypeForFile,
+  dataUrlWithType,
   defaultAlphaMcqLabels,
   defaultMcqLabels,
   isPracticalQuestion,
@@ -20,6 +23,7 @@ import {
 import {
   createTeacherAssignment,
   deleteTeacherAssignment,
+  deleteTeacherSubmissionAttachment,
   downloadAssignmentCsv,
   fetchTeacherAssignment,
   fetchTeacherAssignments,
@@ -94,14 +98,6 @@ const questionTypeLabelEn: Record<QuestionType, string> = {
   matching: "Matching items",
   structured: "Structured / Multi-part",
 };
-
-const ALLOWED_TYPES = new Set([
-  "application/pdf",
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-]);
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -244,14 +240,15 @@ async function pickAttachment(event: ChangeEvent<HTMLInputElement>): Promise<Att
   const file = event.target.files?.[0];
   event.target.value = "";
   if (!file) return null;
-  if (!ALLOWED_TYPES.has(file.type)) {
+  const type = attachmentTypeForFile(file);
+  if (!ATTACHMENT_TYPES.has(type)) {
     throw new Error("Use a PDF or an image (PNG, JPG, WEBP, GIF).");
   }
   if (file.size > ATTACHMENT_MAX_BYTES) {
     throw new Error("The attachment is too large. The limit is 3 MB.");
   }
-  const data = await readFileAsDataUrl(file);
-  return { name: file.name, type: file.type, data };
+  const data = dataUrlWithType(await readFileAsDataUrl(file), type);
+  return { name: file.name, type, data };
 }
 
 /**
@@ -1029,7 +1026,7 @@ function AssignmentForm({ options, unrestricted, editId, onCancel, onSaved }: { 
         <label className="ta-field"><span>Total marks</span><input className="ta-input" type="number" min={1} step="0.5" value={totalMarks} onChange={(e) => { setTotalMarks(e.target.value); syncSingleQuestionMarks(e.target.value); }} /><small>Question marks: {questionTotal}{Number(totalMarks) > 0 && questionTotal > Number(totalMarks) ? " — exceeds the total!" : ""}</small></label>
         <label className="ta-check ta-field--span"><input type="checkbox" checked={allowLate} onChange={(e) => setAllowLate(e.target.checked)} /><span>Allow submissions after the deadline (they will be marked late)</span></label>
         {isEditing && (<label className="ta-field"><span>Status</span><select className="ta-input" value={status} onChange={(e) => setStatus(e.target.value as "draft" | "published" | "closed")}><option value="draft">Draft</option><option value="published">Published</option><option value="closed">Closed</option></select></label>)}
-        <div className="ta-field ta-field--span"><span>Attachment (PDF or image, optional)</span>{attachment ? (<div className="ta-attachment"><a href={attachment.data} download={attachment.name} target="_blank" rel="noreferrer">{attachment.name}</a><button type="button" className="ta-link ta-link--danger" onClick={() => setAttachment(null)}>Remove</button></div>) : (<input className="ta-input" type="file" accept="application/pdf,image/png,image/jpeg,image/webp,image/gif" onChange={(e) => void handleAttachment(e)} />)}</div>
+        <div className="ta-field ta-field--span"><span>Attachment (PDF or image, optional)</span>{attachment ? (<div className="ta-attachment"><a href={attachment.data} download={attachment.name} target="_blank" rel="noreferrer">{attachment.name}</a><button type="button" className="ta-link ta-link--danger" onClick={() => setAttachment(null)}>Remove</button></div>) : (<input className="ta-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,application/pdf,image/png,image/jpeg,image/webp,image/gif" onChange={(e) => void handleAttachment(e)} />)}</div>
       </div>
 
       {questionsLocked ? (
@@ -1398,6 +1395,9 @@ function GradePanel({ assignmentId, submissionId, studentName, onBack, onSaved }
   const [marks, setMarks] = useState<Record<string, string>>({});
   const [feedbacks, setFeedbacks] = useState<Record<string, string>>({});
   const [overallFeedback, setOverallFeedback] = useState("");
+  const [removingAttachment, setRemovingAttachment] = useState(false);
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [removeReason, setRemoveReason] = useState("");
 
   useEffect(() => {
     if (!error) return;
@@ -1447,6 +1447,25 @@ function GradePanel({ assignmentId, submissionId, studentName, onBack, onSaved }
     } catch (err) { setError(err instanceof Error ? err.message : "Could not save the marks."); } finally { setSaving(false); }
   }
 
+  async function removeAttachment() {
+    const reason = removeReason.trim();
+    if (!reason) { setError("Please provide a reason for removing the attachment."); return; }
+    if (removingAttachment) return;
+    setRemovingAttachment(true);
+    setError(""); setBanner("");
+    try {
+      await deleteTeacherSubmissionAttachment(assignmentId, submissionId, reason);
+      setRemoveDialogOpen(false);
+      setRemoveReason("");
+      setBanner("Attachment removed. The file has been deleted and the student can see your reason.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not remove the attachment.");
+    } finally {
+      setRemovingAttachment(false);
+    }
+  }
+
   if (loading && !detail) return (<div className="ta-panel"><button type="button" className="ta-back" onClick={onBack}>← Back to assignments</button><p className="ta-muted">Loading answers…</p></div>);
   if (!detail) return (<div className="ta-panel"><button type="button" className="ta-back" onClick={onBack}>← Back to assignments</button><div className="ta-alert ta-alert--error">{error || "Answers not found."}</div><button type="button" className="ta-btn ta-btn--primary" onClick={() => { setLoading(true); setError(""); void load(); }}>Try again</button></div>);
 
@@ -1465,7 +1484,32 @@ function GradePanel({ assignmentId, submissionId, studentName, onBack, onSaved }
           </div>
         </div>
       )}
-      {detail.submission.attachmentName && detail.submission.attachmentData && <a className="ta-attachment ta-attachment--link" href={detail.submission.attachmentData} download={detail.submission.attachmentName} target="_blank" rel="noreferrer">📎 Student attachment: {detail.submission.attachmentName}</a>}
+      {detail.submission.attachmentRemovedAt ? (
+        <div className="ta-attachment-removed" role="status">
+          <strong>Student attachment removed</strong>
+          <p>{detail.submission.attachmentRemovedReason || "No reason provided."}</p>
+          <span className="ta-muted">Removed on {formatDate(detail.submission.attachmentRemovedAt)}. The file was deleted to free space and the student has been notified of the reason.</span>
+        </div>
+      ) : detail.submission.attachmentName && detail.submission.attachmentData ? (
+        <div className="ta-attachment-row">
+          <a className="ta-attachment ta-attachment--link" href={detail.submission.attachmentData} download={detail.submission.attachmentName} target="_blank" rel="noreferrer">📎 Student attachment: {detail.submission.attachmentName}</a>
+          <button type="button" className="ta-btn ta-btn--danger" onClick={() => { setRemoveReason(""); setRemoveDialogOpen(true); }} disabled={removingAttachment}>Delete attachment</button>
+        </div>
+      ) : null}
+
+      {removeDialogOpen && (
+        <div className="ta-modal-backdrop" style={{ zIndex: 80 }} onClick={() => !removingAttachment && setRemoveDialogOpen(false)}>
+          <div className="ta-modal" style={{ maxWidth: 520, width: "92vw" }} onClick={(e) => e.stopPropagation()}>
+            <div className="ta-modal-head"><h3>Delete student attachment?</h3></div>
+            <p className="ta-muted" style={{ margin: "0 0 12px" }}>This permanently removes the student&apos;s uploaded file to free space. The student will see that the attachment was removed and the reason you give. They will not be able to upload it again. This cannot be undone.</p>
+            <label className="ta-field"><span>Reason for removing the attachment</span><AutoGrowTextarea className="ta-input ta-textarea" minRows={3} value={removeReason} onChange={(e) => setRemoveReason(e.target.value)} placeholder="e.g. Wrong file uploaded. Please submit the correct assignment as text in your answers." disabled={removingAttachment} /></label>
+            <div className="ta-actions" style={{ justifyContent: "flex-end", marginTop: 12 }}>
+              <button type="button" className="ta-btn ta-btn--ghost" onClick={() => setRemoveDialogOpen(false)} disabled={removingAttachment}>Cancel</button>
+              <button type="button" className="ta-btn ta-btn--danger" onClick={() => void removeAttachment()} disabled={removingAttachment || !removeReason.trim()}>{removingAttachment ? "Removing…" : "Delete attachment"}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="ta-grade-total"><span>Running total</span><strong>{Math.round(totalScore * 100) / 100} / {detail.assignment.totalMarks}</strong></div>
       <section className="ta-grade-list">
         {detail.answers.map((answer) => (

@@ -77,6 +77,8 @@ export interface TeacherSubmissionDetail {
     attachmentName: string | null;
     attachmentType: string | null;
     attachmentData: string | null;
+    attachmentRemovedAt: string | null;
+    attachmentRemovedReason: string | null;
   };
   student: {
     id: string;
@@ -238,6 +240,20 @@ export function gradeTeacherSubmission(
     {
       method: "POST",
       body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function deleteTeacherSubmissionAttachment(
+  assignmentId: string,
+  submissionId: string,
+  reason: string,
+): Promise<{ ok: true }> {
+  return requestJson(
+    `/api/teacher/assignments/${assignmentId}/submissions/${submissionId}/attachment`,
+    {
+      method: "DELETE",
+      body: JSON.stringify({ reason }),
     },
   );
 }

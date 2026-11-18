@@ -244,6 +244,8 @@ export interface TeacherSubmissionDetail {
     attachmentName: string | null;
     attachmentType: string | null;
     attachmentData: string | null;
+    attachmentRemovedAt: string | null;
+    attachmentRemovedReason: string | null;
   };
   student: {
     id: string;
@@ -715,7 +717,7 @@ export async function loadTeacherSubmission(
   const { data: submission, error } = await studentAdmin
     .from("assignment_submissions")
     .select(
-      "id, student_id, status, submitted_at, is_late, total_score, feedback, attachment_name, attachment_type, attachment_data",
+      "id, student_id, status, submitted_at, is_late, total_score, feedback, attachment_name, attachment_type, attachment_data, attachment_removed_at, attachment_removed_reason",
     )
     .eq("id", submissionId)
     .eq("assignment_id", assignmentId)
@@ -754,6 +756,8 @@ export async function loadTeacherSubmission(
       attachmentName: submission.attachment_name,
       attachmentType: submission.attachment_type,
       attachmentData: submission.attachment_data,
+      attachmentRemovedAt: submission.attachment_removed_at ?? null,
+      attachmentRemovedReason: submission.attachment_removed_reason ?? null,
     },
     student: {
       id: studentData.id,

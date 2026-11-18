@@ -107,6 +107,8 @@ export async function GET(
             attachmentName: submission.attachment_name,
             attachmentType: submission.attachment_type,
             attachmentData: submission.attachment_data,
+            attachmentRemovedAt: submission.attachment_removed_at,
+            attachmentRemovedReason: submission.attachment_removed_reason,
           }
         : null,
       answers,
