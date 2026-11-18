@@ -522,7 +522,7 @@ export default function TeacherStudyNotes() {
       )}
 
       {topics.length === 0 ? (
-        <section className="ta-card"><p className="ta-muted">No note topics yet. Create a topic, then upload and publish PDFs for students.</p></section>
+        <section className="ta-card"><p className="ta-muted">No note topics yet. Create a topic, add subtopics now or later, then save and publish notes for students.</p></section>
       ) : (
         <div style={{ display: "grid", gap: 16 }}>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
