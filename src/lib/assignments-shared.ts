@@ -333,6 +333,21 @@ export function cleanMultiline(value: unknown, max = 20_000): string {
     : "";
 }
 
+/**
+ * A draft that carries feedback is a submission a teacher sent back for
+ * rework. Ordinary drafts never get feedback, so the two cannot be confused.
+ */
+export function isReturnedForRework(
+  submission: { status: string; feedback: string | null } | null | undefined,
+): boolean {
+  return Boolean(
+    submission &&
+      submission.status === "draft" &&
+      submission.feedback &&
+      submission.feedback.trim(),
+  );
+}
+
 export function studentStatus(
   status: SubmissionRowStatus | null | undefined,
   isLate: boolean,

@@ -81,6 +81,7 @@ export async function POST(
           status: "submitted",
           submitted_at: submittedAt,
           last_saved_at: submittedAt,
+          returned_for_rework_at: null,
           is_late: isLate,
           attachment_name: attachment?.name ?? null,
           attachment_type: attachment?.type ?? null,

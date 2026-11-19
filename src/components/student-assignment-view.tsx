@@ -7,6 +7,7 @@ import {
   attachmentTypeForFile,
   dataUrlWithType,
   isPracticalQuestion,
+  isReturnedForRework,
   normaliseMatchingConfig,
   normaliseMcqConfig,
   normaliseStructuredParts,
@@ -27,6 +28,8 @@ import RichTextEditor from "@/components/rich-text-editor";
 import CppIde from "@/components/cpp-ide";
 import StudentConfirmDialog from "@/components/student-confirm-dialog";
 import StudentNoticeDialog, { type StudentNoticeTone } from "@/components/student-notice-dialog";
+import DeadlineCountdown from "@/components/deadline-countdown";
+import StudentSubmissionHelp from "@/components/student-submission-help";
 import "./student-portal.css";
 
 type AnswerEntry = { html: string; text: string; value?: unknown };
@@ -237,6 +240,7 @@ export default function StudentAssignmentView({ assignmentId, onBack, onUpdated 
   const assignment = detail.assignment;
   const locked = detail.locked;
   const marked = detail.submission?.status === "marked";
+  const returnedForRework = isReturnedForRework(detail.submission);
   const attachmentRemoved = Boolean(detail.submission?.attachmentRemovedAt);
   // A one-question assignment carries every mark the teacher set as the total.
   const singleQuestion = detail.questions.length === 1;
@@ -250,10 +254,20 @@ export default function StudentAssignmentView({ assignmentId, onBack, onUpdated 
       </div>
       <div className="sp-assignment-meta">
         <span><strong>Teacher:</strong> {assignment.teacherName}</span>
-        <span><strong>Deadline:</strong> {assignment.deadline ? formatDate(assignment.deadline) : "None"}</span>
+        <span>
+          <strong>Deadline:</strong> {assignment.deadline ? formatDate(assignment.deadline) : "None"}
+          {!locked && <DeadlineCountdown deadline={assignment.deadline} serverTime={detail.serverTime} />}
+        </span>
         {detail.submission?.submittedAt && <span><strong>Submitted:</strong> {formatDate(detail.submission.submittedAt)}{detail.submission.isLate && " (late)"}</span>}
         {lastSavedAt && !locked && <span><strong>Draft saved:</strong> {formatDate(lastSavedAt)}</span>}
       </div>
+      {returnedForRework && (
+        <div className="sp-returned-box" role="status">
+          <strong>Your teacher asked you to improve this work.</strong>
+          <p>{detail.submission?.feedback}</p>
+          <p className="sp-muted">Edit your answers below, then press &ldquo;Submit assignment&rdquo; again.</p>
+        </div>
+      )}
       {assignment.instructions && <div className="sp-instructions"><h3>Instructions</h3><p>{assignment.instructions}</p></div>}
       {assignment.attachmentName && assignment.attachmentData && <a className="sp-attachment" href={assignment.attachmentData} download={assignment.attachmentName} target="_blank" rel="noreferrer">📎 Teacher attachment: {assignment.attachmentName}</a>}
       {marked && <div className="sp-marked-box"><div><span className="sp-muted">Your marks</span><strong>{detail.submission?.totalScore ?? 0} / {assignment.totalMarks}</strong></div>{detail.submission?.feedback && <div><span className="sp-muted">Teacher feedback</span><p>{detail.submission.feedback}</p></div>}</div>}
@@ -344,7 +358,19 @@ export default function StudentAssignmentView({ assignmentId, onBack, onUpdated 
       </div>
 
       <div className="sp-attachment-box">
-        <h3>Your attachment (optional)</h3>
+        <div className="sp-attachment-head">
+          <span className="sp-attachment-icon" aria-hidden="true">📎</span>
+          <div className="sp-attachment-heading">
+            <h3>Your attachment (optional)</h3>
+            {!attachmentRemoved && (
+              <p className="sp-attachment-hint">
+                Hapa ndipo unapoweka kazi yako ya PDF. Bonyeza &ldquo;Choose File&rdquo; uchague
+                faili kutoka kwenye kifaa chako, kisha usisahau kubonyeza &ldquo;Submit
+                assignment&rdquo; chini.
+              </p>
+            )}
+          </div>
+        </div>
         {attachmentRemoved ? (
           <div className="sp-attachment-removed" role="status">
             <strong>Your attachment was removed by your teacher.</strong>
@@ -354,6 +380,7 @@ export default function StudentAssignmentView({ assignmentId, onBack, onUpdated 
         ) : (
           <>
             <p className="sp-muted">PDF or image, up to 3 MB.</p>
+            <StudentSubmissionHelp />
             {attachment ? (
               <div className="sp-attachment-current"><a href={attachment.data} download={attachment.name} target="_blank" rel="noreferrer">{attachment.name}</a>{!locked && <button type="button" className="sp-link sp-link--danger" onClick={removeAttachment}>Remove</button>}</div>
             ) : (!locked && <input className="sp-file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,application/pdf,image/png,image/jpeg,image/webp,image/gif" onChange={(e) => void handleAttachment(e)} />)}

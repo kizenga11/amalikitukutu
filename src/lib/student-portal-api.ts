@@ -2,6 +2,7 @@
 
 import type { AssignmentSummary, StudentAnswer, StudentAssignmentQuestion } from "@/lib/assignments-shared";
 import type { StudentExamResult } from "@/lib/student-results-server";
+import type { StudentNotificationsResponse } from "@/lib/student-notifications-types";
 
 export interface StudentMe {
   student: {
@@ -146,7 +147,9 @@ export async function fetchStudentResults(year?: string) {
 }
 
 export async function fetchStudentAssignments() {
-  return studentRequest<{ assignments: AssignmentSummary[] }>("/api/student/assignments");
+  return studentRequest<{ assignments: AssignmentSummary[]; serverTime: string }>(
+    "/api/student/assignments",
+  );
 }
 
 export async function fetchStudentAssignment(id: string) {
@@ -230,6 +233,10 @@ export async function fetchStudentNotes() {
 export async function fetchStudentNoteFileUrl(id: string, download = false) {
   const q = download ? "?download=1" : "";
   return studentRequest<{ url?: string; fileName?: string | null; kind?: "pdf" | "text"; contentHtml?: string | null; title?: string }>(`/api/student/notes/${id}/file${q}`);
+}
+
+export async function fetchStudentNotifications() {
+  return studentRequest<StudentNotificationsResponse>("/api/student/notifications");
 }
 
 export function studentFullName(student: StudentMe["student"]): string {

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { fetchStudentNoteFileUrl, type StudentTopicViewItem } from "@/lib/student-portal-api";
+import { STUDENT_NOTIFICATIONS_REFRESH_EVENT } from "@/lib/student-notifications-types";
 import StudentNoticeDialog from "@/components/student-notice-dialog";
 import NoteContent from "@/components/note-content";
 
@@ -72,6 +73,8 @@ export default function StudentNotesTab({ topics }: { topics: StudentTopicViewIt
       } else {
         if (res.url) setViewer({ kind: "pdf", url: res.url, title: res.title || title });
       }
+      // The file route records the view; refresh the unread-notes count.
+      window.dispatchEvent(new Event(STUDENT_NOTIFICATIONS_REFRESH_EVENT));
     } catch (e: any) {
       setError(e?.message || "Could not open note.");
     } finally {

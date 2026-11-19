@@ -423,6 +423,34 @@
   font-size: 0.72rem;
 }
 
+/* Notification bell: keep it as a compact flex item at the far right of the
+   user cluster (not inside the vertical action list), so it always lines up
+   with the avatar and stays a tidy square on desktop and on phones. */
+.sp-userbox > .notif-wrap {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+@media (min-width: 901px) {
+  .sp-userbox > .notif-wrap {
+    padding-left: 0.6rem;
+    border-left: 1px solid var(--line);
+  }
+}
+
+/* Anchor the student dropdown to the bell at every width. The student header
+   wraps onto two rows on small screens, so the shared fixed-panel rule would
+   drop it on top of the tabs; an absolute panel opens cleanly under the bell. */
+.sp-topbar .notif-panel {
+  position: absolute;
+  top: calc(100% + 0.65rem);
+  right: 0;
+  left: auto;
+  width: min(24rem, calc(100vw - 1.5rem));
+  max-height: min(76vh, 36rem);
+}
+
 .sp-main {
   width: min(1180px, 100%);
   margin: 0 auto;
@@ -879,6 +907,48 @@
   color: #c2410c;
 }
 
+.sp-returned-tag {
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #c2410c;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Live time-left pill: only rendered once the deadline is inside 24h. */
+.sp-countdown {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 0.3rem;
+  padding: 0.16rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sp-countdown--urgent {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #c2410c;
+}
+
+.sp-countdown--overdue {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.sp-assignment-meta .sp-countdown {
+  margin: 0 0 0 0.5rem;
+}
+
 /* ------------------------- Assignment view ------------------------- */
 
 .sp-panel {
@@ -963,6 +1033,35 @@
 
 .sp-attachment:hover {
   border-color: var(--primary);
+}
+
+.sp-returned-box {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-left: 4px solid #ea580c;
+}
+
+.sp-returned-box strong {
+  color: #9a3412;
+  font-size: 0.95rem;
+}
+
+.sp-returned-box p {
+  margin: 0;
+  color: #7c2d12;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sp-returned-box .sp-muted {
+  color: #9a3412;
+  font-size: 0.82rem;
 }
 
 .sp-marked-box {
@@ -1102,21 +1201,161 @@
 }
 
 .sp-attachment-box {
-  border: 1px dashed var(--table-border);
-  border-radius: 10px;
-  padding: 0.9rem 1rem;
+  border: 1px solid var(--primary-soft);
+  border-left: 4px solid var(--primary);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  background: linear-gradient(135deg, var(--primary-soft), var(--white));
+  box-shadow: 0 1px 3px rgba(24, 24, 27, 0.06);
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.55rem;
+}
+
+.sp-attachment-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.sp-attachment-icon {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--primary);
+  color: var(--white);
+  font-size: 1.1rem;
+  box-shadow: 0 2px 6px rgba(27, 67, 50, 0.25);
+}
+
+.sp-attachment-heading {
+  display: grid;
+  gap: 0.2rem;
 }
 
 .sp-attachment-box h3 {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sp-attachment-hint {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 68ch;
 }
 
 .sp-attachment-box p {
   margin: 0;
+}
+
+.sp-help {
+  border: 1px solid var(--table-border);
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  background: var(--white);
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+.sp-attachment-box .sp-help {
+  margin-top: 0.2rem;
+}
+
+.sp-help summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.sp-help-steps {
+  margin: 0.6rem 0 0;
+  padding-left: 1.35rem;
+  display: grid;
+  gap: 0.3rem;
+  line-height: 1.6;
+}
+
+.sp-help-steps li::marker {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.sp-help code {
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+  background: rgba(27, 67, 50, 0.08);
+  font-size: 0.95em;
+}
+
+.sp-help .sp-help-note {
+  margin: 0.6rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--table-border);
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* Unread notes shortcut inside the student notification panel */
+.sp-notif-notes {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: calc(100% - 1.2rem);
+  margin: 0.6rem 0.6rem 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--primary-soft);
+  border-left: 4px solid var(--primary);
+  border-radius: 0.55rem;
+  background: var(--primary-soft);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sp-notif-notes:hover {
+  background: var(--white);
+  border-color: var(--primary);
+}
+
+.sp-notif-notes-icon {
+  flex: 0 0 auto;
+  width: 1.9rem;
+  height: 1.9rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.5rem;
+  background: var(--white);
+  font-size: 1rem;
+}
+
+.sp-notif-notes > span:nth-child(2) {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.sp-notif-notes strong {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.sp-notif-notes small {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.sp-notif-notes > span:last-child {
+  color: var(--primary);
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .sp-attachment-current {
@@ -1133,7 +1372,31 @@
 }
 
 .sp-file {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  max-width: 100%;
+  padding: 0.45rem;
+  border: 1px solid var(--table-border);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.sp-file::file-selector-button {
+  margin-right: 0.7rem;
+  padding: 0.45rem 0.8rem;
+  border: 0;
+  border-radius: 6px;
+  background: var(--primary);
+  color: var(--white);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sp-file::file-selector-button:hover {
+  background: var(--primary-hover);
 }
 
 .sp-submit-bar {

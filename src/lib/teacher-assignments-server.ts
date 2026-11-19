@@ -887,6 +887,66 @@ export async function saveTeacherGrade(
   return { totalScore: total };
 }
 
+/**
+ * Send a submitted/marked assignment back to the student. Their answers stay
+ * intact so they can edit them, but the marks are cleared and the submission
+ * becomes a draft again so it can be submitted a second time.
+ */
+export async function returnSubmissionForRework(
+  staffId: string,
+  assignmentId: string,
+  submissionId: string,
+  reason: string,
+): Promise<void> {
+  const { data: submission, error } = await studentAdmin
+    .from("assignment_submissions")
+    .select("id, status")
+    .eq("id", submissionId)
+    .eq("assignment_id", assignmentId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!submission) throw new Error("Student submission not found.");
+  if (submission.status === "draft") {
+    throw new Error("This assignment has already been returned to the student.");
+  }
+
+  const { data: assignment, error: assignmentError } = await studentAdmin
+    .from("assignments")
+    .select("id, teacher_id")
+    .eq("id", assignmentId)
+    .maybeSingle();
+  if (assignmentError) throw assignmentError;
+  if (!assignment || assignment.teacher_id !== staffId) {
+    throw new Error("You are not allowed to return this assignment.");
+  }
+
+  // Clear old marks and per-question comments. Otherwise the student would see
+  // the previous grade while reworking, and a later regrade would start from it.
+  const { error: answerError } = await studentAdmin
+    .from("assignment_answers")
+    .update({ awarded_marks: null, feedback: null })
+    .eq("submission_id", submissionId);
+  if (answerError) throw answerError;
+
+  const { error: updateError } = await studentAdmin
+    .from("assignment_submissions")
+    .update({
+      status: "draft",
+      submitted_at: null,
+      returned_for_rework_at: new Date().toISOString(),
+      last_saved_at: new Date().toISOString(),
+      marked_at: null,
+      marked_by: null,
+      total_score: null,
+      is_late: false,
+      // The student sees this as the reason for the return. An ordinary draft
+      // never has feedback, which is how the UI recognises a returned work.
+      feedback: cleanMultiline(reason, 10_000) || "Please improve your work and submit again.",
+    })
+    .eq("id", submissionId);
+  if (updateError) throw updateError;
+}
+
 export async function countAssignmentSubmissions(assignmentId: string): Promise<number> {
   const { count, error } = await studentAdmin
     .from("assignment_submissions")

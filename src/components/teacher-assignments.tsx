@@ -30,6 +30,7 @@ import {
   fetchTeacherOptions,
   fetchTeacherSubmission,
   gradeTeacherSubmission,
+  returnTeacherSubmission,
   updateTeacherAssignment,
   updateTeacherAssignmentStatus,
   type AssignmentStudent,
@@ -1419,6 +1420,9 @@ function GradePanel({ assignmentId, submissionId, studentName, onBack, onSaved }
   const [removingAttachment, setRemovingAttachment] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removeReason, setRemoveReason] = useState("");
+  const [returning, setReturning] = useState(false);
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [returnReason, setReturnReason] = useState("");
 
   useEffect(() => {
     if (!error) return;
@@ -1487,6 +1491,25 @@ function GradePanel({ assignmentId, submissionId, studentName, onBack, onSaved }
     }
   }
 
+  async function returnForRework() {
+    const reason = returnReason.trim();
+    if (!reason) { setError("Please tell the student what to improve."); return; }
+    if (returning) return;
+    setReturning(true);
+    setError(""); setBanner("");
+    try {
+      await returnTeacherSubmission(assignmentId, submissionId, reason);
+      setReturnDialogOpen(false);
+      setReturnReason("");
+      onSaved();
+      onBack();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not return the assignment.");
+    } finally {
+      setReturning(false);
+    }
+  }
+
   if (loading && !detail) return (<div className="ta-panel"><button type="button" className="ta-back" onClick={onBack}>← Back to assignments</button><p className="ta-muted">Loading answers…</p></div>);
   if (!detail) return (<div className="ta-panel"><button type="button" className="ta-back" onClick={onBack}>← Back to assignments</button><div className="ta-alert ta-alert--error">{error || "Answers not found."}</div><button type="button" className="ta-btn ta-btn--primary" onClick={() => { setLoading(true); setError(""); void load(); }}>Try again</button></div>);
 
@@ -1531,6 +1554,22 @@ function GradePanel({ assignmentId, submissionId, studentName, onBack, onSaved }
           </div>
         </div>
       )}
+      {returnDialogOpen && (
+        <div className="ta-modal-backdrop" style={{ zIndex: 80 }} onClick={() => !returning && setReturnDialogOpen(false)}>
+          <div className="ta-modal" style={{ maxWidth: 520, width: "92vw" }} onClick={(e) => e.stopPropagation()}>
+            <div className="ta-modal-head"><h3>Return this work to the student?</h3></div>
+            <p className="ta-muted" style={{ margin: "0 0 12px" }}>
+              The assignment goes back to draft. The student keeps their answers and attachment,
+              can edit them, and must submit again. All marks and comments from this round are cleared.
+            </p>
+            <label className="ta-field"><span>What should the student improve?</span><AutoGrowTextarea className="ta-input ta-textarea" minRows={3} value={returnReason} onChange={(e) => setReturnReason(e.target.value)} placeholder="e.g. Show your working in question 2 and submit again." disabled={returning} /></label>
+            <div className="ta-actions" style={{ justifyContent: "flex-end", marginTop: 12 }}>
+              <button type="button" className="ta-btn ta-btn--ghost" onClick={() => setReturnDialogOpen(false)} disabled={returning}>Cancel</button>
+              <button type="button" className="ta-btn ta-btn--danger" onClick={() => void returnForRework()} disabled={returning || !returnReason.trim()}>{returning ? "Returning…" : "Return to student"}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="ta-grade-total"><span>Running total</span><strong>{Math.round(totalScore * 100) / 100} / {detail.assignment.totalMarks}</strong></div>
       <section className="ta-grade-list">
         {detail.answers.map((answer) => (
@@ -1547,7 +1586,11 @@ function GradePanel({ assignmentId, submissionId, studentName, onBack, onSaved }
         ))}
       </section>
       <label className="ta-field"><span>Overall feedback for the student</span><AutoGrowTextarea className="ta-input ta-textarea" minRows={6} value={overallFeedback} onChange={(e) => setOverallFeedback(e.target.value)} placeholder="Overall feedback…" /></label>
-      <div className="ta-form-actions"><button type="button" className="ta-btn ta-btn--ghost" onClick={onBack} disabled={saving}>Back</button><button type="button" className="ta-btn ta-btn--primary" onClick={() => void saveGrade()} disabled={saving}>{saving ? "Saving…" : "Save marks"}</button></div>
+      <div className="ta-form-actions">
+        <button type="button" className="ta-btn ta-btn--ghost" onClick={onBack} disabled={saving || returning}>Back</button>
+        <button type="button" className="ta-btn ta-btn--ghost" onClick={() => { setReturnReason(""); setReturnDialogOpen(true); }} disabled={saving || returning}>Return for rework</button>
+        <button type="button" className="ta-btn ta-btn--primary" onClick={() => void saveGrade()} disabled={saving || returning}>{saving ? "Saving…" : "Save marks"}</button>
+      </div>
     </div>
   );
 }

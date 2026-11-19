@@ -23,6 +23,9 @@ import {
 } from "@/lib/student-portal-api";
 import type { StudentExamResult } from "@/lib/student-results-server";
 import StudentAssignmentView from "@/components/student-assignment-view";
+import DeadlineCountdown from "@/components/deadline-countdown";
+import StudentNotificationBell from "@/components/student-notification-bell";
+import StudentSubmissionHelp from "@/components/student-submission-help";
 import StudentNotesTab from "@/components/student-notes-tab";
 import StudentConfirmDialog from "@/components/student-confirm-dialog";
 import StudentNoticeDialog from "@/components/student-notice-dialog";
@@ -79,6 +82,7 @@ export default function StudentPortal() {
   const [resultsYears, setResultsYears] = useState<string[]>([]);
   const [resultsLoading, setResultsLoading] = useState(false);
   const [assignments, setAssignments] = useState<AssignmentSummary[]>([]);
+  const [assignmentServerTime, setAssignmentServerTime] = useState<string | null>(null);
   const [noteTopics, setNoteTopics] = useState<StudentTopicViewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -92,6 +96,7 @@ export default function StudentPortal() {
     try {
       const data = await fetchStudentAssignments();
       setAssignments(data.assignments);
+      setAssignmentServerTime(data.serverTime);
     } catch (err) {
       if (err instanceof StudentApiError && err.status === 401) {
         router.replace("/student/login");
@@ -166,6 +171,7 @@ export default function StudentPortal() {
 
         if (assignmentsResult.status === "fulfilled") {
           setAssignments(assignmentsResult.value.assignments);
+          setAssignmentServerTime(assignmentsResult.value.serverTime);
         }
         if (notesResult.status === "fulfilled") {
           setNoteTopics(notesResult.value.topics);
@@ -394,6 +400,13 @@ export default function StudentPortal() {
               {loggingOut ? "Logging out…" : "Log out"}
             </button>
           </div>
+          <StudentNotificationBell
+            studentId={me.student.id}
+            onNavigate={(target) => {
+              setOpenAssignment(null);
+              setTab(target);
+            }}
+          />
         </div>
       </header>
 
@@ -577,6 +590,7 @@ export default function StudentPortal() {
                           <AssignmentRow
                             key={assignment.id}
                             assignment={assignment}
+                            serverTime={assignmentServerTime}
                             onOpen={() => setOpenAssignment(assignment.id)}
                           />
                         ))}
@@ -609,6 +623,8 @@ export default function StudentPortal() {
                     </p>
                   </div>
                 </div>
+
+                <StudentSubmissionHelp />
 
                 <div className="sp-filter-bar" role="group" aria-label="Filter assignments">
                   {(
@@ -653,6 +669,7 @@ export default function StudentPortal() {
                         <AssignmentRow
                           key={assignment.id}
                           assignment={assignment}
+                          serverTime={assignmentServerTime}
                           onOpen={() => setOpenAssignment(assignment.id)}
                         />
                       ))}
@@ -683,11 +700,16 @@ export default function StudentPortal() {
 
 function AssignmentRow({
   assignment,
+  serverTime,
   onOpen,
 }: {
   assignment: AssignmentSummary;
+  serverTime: string | null;
   onOpen: () => void;
 }) {
+  // An ordinary draft never carries feedback, so this is work a teacher sent back.
+  const returned =
+    assignment.submissionStatus === "not_done" && Boolean(assignment.feedback?.trim());
   return (
     <button type="button" className="sp-assignment-card" onClick={onOpen}>
       <div className="sp-assignment-card-main">
@@ -702,11 +724,17 @@ function AssignmentRow({
         <span className="sp-muted">
           Deadline: {assignment.deadline ? formatDate(assignment.deadline, true) : "None"}
         </span>
+        <DeadlineCountdown
+          deadline={assignment.deadline}
+          serverTime={serverTime}
+          active={assignment.submissionStatus === "not_done"}
+        />
       </div>
       <div className="sp-assignment-card-side">
         <span className={`sp-status sp-status--${assignment.submissionStatus}`}>
           {studentStatusLabel[assignment.submissionStatus]}
         </span>
+        {returned && <span className="sp-returned-tag">Returned</span>}
         {assignment.submissionStatus === "marked" && (
           <span className="sp-mark">
             {assignment.awardedMarks ?? 0} / {assignment.totalMarks}

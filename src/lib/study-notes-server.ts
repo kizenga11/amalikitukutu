@@ -12,6 +12,38 @@ import type {
   StudyNote,
 } from "@/lib/study-notes-shared";
 
+/** A published note visible to a student, with its per-student read state. */
+export interface StudentNoteActivityItem {
+  id: string;
+  title: string;
+  subjectName: string;
+  topicTitle: string;
+  publishedAt: string | null;
+  createdAt: string | null;
+  isViewed: boolean;
+}
+
+interface NoteActivityNoteRow {
+  id: string;
+  title: string | null;
+  published_at: string | null;
+  created_at: string | null;
+  is_published: boolean;
+}
+
+interface NoteActivitySubtopicRow {
+  id: string;
+  title: string | null;
+  notes: NoteActivityNoteRow | NoteActivityNoteRow[] | null;
+}
+
+interface NoteActivityTopicRow {
+  id: string;
+  title: string | null;
+  teaching_assignment_id: string;
+  note_subtopics: NoteActivitySubtopicRow[] | null;
+}
+
 interface TeachingRow {
   id: string;
   teacher_id: string;
@@ -360,16 +392,81 @@ export async function studentCanViewNote(student: StudentProfile, noteId: string
   return Boolean(data);
 }
 
-export async function loadStudentPublishedNotes(student: StudentProfile): Promise<StudentTopicView[]> {
+async function loadStudentNoteSubjectIds(student: StudentProfile): Promise<string[]> {
   const year = await loadActiveYearId(studentAdmin);
-  // Subjects the student studies (active year), as-is.
-  const { data: subs, error: subErr } = await studentAdmin
+  const { data, error } = await studentAdmin
     .from("student_subjects")
     .select("subject_id")
     .eq("student_id", student.id)
     .eq("academic_year", year);
-  if (subErr) throw subErr;
-  const subjectIds = Array.from(new Set((subs ?? []).map((s: any) => s.subject_id).filter(Boolean)));
+  if (error) throw error;
+  const rows = (data ?? []) as { subject_id: string | null }[];
+  return Array.from(
+    new Set(rows.map((row) => row.subject_id).filter((id): id is string => Boolean(id))),
+  );
+}
+
+/** Published notes visible to this student, flattened for notifications. */
+export async function loadStudentNoteActivity(student: StudentProfile): Promise<StudentNoteActivityItem[]> {
+  const subjectIds = await loadStudentNoteSubjectIds(student);
+  if (subjectIds.length === 0) return [];
+
+  const { data: tas, error: taErr } = await studentAdmin
+    .from("teaching_assignments")
+    .select(TEACHING_SELECT)
+    .in("subject_id", subjectIds);
+  if (taErr) throw taErr;
+  const contexts = ((tas ?? []) as unknown as TeachingRow[]).map(toContext);
+  const taIds = contexts.map((c) => c.teachingAssignmentId);
+  if (taIds.length === 0) return [];
+  const ctxByTa = new Map(contexts.map((c) => [c.teachingAssignmentId, c]));
+
+  const { data: topics, error: topicErr } = await studentAdmin
+    .from("note_topics")
+    .select(
+      `id, title, teaching_assignment_id, note_subtopics(id, title, notes(id, title, published_at, created_at, is_published))`,
+    )
+    .in("teaching_assignment_id", taIds)
+    .order("created_at", { ascending: true });
+  if (topicErr) throw topicErr;
+
+  const { data: views, error: viewErr } = await studentAdmin
+    .from("note_views")
+    .select("note_id")
+    .eq("student_id", student.id);
+  if (viewErr) throw viewErr;
+  const viewed = new Set(
+    ((views ?? []) as { note_id: string }[]).map((view) => view.note_id),
+  );
+
+  const items: StudentNoteActivityItem[] = [];
+  for (const t of (topics ?? []) as unknown as NoteActivityTopicRow[]) {
+    const ctx = ctxByTa.get(t.teaching_assignment_id);
+    if (!ctx) continue;
+    for (const s of t.note_subtopics || []) {
+      const noteRow = Array.isArray(s.notes) ? s.notes[0] : s.notes;
+      if (!noteRow || !noteRow.is_published) continue;
+      items.push({
+        id: noteRow.id,
+        title: noteRow.title || "Note",
+        subjectName: ctx.subjectName,
+        topicTitle: t.title || s.title || "",
+        publishedAt: noteRow.published_at ?? null,
+        createdAt: noteRow.created_at ?? null,
+        isViewed: viewed.has(noteRow.id),
+      });
+    }
+  }
+
+  return items.sort(
+    (a, b) =>
+      new Date(b.publishedAt || b.createdAt || 0).getTime() -
+      new Date(a.publishedAt || a.createdAt || 0).getTime(),
+  );
+}
+
+export async function loadStudentPublishedNotes(student: StudentProfile): Promise<StudentTopicView[]> {
+  const subjectIds = await loadStudentNoteSubjectIds(student);
   if (subjectIds.length === 0) return [];
 
   // All teaching assignments for those subjects, across all years/forms/classes/streams.

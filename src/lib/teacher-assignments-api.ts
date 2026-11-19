@@ -258,6 +258,21 @@ export function deleteTeacherSubmissionAttachment(
   );
 }
 
+/** Send a submission back to the student so they can edit and submit again. */
+export function returnTeacherSubmission(
+  assignmentId: string,
+  submissionId: string,
+  reason: string,
+): Promise<{ ok: true }> {
+  return requestJson(
+    `/api/teacher/assignments/${assignmentId}/submissions/${submissionId}/reopen`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    },
+  );
+}
+
 export async function downloadAssignmentCsv(id: string, filename: string): Promise<void> {
   const response = await authedFetch(`/api/teacher/assignments/${id}/export`, {
     cache: "no-store",

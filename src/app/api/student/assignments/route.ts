@@ -12,7 +12,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (!session.ok) return session.response;
 
     const assignments = await loadVisibleAssignments(session.student);
-    return NextResponse.json({ assignments });
+    // Let the client count down from the server clock: a student's phone time
+    // may be wrong by hours, which would make the remaining time misleading.
+    return NextResponse.json({ assignments, serverTime: new Date().toISOString() });
   } catch (error) {
     return NextResponse.json(
       { error: errorMessage(error, "Could not load assignments.") },
