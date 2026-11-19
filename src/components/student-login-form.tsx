@@ -169,7 +169,7 @@ export default function StudentLoginForm() {
                     setRegistrationNo(event.target.value);
                     setError("");
                   }}
-                  placeholder="S8384/0000/2026"
+                  placeholder="S7811/000 au S7811/0000/2026"
                   autoComplete="username"
                   autoCapitalize="characters"
                   spellCheck={false}
