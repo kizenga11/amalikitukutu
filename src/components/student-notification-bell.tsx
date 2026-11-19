@@ -41,18 +41,15 @@ function timeOf(value: string | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function ago(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many} ${count === 1 ? "iliyopita" : "zilizopita"}`;
-}
-
 function relativeTime(value: string, nowIso: string): string {
   const diff = Math.max(0, timeOf(nowIso) - timeOf(value));
-  if (diff < 60_000) return "sasa hivi";
+  if (diff < 60_000) return "just now";
   const minutes = Math.floor(diff / 60_000);
-  if (minutes < 60) return ago(minutes, "dakika", "dakika");
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? "minute" : "minutes"} ago`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return ago(hours, "saa", "saa");
-  return ago(Math.floor(hours / 24), "siku", "siku");
+  if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} ${days === 1 ? "day" : "days"} ago`;
 }
 
 function absoluteTime(value: string): string {
@@ -141,7 +138,7 @@ function NotificationRow({
             {absoluteTime(notification.timestamp)}
           </span>
         </span>
-        {highlighted && <span className="notif-unread-dot" aria-label="Haijasomwa" />}
+        {highlighted && <span className="notif-unread-dot" aria-label="Unread" />}
       </button>
     </li>
   );
@@ -168,7 +165,7 @@ export default function StudentNotificationBell({
       setData(await fetchStudentNotifications());
       setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Arifa hazikuweza kusomwa.");
+      setError(err instanceof Error ? err.message : "Notifications could not be loaded.");
     } finally {
       setLoading(false);
     }
@@ -271,7 +268,7 @@ export default function StudentNotificationBell({
       <button
         type="button"
         className={`icon-btn notif-trigger${open ? " notif-trigger--open" : ""}`}
-        aria-label={unreadCount > 0 ? `Arifa, ${unreadCount} hazijasomwa` : "Arifa"}
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={togglePanel}
@@ -299,14 +296,14 @@ export default function StudentNotificationBell({
       {open && (
         <>
           <div className="notif-backdrop" onClick={closePanel} role="presentation" />
-          <div className="notif-panel" role="dialog" aria-modal="false" aria-label="Arifa">
+          <div className="notif-panel" role="dialog" aria-modal="false" aria-label="Notifications">
             <div className="notif-head">
               <div>
-                <h3 className="notif-title">Arifa</h3>
+                <h3 className="notif-title">Notifications</h3>
                 <p className="notif-sub">
                   {summary
-                    ? `${summary.newAssignments} kazi mpya · ${summary.newNotes} notes mpya · ${summary.rolledBack + summary.rework} zilizorudishwa`
-                    : "Inapakia arifa…"}
+                    ? `${summary.newAssignments} new assignments · ${summary.newNotes} new notes · ${summary.rolledBack + summary.rework} returned`
+                    : "Loading notifications…"}
                 </p>
               </div>
               {loading && <Spinner size={16} />}
@@ -314,11 +311,11 @@ export default function StudentNotificationBell({
 
             <div className="notif-chips">
               <span className="notif-chip notif-chip--warn">
-                {summary?.unreadNotes ?? 0} notes hazijafunguliwa
+                {summary?.unreadNotes ?? 0} unread notes
               </span>
-              <span className="notif-chip">{summary?.newAssignments ?? 0} kazi mpya</span>
-              <span className="notif-chip">{summary?.rolledBack ?? 0} zilirudishwa</span>
-              <span className="notif-chip">{summary?.rework ?? 0} zilirudishwa kwako</span>
+              <span className="notif-chip">{summary?.newAssignments ?? 0} new assignments</span>
+              <span className="notif-chip">{summary?.rolledBack ?? 0} returned</span>
+              <span className="notif-chip">{summary?.rework ?? 0} returned for rework</span>
             </div>
 
             {unreadNotes > 0 && (
@@ -333,19 +330,19 @@ export default function StudentNotificationBell({
                 <span className="sp-notif-notes-icon" aria-hidden="true">📚</span>
                 <span>
                   <strong>
-                    Una notes {unreadNotes} {unreadNotes === 1 ? "ambayo" : "ambazo"} hujafungua
+                    {unreadNotes} unread {unreadNotes === 1 ? "note" : "notes"}
                   </strong>
-                  <small>Bonyeza hapa kuzifungua</small>
+                  <small>Click here to open them</small>
                 </span>
                 <span aria-hidden="true">→</span>
               </button>
             )}
 
-            <div className="notif-tabs" role="tablist" aria-label="Vichujio vya arifa">
+            <div className="notif-tabs" role="tablist" aria-label="Notification filters">
               {(
                 [
-                  ["all", "Zote"],
-                  ["assignments", "Kazi"],
+                  ["all", "All"],
+                  ["assignments", "Assignments"],
                   ["notes", "Notes"],
                 ] as const
               ).map(([value, label]) => (
@@ -383,7 +380,7 @@ export default function StudentNotificationBell({
                       <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                     </svg>
                   </span>
-                  <p>Hakuna arifa hapa kwa sasa.</p>
+                  <p>No notifications here right now.</p>
                 </div>
               ) : (
                 <ul className="notif-list">
@@ -403,10 +400,10 @@ export default function StudentNotificationBell({
             <div className="notif-foot">
               <span className="notif-foot-note">
                 {!data
-                  ? "Arifa hazikupatikana"
+                  ? "Notifications unavailable"
                   : unreadCount > 0
-                    ? `${unreadCount} hazijasomwa`
-                    : "Umesoma zote"}
+                    ? `${unreadCount} unread`
+                    : "You’re all caught up"}
               </span>
               <div className="notif-foot-actions">
                 <button
@@ -415,7 +412,7 @@ export default function StudentNotificationBell({
                   onClick={() => void load()}
                   disabled={loading}
                 >
-                  Onyesha upya
+                  Refresh
                 </button>
                 <button
                   type="button"
@@ -423,7 +420,7 @@ export default function StudentNotificationBell({
                   onClick={markAllRead}
                   disabled={!unreadCount}
                 >
-                  Weka zote kama zimesomwa
+                  Mark all as read
                 </button>
               </div>
             </div>

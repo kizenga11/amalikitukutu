@@ -38,8 +38,8 @@ export interface StudentNotificationsResponse {
 }
 
 export const STUDENT_NOTIFICATION_KIND_LABELS: Record<StudentNotificationKind, string> = {
-  assignment_published: "Kazi mpya",
-  assignment_rolled_back: "Kazi ilirudishwa",
-  assignment_rework: "Kazi ilirudishwa kwako",
-  note_published: "Note mpya",
+  assignment_published: "New assignment",
+  assignment_rolled_back: "Assignment returned",
+  assignment_rework: "Assignment returned for rework",
+  note_published: "New note",
 };

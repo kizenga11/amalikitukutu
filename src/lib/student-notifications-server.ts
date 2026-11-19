@@ -29,7 +29,7 @@ function timeOf(value: string | null | undefined): number {
 
 function subjectName(row: AssignmentActivityRow): string {
   const subject = Array.isArray(row.subject) ? row.subject[0] : row.subject;
-  return subject?.name || "Somo";
+  return subject?.name || "Subject";
 }
 
 /**
@@ -89,8 +89,8 @@ export async function loadStudentNotifications(
         id: `assignment:${row.id}:published:${timeOf(publishedAt)}`,
         kind: "assignment_published",
         severity: "info",
-        title: `Kazi mpya: ${row.title}`,
-        message: `${subject}${classLabel ? ` · ${classLabel}` : ""} · Mwalimu amechapisha kazi hii.`,
+        title: `New assignment: ${row.title}`,
+        message: `${subject}${classLabel ? ` · ${classLabel}` : ""} · Your teacher published this assignment.`,
         timestamp: publishedAt,
         target: "assignments",
         assignmentId: row.id,
@@ -111,8 +111,8 @@ export async function loadStudentNotifications(
         id: `assignment:${row.id}:rolled-back:${timeOf(row.status_changed_at)}`,
         kind: "assignment_rolled_back",
         severity: "warning",
-        title: `Kazi ilirudishwa: ${row.title}`,
-        message: `${subject} · Mwalimu ameirudisha kwenye draft, kwa sasa huionekani kwenye orodha yako.`,
+        title: `Assignment returned: ${row.title}`,
+        message: `${subject} · Your teacher returned this assignment to draft, so it is no longer visible in your list.`,
         timestamp: row.status_changed_at,
         target: "assignments",
       });
@@ -139,8 +139,8 @@ export async function loadStudentNotifications(
         id: `rework:${submission.id}:${timeOf(timestamp)}`,
         kind: "assignment_rework",
         severity: "warning",
-        title: `Kazi ilirudishwa kwako: ${row.title}`,
-        message: `${subjectName(row)} · Mwalimu amekuomba uboreshe kazi yako na uisubmit tena.`,
+        title: `Assignment returned for rework: ${row.title}`,
+        message: `${subjectName(row)} · Your teacher asked you to improve this work and submit it again.`,
         timestamp,
         target: "assignments",
         assignmentId: row.id,
@@ -158,8 +158,8 @@ export async function loadStudentNotifications(
       id: `note:${note.id}:${timeOf(timestamp)}`,
       kind: "note_published",
       severity: "info",
-      title: `Note mpya: ${note.title}`,
-      message: `${note.subjectName}${note.topicTitle ? ` · ${note.topicTitle}` : ""} · Fungua notes kuisoma.`,
+      title: `New note: ${note.title}`,
+      message: `${note.subjectName}${note.topicTitle ? ` · ${note.topicTitle}` : ""} · Open the notes section to read it.`,
       timestamp,
       target: "notes",
       noteId: note.id,
